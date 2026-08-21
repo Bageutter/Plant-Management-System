@@ -573,3 +573,26 @@ The underlying system remains modular:
 ```
 
 This keeps the architecture extensible while ensuring that each service has a clear and maintainable responsibility.
+
+---
+
+## Running the Frontend Locally
+
+The pages under `shared/frontend/templates/` are Jinja templates (e.g. `index.html` starts with `{% extends "base.html" %}`), so opening them directly as local files won't work — they need to be rendered by Flask.
+
+From `shared/frontend/`:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python app.py
+```
+
+Or, with Docker, from the repository root:
+
+```bash
+docker compose up --build
+```
+
+Either way, open **http://127.0.0.1:5000** in your browser.

@@ -1,0 +1,7 @@
+services:
+  frontend:
+    build: ./shared/frontend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./shared/frontend:/app

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-mode="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Plant Management System{% endblock %}</title>
+
+    <!-- Franken UI (Tailwind/UIkit-based component styles) -->
+    <link rel="stylesheet" href="https://unpkg.com/franken-ui@2.0.0/dist/css/core.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/franken-ui@2.0.0/dist/css/utilities.min.css" />
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+
+    <!-- Alpine.js -->
+    <script src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js" defer></script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-background text-foreground">
+
+    {% block content %}{% endblock %}
+
+    <!-- Franken UI JS (must load after body content) -->
+    <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/core.iife.js"></script>
+    <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/icon.iife.js"></script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
