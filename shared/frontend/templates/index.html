@@ -16,13 +16,15 @@
                 <a href="#services" class="hover:text-primary">Services</a>
                 <a href="#flow" class="hover:text-primary">How it works</a>
                 <a href="#mvp" class="hover:text-primary">Roadmap</a>
-                <a href="https://github.com" class="uk-btn uk-btn-primary uk-btn-sm">Get started</a>
+                <a href="{{ auth_url }}/login" class="hover:text-primary">Log in</a>
+                <a href="{{ auth_url }}/register" class="uk-btn uk-btn-primary uk-btn-sm">Get started</a>
             </div>
         </div>
     </nav>
 
     <!-- Hero -->
-    <section class="uk-container mx-auto py-20 text-center">
+    <section class="hero-bg">
+    <div class="uk-container mx-auto py-20 text-center">
         <span class="uk-label uk-label-primary mb-4 inline-block">Small gardens, smart care</span>
         <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
             A living digital model of your garden.
@@ -33,9 +35,14 @@
             plant, and observation, then tells you what actually needs doing.
         </p>
         <div class="flex items-center justify-center gap-3">
-            <a href="#services" class="uk-btn uk-btn-primary uk-btn-lg">Explore the services</a>
-            <a href="#flow" class="uk-btn uk-btn-default uk-btn-lg">See how it works</a>
+            <a href="{{ auth_url }}/register" class="uk-btn uk-btn-primary uk-btn-lg">Get started</a>
+            <a href="#services" class="uk-btn uk-btn-default uk-btn-lg">Explore the services</a>
         </div>
+        <p class="text-sm text-muted-foreground mt-4">
+            Already have an account?
+            <a href="{{ auth_url }}/login" class="text-primary hover:underline">Log in</a>
+        </p>
+    </div>
     </section>
 
     <!-- Example flow -->
@@ -62,7 +69,7 @@
             as it grows.
         </p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="uk-card uk-card-default uk-card-body">
+            <div class="uk-card uk-card-default uk-card-body card-interactive">
                 <div class="text-2xl mb-3" aria-hidden="true">🪴</div>
                 <h3 class="font-semibold text-lg mb-2">Virtual Garden</h3>
                 <p class="text-sm text-muted-foreground">
@@ -70,7 +77,7 @@
                     watering, fertilising, and observation event.
                 </p>
             </div>
-            <div class="uk-card uk-card-default uk-card-body">
+            <div class="uk-card uk-card-default uk-card-body card-interactive">
                 <div class="text-2xl mb-3" aria-hidden="true">📚</div>
                 <h3 class="font-semibold text-lg mb-2">Plant Almanac</h3>
                 <p class="text-sm text-muted-foreground">
@@ -78,7 +85,7 @@
                     queryable by other services and AI assistants via MCP.
                 </p>
             </div>
-            <div class="uk-card uk-card-default uk-card-body">
+            <div class="uk-card uk-card-default uk-card-body card-interactive">
                 <div class="text-2xl mb-3" aria-hidden="true">🩺</div>
                 <h3 class="font-semibold text-lg mb-2">Health Monitoring</h3>
                 <p class="text-sm text-muted-foreground">
@@ -86,7 +93,7 @@
                     possible disease, pests, and watering problems early.
                 </p>
             </div>
-            <div class="uk-card uk-card-default uk-card-body">
+            <div class="uk-card uk-card-default uk-card-body card-interactive">
                 <div class="text-2xl mb-3" aria-hidden="true">🗓️</div>
                 <h3 class="font-semibold text-lg mb-2">Scheduler</h3>
                 <p class="text-sm text-muted-foreground">
@@ -94,7 +101,7 @@
                     pruning, harvest — and keeps them up to date as things change.
                 </p>
             </div>
-            <div class="uk-card uk-card-default uk-card-body">
+            <div class="uk-card uk-card-default uk-card-body card-interactive">
                 <div class="text-2xl mb-3" aria-hidden="true">🔔</div>
                 <h3 class="font-semibold text-lg mb-2">Notifications</h3>
                 <p class="text-sm text-muted-foreground">
@@ -102,7 +109,7 @@
                     driven by events, not hardcoded gardening logic.
                 </p>
             </div>
-            <div class="uk-card uk-card-default uk-card-body">
+            <div class="uk-card uk-card-default uk-card-body card-interactive">
                 <div class="text-2xl mb-3" aria-hidden="true">🤖</div>
                 <h3 class="font-semibold text-lg mb-2">AI Input Layer</h3>
                 <p class="text-sm text-muted-foreground">

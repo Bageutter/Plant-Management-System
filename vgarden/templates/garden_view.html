@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}{{ garden.name }} — Plant Management System{% endblock %}
+
+{% block extra_head %}
+<style>
+    .garden-canvas {
+        position: relative;
+        min-height: 32rem;
+        border-radius: var(--uk-global-radius);
+        border: 1px dashed hsl(var(--border));
+        background-color: hsl(var(--card));
+        background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
+        background-size: 24px 24px;
+        overflow: hidden;
+    }
+    .garden-canvas__empty {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 2rem;
+    }
+    .garden-canvas__controls {
+        position: absolute;
+        bottom: 1rem;
+        right: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .garden-canvas__zoom {
+        display: flex;
+        flex-direction: column;
+        border-radius: var(--uk-global-radius-s);
+        overflow: hidden;
+        border: 1px solid hsl(var(--border));
+        background-color: hsl(var(--card));
+    }
+    .garden-canvas__zoom button {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.125rem;
+        color: hsl(var(--muted-foreground));
+    }
+    .garden-canvas__zoom button:not(:last-child) { border-bottom: 1px solid hsl(var(--border)); }
+    .garden-canvas__fab {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 999px;
+        background-color: hsl(var(--muted));
+        color: hsl(var(--muted-foreground));
+        font-size: 1.25rem;
+        box-shadow: 0 4px 12px hsl(20 10% 10% / 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        align-self: flex-end;
+    }
+    .coming-soon-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        border-radius: 999px;
+        background-color: hsl(var(--muted));
+        color: hsl(var(--muted-foreground));
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between gap-4 flex-wrap">
+    <div>
+        <div class="flex items-center gap-2 mb-1">
+            <h1 class="text-2xl font-bold">{{ garden.name }}</h1>
+            <span class="coming-soon-badge" title="This view is a placeholder">🚧 Coming soon</span>
+        </div>
+        <p class="text-sm text-muted-foreground">
+            This is where you'll walk through {{ garden.name }} the way you'd browse a map —
+            pan around beds, zoom into a single plant, and see everything that's happening in one place.
+        </p>
+    </div>
+</div>
+
+<div class="garden-canvas" role="img" aria-label="Placeholder for an interactive, pannable and zoomable view of {{ garden.name }}">
+    <div class="garden-canvas__empty">
+        <p class="text-4xl mb-3" aria-hidden="true">🗺️</p>
+        <p class="font-display text-lg font-semibold mb-1">The interactive garden view isn't built yet</p>
+        <p class="text-sm text-muted-foreground max-w-sm">
+            Eventually you'll be able to pan and zoom around a live layout of {{ garden.name }} —
+            beds, plants, and their current state — similar to a map.
+        </p>
+    </div>
+
+    <div class="garden-canvas__controls">
+        <button type="button" class="garden-canvas__fab" disabled aria-label="Add a plant (not yet available)">+</button>
+        <div class="garden-canvas__zoom">
+            <button type="button" disabled aria-label="Zoom in (not yet available)">+</button>
+            <button type="button" disabled aria-label="Zoom out (not yet available)">–</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

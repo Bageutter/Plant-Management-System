@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import form_field %}
+
+{% block title %}Create account — Plant Management System{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    <div class="uk-card uk-card-default uk-card-body">
+        <h1 class="text-2xl font-bold mb-1">Create your account</h1>
+        <p class="text-sm text-muted-foreground mb-6">Start building your Virtual Garden.</p>
+
+        <form method="post" novalidate class="flex flex-col gap-4">
+            {{ form.hidden_tag() }}
+            {{ form_field(form.email, autocomplete="email") }}
+            {{ form_field(form.password, autocomplete="new-password") }}
+            {{ form_field(form.confirm_password, autocomplete="new-password") }}
+            {{ form.submit(class_="uk-btn uk-btn-primary w-full mt-2") }}
+        </form>
+
+        <p class="text-sm text-muted-foreground mt-6 text-center">
+            Already have an account?
+            <a href="{{ url_for('auth.login') }}" class="text-primary hover:underline">Log in</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
