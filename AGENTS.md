@@ -5,3 +5,7 @@ tech stack for ALL microservices:
 - Alpine.JS
 - Jinja Templates
 - Postgresql (SQLITE is okay for dev)
+
+
+Templates:
+https://franken-ui.dev/docs/2.1/
