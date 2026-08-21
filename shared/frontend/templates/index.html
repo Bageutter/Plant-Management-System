@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Plant Management System — Grow with confidence{% endblock %}
+
+{% block content %}
+<div x-data="{ mobileNavOpen: false }">
+
+    <!-- Nav -->
+    <nav class="uk-navbar-container uk-navbar-transparent border-b border-border" uk-navbar>
+        <div class="uk-container mx-auto flex items-center justify-between py-3">
+            <a href="#" class="flex items-center gap-2 font-semibold text-lg">
+                <span aria-hidden="true">🌱</span>
+                <span>Plant Management System</span>
+            </a>
+            <div class="hidden md:flex items-center gap-6 text-sm">
+                <a href="#services" class="hover:text-primary">Services</a>
+                <a href="#flow" class="hover:text-primary">How it works</a>
+                <a href="#mvp" class="hover:text-primary">Roadmap</a>
+                <a href="https://github.com" class="uk-btn uk-btn-primary uk-btn-sm">Get started</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="uk-container mx-auto py-20 text-center">
+        <span class="uk-label uk-label-primary mb-4 inline-block">Small gardens, smart care</span>
+        <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+            A living digital model of your garden.
+        </h1>
+        <p class="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+            Describe your garden in plain language, snap a photo, or fill in a quick form —
+            the Plant Management System keeps a continuously updated picture of every bed,
+            plant, and observation, then tells you what actually needs doing.
+        </p>
+        <div class="flex items-center justify-center gap-3">
+            <a href="#services" class="uk-btn uk-btn-primary uk-btn-lg">Explore the services</a>
+            <a href="#flow" class="uk-btn uk-btn-default uk-btn-lg">See how it works</a>
+        </div>
+    </section>
+
+    <!-- Example flow -->
+    <section class="bg-muted/40 border-y border-border">
+        <div class="uk-container mx-auto py-16">
+            <div class="uk-card uk-card-default uk-card-body max-w-2xl mx-auto text-left">
+                <p class="uk-text-meta mb-1">You say</p>
+                <p class="text-lg font-medium mb-4">"I planted two tomato seedlings today."</p>
+                <p class="uk-text-meta mb-1">Your garden updates</p>
+                <p class="text-lg">
+                    Two tomato seedlings added to your Virtual Garden, a watering
+                    reminder is scheduled, and the Plant Almanac's care notes for
+                    tomatoes are linked in automatically.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services -->
+    <section id="services" class="uk-container mx-auto py-20">
+        <h2 class="text-2xl md:text-3xl font-bold text-center mb-2">Built from focused services</h2>
+        <p class="text-muted-foreground text-center max-w-xl mx-auto mb-12">
+            Each service owns one part of the picture, so the system stays easy to reason about
+            as it grows.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="uk-card uk-card-default uk-card-body">
+                <div class="text-2xl mb-3" aria-hidden="true">🪴</div>
+                <h3 class="font-semibold text-lg mb-2">Virtual Garden</h3>
+                <p class="text-sm text-muted-foreground">
+                    The source of truth for your garden — beds, plants, plantings, and every
+                    watering, fertilising, and observation event.
+                </p>
+            </div>
+            <div class="uk-card uk-card-default uk-card-body">
+                <div class="text-2xl mb-3" aria-hidden="true">📚</div>
+                <h3 class="font-semibold text-lg mb-2">Plant Almanac</h3>
+                <p class="text-sm text-muted-foreground">
+                    General plant knowledge — sunlight, soil, water, and seasonal needs,
+                    queryable by other services and AI assistants via MCP.
+                </p>
+            </div>
+            <div class="uk-card uk-card-default uk-card-body">
+                <div class="text-2xl mb-3" aria-hidden="true">🩺</div>
+                <h3 class="font-semibold text-lg mb-2">Health Monitoring</h3>
+                <p class="text-sm text-muted-foreground">
+                    Combines your garden's actual state with almanac knowledge to flag
+                    possible disease, pests, and watering problems early.
+                </p>
+            </div>
+            <div class="uk-card uk-card-default uk-card-body">
+                <div class="text-2xl mb-3" aria-hidden="true">🗓️</div>
+                <h3 class="font-semibold text-lg mb-2">Scheduler</h3>
+                <p class="text-sm text-muted-foreground">
+                    Turns garden changes into future tasks — watering, fertilising,
+                    pruning, harvest — and keeps them up to date as things change.
+                </p>
+            </div>
+            <div class="uk-card uk-card-default uk-card-body">
+                <div class="text-2xl mb-3" aria-hidden="true">🔔</div>
+                <h3 class="font-semibold text-lg mb-2">Notifications</h3>
+                <p class="text-sm text-muted-foreground">
+                    Timely alerts for watering, frost, heat, and harvest windows —
+                    driven by events, not hardcoded gardening logic.
+                </p>
+            </div>
+            <div class="uk-card uk-card-default uk-card-body">
+                <div class="text-2xl mb-3" aria-hidden="true">🤖</div>
+                <h3 class="font-semibold text-lg mb-2">AI Input Layer</h3>
+                <p class="text-sm text-muted-foreground">
+                    Turns natural language and photos into structured garden
+                    observations, so any input method leads to the same clean data.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="flow" class="bg-muted/40 border-y border-border">
+        <div class="uk-container mx-auto py-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">How it works</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
+                <div>
+                    <div class="uk-flex uk-flex-center uk-flex-middle mx-auto mb-3 rounded-full bg-primary text-primary-foreground w-10 h-10 font-semibold">1</div>
+                    <h3 class="font-medium mb-1">Tell it what happened</h3>
+                    <p class="text-sm text-muted-foreground">Text, photo, form, or automatic environmental data.</p>
+                </div>
+                <div>
+                    <div class="uk-flex uk-flex-center uk-flex-middle mx-auto mb-3 rounded-full bg-primary text-primary-foreground w-10 h-10 font-semibold">2</div>
+                    <h3 class="font-medium mb-1">AI structures it</h3>
+                    <p class="text-sm text-muted-foreground">Unstructured input becomes a clean garden update.</p>
+                </div>
+                <div>
+                    <div class="uk-flex uk-flex-center uk-flex-middle mx-auto mb-3 rounded-full bg-primary text-primary-foreground w-10 h-10 font-semibold">3</div>
+                    <h3 class="font-medium mb-1">Your garden updates</h3>
+                    <p class="text-sm text-muted-foreground">The Virtual Garden records what's happening, not what it means.</p>
+                </div>
+                <div>
+                    <div class="uk-flex uk-flex-center uk-flex-middle mx-auto mb-3 rounded-full bg-primary text-primary-foreground w-10 h-10 font-semibold">4</div>
+                    <h3 class="font-medium mb-1">You get useful answers</h3>
+                    <p class="text-sm text-muted-foreground">Health checks, reminders, and advice, generated from real data.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section id="mvp" class="uk-container mx-auto py-20">
+        <h2 class="text-2xl md:text-3xl font-bold text-center mb-12">What's coming in the first version</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3 max-w-3xl mx-auto text-sm">
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Create a garden and beds</div>
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Add and locate plants</div>
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Record watering &amp; fertilising</div>
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Log observations</div>
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Natural-language updates</div>
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Basic image observations</div>
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Plant Almanac lookup</div>
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Basic health assessments</div>
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Scheduled watering reminders</div>
+            <div class="flex items-center gap-2"><span class="text-primary">✓</span> Garden history</div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-border">
+        <div class="uk-container mx-auto py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+            <p>Plant Management System &mdash; for small home gardens.</p>
+            <p>Virtual Garden stores what is happening. Other services determine what it means.</p>
+        </div>
+    </footer>
+
+</div>
+{% endblock %}
