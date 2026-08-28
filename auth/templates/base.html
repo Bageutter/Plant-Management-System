@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Plant Management System{% endblock %}</title>
+    <title>{% block title %}Account — Plant Management System{% endblock %}</title>
 
     <!-- Franken UI (Tailwind/UIkit-based component styles) -->
     <link rel="stylesheet" href="https://unpkg.com/franken-ui@2.0.0/dist/css/core.min.css" />
@@ -54,6 +54,8 @@
             font-family: 'Fraunces', ui-serif, Georgia, serif;
         }
         button { font: inherit; }
+        button:not(:disabled) { cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         a { color: inherit; text-decoration: none; }
         a:hover, .hover\:text-primary:hover { color: hsl(var(--primary)); }
         :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
@@ -69,16 +71,40 @@
         .text-primary-foreground { color: hsl(var(--primary-foreground)); }
         .text-destructive { color: hsl(var(--destructive)); }
 
-        .card-interactive { transition: transform .15s ease, box-shadow .15s ease; }
+        .card-interactive { transition: transform .15s ease, box-shadow .15s ease; cursor: pointer; }
         .card-interactive:hover { transform: translateY(-2px); box-shadow: 0 8px 20px hsl(20 10% 10% / 0.08); }
-        .hero-bg { background: radial-gradient(ellipse 60% 50% at 50% 0%, hsl(var(--accent) / 0.7), transparent 70%); }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background-color: hsl(20 10% 10% / 0.45);
+        }
+        .modal-panel { position: relative; width: 100%; max-width: 26rem; }
+        .modal-close { line-height: 1; font-size: 1.125rem; color: hsl(var(--muted-foreground)); }
+        .modal-close:hover { color: hsl(var(--foreground)); }
     </style>
 
     {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-background text-foreground">
 
-    {% block content %}{% endblock %}
+    <nav class="uk-navbar-container uk-navbar-transparent border-b border-border" uk-navbar>
+        <div class="uk-container mx-auto flex items-center justify-between py-3">
+            <a href="{{ url_for('auth.login') }}" class="flex items-center gap-2 font-semibold text-lg">
+                <span aria-hidden="true">🌱</span>
+                <span>Plant Management System</span>
+            </a>
+        </div>
+    </nav>
+
+    <main class="uk-container mx-auto py-16">
+        {% block content %}{% endblock %}
+    </main>
 
     <!-- Franken UI JS (must load after body content) -->
     <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/core.iife.js"></script>

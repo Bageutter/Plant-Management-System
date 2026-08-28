@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Plant Management System{% endblock %}</title>
+    <title>{% block title %}Virtual Garden — Plant Management System{% endblock %}</title>
 
     <!-- Franken UI (Tailwind/UIkit-based component styles) -->
     <link rel="stylesheet" href="https://unpkg.com/franken-ui@2.0.0/dist/css/core.min.css" />
@@ -54,6 +54,7 @@
             font-family: 'Fraunces', ui-serif, Georgia, serif;
         }
         button { font: inherit; }
+        button:not(:disabled) { cursor: pointer; }
         a { color: inherit; text-decoration: none; }
         a:hover, .hover\:text-primary:hover { color: hsl(var(--primary)); }
         :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
@@ -62,23 +63,29 @@
         .text-foreground { color: hsl(var(--foreground)); }
         .text-muted-foreground { color: hsl(var(--muted-foreground)); }
         .bg-muted { background-color: hsl(var(--muted)); }
-        .bg-muted\/40 { background-color: hsl(var(--muted) / 0.4); }
         .border-border { border-color: hsl(var(--border)); }
         .bg-primary { background-color: hsl(var(--primary)); }
         .text-primary { color: hsl(var(--primary)); }
         .text-primary-foreground { color: hsl(var(--primary-foreground)); }
-        .text-destructive { color: hsl(var(--destructive)); }
-
-        .card-interactive { transition: transform .15s ease, box-shadow .15s ease; }
-        .card-interactive:hover { transform: translateY(-2px); box-shadow: 0 8px 20px hsl(20 10% 10% / 0.08); }
-        .hero-bg { background: radial-gradient(ellipse 60% 50% at 50% 0%, hsl(var(--accent) / 0.7), transparent 70%); }
     </style>
 
     {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-background text-foreground">
 
-    {% block content %}{% endblock %}
+    <nav class="uk-navbar-container uk-navbar-transparent border-b border-border" uk-navbar>
+        <div class="uk-container mx-auto flex items-center justify-between py-3">
+            <a href="{{ auth_public_url }}/account" class="flex items-center gap-2 font-semibold text-lg">
+                <span aria-hidden="true">🌱</span>
+                <span>Plant Management System</span>
+            </a>
+            <a href="{{ auth_public_url }}/account" class="hover:text-primary text-sm">← My Gardens</a>
+        </div>
+    </nav>
+
+    <main class="uk-container mx-auto py-12">
+        {% block content %}{% endblock %}
+    </main>
 
     <!-- Franken UI JS (must load after body content) -->
     <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/core.iife.js"></script>

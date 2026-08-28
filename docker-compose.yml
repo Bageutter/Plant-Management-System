@@ -5,3 +5,29 @@ services:
       - "5000:5000"
     volumes:
       - ./shared/frontend:/app
+    environment:
+      - AUTH_URL=http://localhost:5001
+
+  auth:
+    build: ./auth
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./auth:/app
+    environment:
+      - SECRET_KEY=dev-secret-key-change-me
+      - DATABASE_URL=sqlite:////app/instance/auth.db
+      - VGARDEN_URL=http://vgarden:5000
+      - VGARDEN_PUBLIC_URL=http://localhost:5002
+    depends_on:
+      - vgarden
+
+  vgarden:
+    build: ./vgarden
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./vgarden:/app
+    environment:
+      - DATABASE_URL=sqlite:////app/instance/vgarden.db
+      - AUTH_PUBLIC_URL=http://localhost:5001

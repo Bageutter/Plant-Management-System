@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import form_field %}
+
+{% block title %}Log in — Plant Management System{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    <div class="uk-card uk-card-default uk-card-body">
+        <h1 class="text-2xl font-bold mb-1">Welcome back</h1>
+        <p class="text-sm text-muted-foreground mb-6">Log in to your Virtual Garden.</p>
+
+        <form method="post" novalidate class="flex flex-col gap-4">
+            {{ form.hidden_tag() }}
+            {{ form_field(form.email, autocomplete="email") }}
+            {{ form_field(form.password, autocomplete="current-password") }}
+            {{ form.submit(class_="uk-btn uk-btn-primary w-full mt-2") }}
+        </form>
+
+        <p class="text-sm text-muted-foreground mt-6 text-center">
+            Don't have an account?
+            <a href="{{ url_for('auth.register') }}" class="text-primary hover:underline">Create one</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

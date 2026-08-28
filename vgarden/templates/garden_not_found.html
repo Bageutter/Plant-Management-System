@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Garden not found — Plant Management System{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto text-center py-12">
+    <p class="text-4xl mb-3" aria-hidden="true">🪴</p>
+    <h1 class="text-xl font-bold mb-2">Garden not found</h1>
+    <p class="text-sm text-muted-foreground mb-6">It may have been deleted.</p>
+    <a href="{{ auth_public_url }}/account" class="uk-btn uk-btn-primary">Back to My Gardens</a>
+</div>
+{% endblock %}

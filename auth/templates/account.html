@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "_macros.html" import modal, flash_messages %}
+
+{% block title %}My Gardens — Plant Management System{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto" x-data="{ showAdd: false, deleteTarget: null, confirmText: '' }">
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold mb-1">Welcome back <span aria-hidden="true">🌱</span></h1>
+        <p class="text-sm text-muted-foreground">{{ user.email }}</p>
+    </div>
+
+    {{ flash_messages() }}
+
+    <div class="uk-card uk-card-default uk-card-body mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">My Gardens</h2>
+            <button type="button" class="uk-btn uk-btn-primary uk-btn-sm" @click="showAdd = true">
+                + Add a garden
+            </button>
+        </div>
+
+        {% if gardens_error %}
+        <p class="text-sm text-destructive">{{ gardens_error }}</p>
+        {% elif gardens %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {% for garden in gardens %}
+            <div class="uk-card uk-card-default uk-card-body card-interactive">
+                <a href="{{ vgarden_public_url }}/gardens/{{ garden.id }}/view" class="flex items-center gap-2 font-medium">
+                    <span aria-hidden="true">🪴</span>
+                    <span>{{ garden.name }}</span>
+                </a>
+                <button
+                    type="button"
+                    class="text-sm text-destructive mt-3"
+                    @click='deleteTarget = { id: {{ garden.id }}, name: {{ garden.name | tojson }} }; confirmText = ""'
+                >
+                    Delete
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <p class="text-3xl mb-2" aria-hidden="true">🌱</p>
+            <p class="text-sm text-muted-foreground mb-4">You don't have any gardens yet.</p>
+            <button type="button" class="uk-btn uk-btn-primary uk-btn-sm" @click="showAdd = true">
+                Add your first garden
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="uk-btn uk-btn-default w-full">Log out</button>
+    </form>
+
+{% call modal('showAdd', 'showAdd = false', 'Add a garden') %}
+<form method="post" action="{{ url_for('auth.create_garden') }}" class="flex flex-col gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div>
+        <label for="garden-name" class="uk-form-label">Garden name</label>
+        <input
+            id="garden-name"
+            type="text"
+            name="name"
+            required
+            maxlength="120"
+            placeholder="e.g. Backyard Beds"
+            class="uk-input"
+            x-effect="if (showAdd) $nextTick(() => $el.focus())"
+        >
+    </div>
+    <button type="submit" class="uk-btn uk-btn-primary w-full">Create garden</button>
+</form>
+{% endcall %}
+
+{% call modal('deleteTarget !== null', 'deleteTarget = null', 'Delete garden') %}
+<p class="text-sm text-muted-foreground mb-3">
+    This can't be undone. Type <strong x-text="deleteTarget && deleteTarget.name"></strong> to confirm.
+</p>
+<form method="post" :action="deleteTarget ? '/gardens/' + deleteTarget.id + '/delete' : '#'" class="flex flex-col gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input
+        type="text"
+        name="confirm_name"
+        x-model="confirmText"
+        class="uk-input"
+        autocomplete="off"
+        x-effect="if (deleteTarget) $nextTick(() => $el.focus())"
+    >
+    <div class="flex gap-2">
+        <button type="button" class="uk-btn uk-btn-default flex-1" @click="deleteTarget = null">Cancel</button>
+        <button type="submit" class="uk-btn uk-btn-primary flex-1" :disabled="!deleteTarget || confirmText !== deleteTarget.name">Delete</button>
+    </div>
+</form>
+{% endcall %}
+</div>
+{% endblock %}
