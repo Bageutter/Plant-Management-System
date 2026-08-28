@@ -1,0 +1,53 @@
+{% set labels = {"healthy": "Healthy", "at_risk": "At risk", "unhealthy": "Unhealthy", "unknown": "Unknown"} %}
+<article class="border border-border rounded-lg p-6 bg-muted">
+    <header class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+            <span class="badge status-{{ assessment.status }}">{{ labels.get(assessment.status, assessment.status) }}</span>
+            <h2 class="text-xl m-0">{{ assessment.plant_identification or assessment.plant_ref or "Plant assessment" }}</h2>
+        </div>
+        <div class="text-sm text-muted-foreground">
+            {% if assessment.health_score is not none %}Health score {{ assessment.health_score }}/100 &middot; {% endif %}
+            {% if assessment.confidence is not none %}Confidence {{ (assessment.confidence * 100) | round | int }}%{% endif %}
+        </div>
+    </header>
+
+    <p class="mt-4">{{ assessment.summary }}</p>
+
+    {% if assessment.issues %}
+        <h3 class="text-lg mt-6 mb-2">Observed issues</h3>
+        <ul class="uk-list uk-list-disc">
+            {% for issue in assessment.issues %}
+                <li>
+                    <span class="sev-{{ issue.severity }}">{{ issue.name }} ({{ issue.severity }})</span>
+                    {% if issue.evidence %}<br><span class="text-sm text-muted-foreground">{{ issue.evidence }}</span>{% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if assessment.recommendations %}
+        <h3 class="text-lg mt-6 mb-2">Recommended actions</h3>
+        <ol class="uk-list uk-list-decimal">
+            {% for rec in assessment.recommendations %}
+                <li>
+                    <span class="sev-{{ rec.priority }}">{{ rec.action }} ({{ rec.priority }} priority)</span>
+                    {% if rec.details %}<br><span class="text-sm text-muted-foreground">{{ rec.details }}</span>{% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    {% endif %}
+
+    {% if assessment.missing_information %}
+        <h3 class="text-lg mt-6 mb-2">Would help the next assessment</h3>
+        <ul class="uk-list uk-list-disc text-sm text-muted-foreground">
+            {% for item in assessment.missing_information %}<li>{{ item }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+
+    <footer class="mt-6 text-xs text-muted-foreground">
+        Assessment #{{ assessment.id }} &middot; generated locally by {{ assessment.model }}
+        {%- if assessment.has_image %} &middot; from a photo{% endif %}
+        {%- if assessment.description %} &middot; from a description{% endif %}.
+        AI guidance is advisory only.
+    </footer>
+</article>

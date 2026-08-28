@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% set labels = {"healthy": "Healthy", "at_risk": "At risk", "unhealthy": "Unhealthy", "unknown": "Unknown"} %}
+<div class="max-w-3xl mx-auto">
+    <h1 class="text-3xl mb-2">Plant Health Monitoring</h1>
+    <p class="text-muted-foreground mb-8">
+        Upload a photo of a plant, describe it in your own words, or both. The assessment runs
+        entirely on a locally hosted model ({{ ai_model }}) — nothing is sent to a third party.
+    </p>
+
+    <form class="border border-border rounded-lg p-6"
+          hx-post="/assessments"
+          hx-target="#assessment-result"
+          hx-swap="innerHTML"
+          hx-encoding="multipart/form-data"
+          hx-indicator="#analysing"
+          x-data="{ busy: false }"
+          @htmx:before-request.camel="busy = true"
+          @htmx:after-request.camel="busy = false">
+
+        <label class="uk-form-label" for="plant_ref">Plant name or reference (optional)</label>
+        <input class="uk-input mb-4" type="text" id="plant_ref" name="plant_ref"
+               maxlength="200" placeholder="e.g. Tomato in the back bed">
+
+        <label class="uk-form-label" for="description">Description (optional if a photo is given)</label>
+        <textarea class="uk-textarea mb-4" id="description" name="description" rows="5"
+                  maxlength="4000"
+                  placeholder="e.g. Planted 6 weeks ago, lower leaves turning yellow, watered daily, soil stays wet."></textarea>
+
+        <label class="uk-form-label" for="image">Photo (optional if a description is given)</label>
+        <input class="uk-input mb-6" type="file" id="image" name="image"
+               accept="image/jpeg,image/png,image/webp,image/gif">
+
+        <div class="flex items-center gap-4">
+            <button class="uk-button bg-primary text-primary-foreground" type="submit"
+                    :disabled="busy" x-bind:aria-busy="busy">
+                <span x-show="!busy">Assess plant health</span>
+                <span x-show="busy" x-cloak>Analysing…</span>
+            </button>
+            <span id="analysing" class="htmx-indicator text-sm text-muted-foreground">
+                Running the local model, this can take a moment…
+            </span>
+        </div>
+    </form>
+
+    <div id="assessment-result" class="mt-8"></div>
+
+    {% if recent %}
+        <h2 class="text-2xl mt-12 mb-4">Recent assessments</h2>
+        <ul class="uk-list uk-list-divider">
+            {% for assessment in recent %}
+                <li class="flex items-center justify-between gap-4">
+                    <div>
+                        <span class="badge status-{{ assessment.status }}">{{ labels.get(assessment.status, assessment.status) }}</span>
+                        <span class="ml-2">{{ assessment.plant_ref or assessment.plant_identification or "Unnamed plant" }}</span>
+                    </div>
+                    <span class="text-sm text-muted-foreground">{{ assessment.created_at.strftime("%Y-%m-%d %H:%M") }} UTC</span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    [x-cloak] { display: none !important; }
+    .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Render validation / AI-unavailable responses instead of silently dropping them.
+    document.body.addEventListener("htmx:beforeSwap", function (event) {
+        if (event.detail.xhr.status >= 400) {
+            event.detail.shouldSwap = true;
+            event.detail.isError = false;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en" data-mode="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Plant Health — Plant Management System{% endblock %}</title>
+
+    <!-- Franken UI (Tailwind/UIkit-based component styles) -->
+    <link rel="stylesheet" href="https://unpkg.com/franken-ui@2.0.0/dist/css/core.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/franken-ui@2.0.0/dist/css/utilities.min.css" />
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+
+    <!-- Alpine.js -->
+    <script src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js" defer></script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Garden theme -->
+    <style>
+        :root {
+            --background: 60 33% 98%;
+            --foreground: 150 15% 14%;
+            --card: 60 30% 99%;
+            --card-foreground: 150 15% 14%;
+            --popover: 60 30% 99%;
+            --popover-foreground: 150 15% 14%;
+            --muted: 100 20% 93%;
+            --muted-foreground: 140 10% 38%;
+            --border: 100 18% 85%;
+            --input: 100 18% 82%;
+            --primary: 142 42% 30%;
+            --primary-foreground: 60 30% 98%;
+            --secondary: 36 35% 87%;
+            --secondary-foreground: 30 30% 18%;
+            --accent: 84 35% 88%;
+            --accent-foreground: 142 42% 20%;
+            --destructive: 14 62% 45%;
+            --destructive-foreground: 40 33% 97%;
+            --ring: 142 42% 30%;
+            --uk-global-radius: 0.75rem;
+            --uk-global-radius-s: 0.5rem;
+        }
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+        }
+        h1, h2, h3, .font-display {
+            font-family: 'Fraunces', ui-serif, Georgia, serif;
+        }
+        button { font: inherit; }
+        button:not(:disabled) { cursor: pointer; }
+        a { color: inherit; text-decoration: none; }
+        a:hover, .hover\:text-primary:hover { color: hsl(var(--primary)); }
+        :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+        .bg-background { background-color: hsl(var(--background)); }
+        .text-foreground { color: hsl(var(--foreground)); }
+        .text-muted-foreground { color: hsl(var(--muted-foreground)); }
+        .bg-muted { background-color: hsl(var(--muted)); }
+        .border-border { border-color: hsl(var(--border)); }
+        .bg-primary { background-color: hsl(var(--primary)); }
+        .text-primary { color: hsl(var(--primary)); }
+        .text-primary-foreground { color: hsl(var(--primary-foreground)); }
+        .text-destructive { color: hsl(var(--destructive)); }
+        .bg-accent { background-color: hsl(var(--accent)); }
+
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .status-healthy { background-color: hsl(142 42% 30%); color: hsl(var(--primary-foreground)); }
+        .status-at_risk { background-color: hsl(38 80% 42%); color: #fff; }
+        .status-unhealthy { background-color: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); }
+        .status-unknown { background-color: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+        .sev-high { color: hsl(var(--destructive)); font-weight: 600; }
+        .sev-medium { color: hsl(38 80% 32%); font-weight: 600; }
+        .sev-low { color: hsl(var(--muted-foreground)); font-weight: 600; }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-background text-foreground">
+
+    <nav class="uk-navbar-container uk-navbar-transparent border-b border-border" uk-navbar>
+        <div class="uk-container mx-auto flex items-center justify-between py-3">
+            <a href="{{ auth_public_url }}/account" class="flex items-center gap-2 font-semibold text-lg">
+                <span aria-hidden="true">🌱</span>
+                <span>Plant Management System</span>
+            </a>
+            <a href="{{ auth_public_url }}/account" class="hover:text-primary text-sm">← My Gardens</a>
+        </div>
+    </nav>
+
+    <main class="uk-container mx-auto py-12">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Franken UI JS (must load after body content) -->
+    <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/core.iife.js"></script>
+    <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/icon.iife.js"></script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
