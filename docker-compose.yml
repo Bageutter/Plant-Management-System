@@ -74,5 +74,16 @@ services:
       - OLLAMA_KEEP_ALIVE=30m
       - OLLAMA_MAX_LOADED_MODELS=1
 
+  almanac:
+    build: ./almanac
+    ports:
+      - "5004:5000"
+    environment:
+      - AUTH_PUBLIC_URL=http://localhost:5001
+      - DATABASE_URL=sqlite:////app/instance/almanac.db
+    volumes:
+      - almanac_data:/app/instance
+
 volumes:
   ollama-models:
+  almanac_data:

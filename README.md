@@ -18,6 +18,51 @@ shared CI:
 
 before merging: CI is green, at least one review, no unresolved comments.
 
+## for devs 🤓☝️ (amy,guhan,yunz)
+
+all docker commands from the root (important!!)
+
+### 1. start docker
+
+open Docker Desktop, then check it's alive:
+
+```bash
+docker version
+docker ps
+```
+
+### 2. start stuff
+
+everything:
+
+```bash
+docker compose up -d --build
+```
+
+orrrr just what you need:
+
+```bash
+docker compose up -d --build auth vgarden
+docker compose up -d --build almanac
+```
+
+| service | url |
+| --- | --- |
+| frontend | http://localhost:5000 |
+| auth | http://localhost:5001/account |
+| vgarden | http://localhost:5002/gardens |
+| almanac | http://localhost:5004 |
+| almanac api | http://localhost:5004/api/plants |
+
+### 3. logs, troubleshoot, stop
+
+```bash
+docker compose ps               # what's running
+docker compose logs -f          # all logs
+docker compose logs -f almanac  # one service
+docker compose down             # stop (keeps data)
+```
+
 ## Overview
 
 Users can describe and update their garden through several input methods:
@@ -608,3 +653,14 @@ docker compose up --build
 ```
 
 Either way, open **http://127.0.0.1:5000** in your browser.
+
+## Plant Almanac Container
+
+one flask service, sqlite db, port `5003`
+
+```bash
+docker compose up -d --build almanac
+```
+
+- http://localhost:5003 — the ui
+- http://localhost:5003/api/plants — json

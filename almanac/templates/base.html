@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Plant Almanac{% endblock %}</title>
+</head>
+<body>
+    <nav>
+        <a href="/">Plant Management System</a>
+        <a href="{{ url_for('index') }}">Almanac</a>
+        <a href="{{ auth_public_url }}/account">My Garden</a>
+    </nav>
+    <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

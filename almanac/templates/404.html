@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}not found — almanac{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('index') }}">← back</a>
+<h1>plant not found 🌿</h1>
+<p>that one's not in the almanac yet</p>
+{% endblock %}

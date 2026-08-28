@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}{{ plant.common_name }} — almanac{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('index') }}">← back</a>
+<h1>{{ plant.common_name }}</h1>
+<p><em>{{ plant.scientific_name }}</em></p>
+<p>{{ plant.summary }}</p>
+<h2>when to plant</h2>
+<p>{{ plant.planting_months|join(', ') or 'no data yet' }}</p>
+<small>timing depends on your local climate</small>
+{% endblock %}
