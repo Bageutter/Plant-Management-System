@@ -3,24 +3,18 @@
 {% block title %}Plant Management System — Grow with confidence{% endblock %}
 
 {% block content %}
+{% from '_header.html' import header %}
+{{ header(
+    brand_url="#",
+    nav_links=[
+        {"label": "Services", "url": "#services"},
+        {"label": "How it works", "url": "#flow"},
+        {"label": "Roadmap", "url": "#mvp"},
+        {"label": "Log in", "url": auth_url ~ "/login"}
+    ],
+    cta={"label": "Get started", "url": auth_url ~ "/register"}
+) }}
 <div x-data="{ mobileNavOpen: false }">
-
-    <!-- Nav -->
-    <nav class="uk-navbar-container uk-navbar-transparent border-b border-border" uk-navbar>
-        <div class="uk-container mx-auto flex items-center justify-between py-3">
-            <a href="#" class="flex items-center gap-2 font-semibold text-lg">
-                <span aria-hidden="true">🌱</span>
-                <span>Plant Management System</span>
-            </a>
-            <div class="hidden md:flex items-center gap-6 text-sm">
-                <a href="#services" class="hover:text-primary">Services</a>
-                <a href="#flow" class="hover:text-primary">How it works</a>
-                <a href="#mvp" class="hover:text-primary">Roadmap</a>
-                <a href="{{ auth_url }}/login" class="hover:text-primary">Log in</a>
-                <a href="{{ auth_url }}/register" class="uk-btn uk-btn-primary uk-btn-sm">Get started</a>
-            </div>
-        </div>
-    </nav>
 
     <!-- Hero -->
     <section class="hero-bg">

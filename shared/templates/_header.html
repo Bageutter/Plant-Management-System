@@ -1,0 +1,20 @@
+{% macro header(brand_url="/", nav_links=[], cta=none) %}
+<nav class="uk-navbar-container uk-navbar-transparent" style="border-bottom: 1px solid hsl(var(--border));" uk-navbar>
+    <div class="uk-container" style="display:flex; align-items:center; justify-content:space-between; padding-top:0.75rem; padding-bottom:0.75rem;">
+        <a href="{{ brand_url }}" style="display:flex; align-items:center; gap:0.5rem; font-weight:600; font-size:1.125rem;">
+            <span aria-hidden="true">🌱</span>
+            <span>Plant Management System</span>
+        </a>
+        {% if nav_links or cta %}
+        <div style="display:flex; align-items:center; gap:1.5rem; font-size:0.875rem;">
+            {% for link in nav_links %}
+            <a href="{{ link.url }}" style="color: hsl(var(--muted-foreground));" class="hover:text-primary">{{ link.label }}</a>
+            {% endfor %}
+            {% if cta %}
+            <a href="{{ cta.url }}" class="uk-btn uk-btn-primary uk-btn-sm">{{ cta.label }}</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</nav>
+{% endmacro %}

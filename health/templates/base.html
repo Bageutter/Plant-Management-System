@@ -188,15 +188,13 @@
 </head>
 <body class="bg-background text-foreground">
 
-    <nav class="uk-navbar-container uk-navbar-transparent border-b border-border" uk-navbar>
-        <div class="uk-container mx-auto flex items-center justify-between py-3">
-            <a href="{{ auth_public_url }}/account" class="flex items-center gap-2 font-semibold text-lg">
-                <span aria-hidden="true">🌱</span>
-                <span>Plant Management System</span>
-            </a>
-            <a href="{{ auth_public_url }}/account" class="hover:text-primary text-sm">← My Gardens</a>
-        </div>
-    </nav>
+    {% from '_header.html' import header %}
+    {{ header(
+        brand_url=auth_public_url ~ "/account",
+        nav_links=[
+            {"label": "← My Gardens", "url": auth_public_url ~ "/account"}
+        ]
+    ) }}
 
     <main class="uk-container mx-auto py-12">
         {% block content %}{% endblock %}
