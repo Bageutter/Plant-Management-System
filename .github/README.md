@@ -21,6 +21,8 @@ urls checked: (*CI Validation Contract*)
 - http://127.0.0.1:5000/ (frontend)
 - http://127.0.0.1:5001/login (auth)
 - http://127.0.0.1:5002/gardens (vgarden)
+- http://127.0.0.1:5003/gardens (plant health monitoring)
+
 
 
 logs are always saved as a github artifact (even on failure) and the stack is always torn down with `--volumes --remove-orphans` so nothing leaks between runs
