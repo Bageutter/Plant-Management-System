@@ -3,13 +3,31 @@
 {% block title %}Plant Almanac{% endblock %}
 
 {% block content %}
-<h1>Plant Almanac</h1>
+<div style="max-width:56rem; margin:0 auto;">
+    <div style="margin-bottom:2.5rem;">
+        <h1 style="font-size:2.25rem; font-weight:700; margin:0 0 0.5rem;">Plant Almanac</h1>
+        <p class="text-muted-foreground" style="font-size:1rem; margin:0;">Browse our library of plants, care guides, and planting calendars.</p>
+    </div>
 
-<ul>
-    {% for plant in plants %}
-    <li><a href="{{ url_for('plant_detail', slug=plant.slug) }}">{{ plant.common_name }}</a> — {{ plant.scientific_name }}</li>
+    {% if plants %}
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(17rem, 1fr)); gap:1.25rem;">
+        {% for plant in plants %}
+        <a href="{{ url_for('plant_detail', slug=plant.slug) }}"
+           class="card-interactive"
+           style="display:block; padding:1.5rem; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); background-color:hsl(var(--card));">
+            <p style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.07em; color:hsl(var(--muted-foreground)); margin:0 0 0.35rem;">{{ plant.scientific_name }}</p>
+            <h2 style="font-size:1.2rem; font-weight:600; margin:0;">{{ plant.common_name }}</h2>
+            {% if plant.summary %}
+            <p class="text-muted-foreground" style="font-size:0.875rem; margin:0.75rem 0 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">{{ plant.summary }}</p>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
     {% else %}
-    <li>No plants yet.</li>
-    {% endfor %}
-</ul>
+    <div style="text-align:center; padding:4rem 0; color:hsl(var(--muted-foreground));">
+        <p style="font-size:2rem; margin:0 0 0.5rem;">🌿</p>
+        <p style="margin:0;">No plants in the almanac yet.</p>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

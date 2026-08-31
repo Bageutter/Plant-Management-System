@@ -1,16 +1,93 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-mode="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Plant Almanac{% endblock %}</title>
+
+    <!-- Franken UI -->
+    <link rel="stylesheet" href="https://unpkg.com/franken-ui@2.0.0/dist/css/core.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/franken-ui@2.0.0/dist/css/utilities.min.css" />
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+
+    <!-- Alpine.js -->
+    <script src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js" defer></script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --background: 60 33% 98%;
+            --foreground: 150 15% 14%;
+            --card: 60 30% 99%;
+            --card-foreground: 150 15% 14%;
+            --muted: 100 20% 93%;
+            --muted-foreground: 140 10% 38%;
+            --border: 100 18% 85%;
+            --primary: 142 42% 30%;
+            --primary-foreground: 60 30% 98%;
+            --secondary: 36 35% 87%;
+            --secondary-foreground: 30 30% 18%;
+            --accent: 84 35% 88%;
+            --accent-foreground: 142 42% 20%;
+            --uk-global-radius: 0.75rem;
+            --uk-global-radius-s: 0.5rem;
+        }
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+        }
+        h1, h2, h3 { font-family: 'Fraunces', ui-serif, Georgia, serif; }
+        a { color: inherit; text-decoration: none; }
+        a:hover { color: hsl(var(--primary)); }
+        :focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
+        .text-muted-foreground { color: hsl(var(--muted-foreground)); }
+        .border-border { border-color: hsl(var(--border)); }
+        .bg-card { background-color: hsl(var(--card)); }
+        .text-primary { color: hsl(var(--primary)); }
+        .card-interactive { transition: transform .15s ease, box-shadow .15s ease; cursor: pointer; }
+        .card-interactive:hover { transform: translateY(-2px); box-shadow: 0 8px 20px hsl(20 10% 10% / 0.08); }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            background-color: hsl(var(--accent));
+            color: hsl(var(--accent-foreground));
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
 </head>
-<body>
-    <nav>
-        <a href="/">Plant Management System</a>
-        <a href="{{ url_for('index') }}">Almanac</a>
-        <a href="{{ auth_public_url }}/account">My Garden</a>
+<body style="background-color: hsl(var(--background)); color: hsl(var(--foreground));">
+
+    <nav class="uk-navbar-container uk-navbar-transparent" style="border-bottom: 1px solid hsl(var(--border));" uk-navbar>
+        <div class="uk-container" style="display:flex; align-items:center; justify-content:space-between; padding-top:0.75rem; padding-bottom:0.75rem;">
+            <a href="/" style="display:flex; align-items:center; gap:0.5rem; font-weight:600; font-size:1.125rem;">
+                <span aria-hidden="true">🌱</span>
+                <span>Plant Management System</span>
+            </a>
+            <div style="display:flex; gap:1.5rem; font-size:0.9rem; color: hsl(var(--muted-foreground));">
+                <a href="{{ url_for('index') }}" style="font-weight:500;">Almanac</a>
+                <a href="{{ auth_public_url }}/account">My Garden</a>
+            </div>
+        </div>
     </nav>
-    <main>{% block content %}{% endblock %}</main>
+
+    <main class="uk-container" style="padding-top:3rem; padding-bottom:4rem;">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/core.iife.js"></script>
+    <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/icon.iife.js"></script>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

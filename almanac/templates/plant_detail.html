@@ -1,13 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}{{ plant.common_name }} — almanac{% endblock %}
+{% block title %}{{ plant.common_name }} — Almanac{% endblock %}
 
 {% block content %}
-<a href="{{ url_for('index') }}">← back</a>
-<h1>{{ plant.common_name }}</h1>
-<p><em>{{ plant.scientific_name }}</em></p>
-<p>{{ plant.summary }}</p>
-<h2>when to plant</h2>
-<p>{{ plant.planting_months|join(', ') or 'no data yet' }}</p>
-<small>timing depends on your local climate</small>
+<div style="max-width:44rem; margin:0 auto;">
+    <a href="{{ url_for('index') }}" class="text-muted-foreground" style="font-size:0.875rem; display:inline-flex; align-items:center; gap:0.3rem; margin-bottom:2rem;">
+        ← Back to Almanac
+    </a>
+
+    <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:hsl(var(--muted-foreground)); margin:0 0 0.4rem;">{{ plant.scientific_name }}</p>
+    <h1 style="font-size:2.5rem; font-weight:700; margin:0 0 1.5rem;">{{ plant.common_name }}</h1>
+
+    {% if plant.summary %}
+    <p style="font-size:1.05rem; line-height:1.7; color:hsl(var(--foreground)); margin:0 0 2.5rem;">{{ plant.summary }}</p>
+    {% endif %}
+
+    <div style="padding:1.5rem; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); background-color:hsl(var(--card));">
+        <h2 style="font-size:1rem; font-weight:600; margin:0 0 1rem;">🗓 When to Plant</h2>
+        {% if plant.planting_months %}
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+            {% for month in plant.planting_months %}
+            <span class="tag">{{ month }}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted-foreground" style="margin:0; font-size:0.9rem;">No data yet.</p>
+        {% endif %}
+        <p class="text-muted-foreground" style="font-size:0.75rem; margin:1rem 0 0;">Timing depends on your local climate.</p>
+    </div>
+</div>
 {% endblock %}
