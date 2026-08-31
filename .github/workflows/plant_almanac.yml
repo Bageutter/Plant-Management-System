@@ -1,0 +1,13 @@
+name: Plant Almanac
+on:
+  push:
+    branches: ["amy/**"]
+    paths: ["almanac/**"]
+  pull_request:
+    branches: ["**"]
+    paths: ["almanac/**"]
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "placeholder"
