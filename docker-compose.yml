@@ -82,6 +82,7 @@ services:
       - AUTH_PUBLIC_URL=http://localhost:5001
       - DATABASE_URL=sqlite:////app/instance/almanac.db
     volumes:
+      - ./almanac:/app
       - almanac_data:/app/instance
 
 volumes:
