@@ -6,9 +6,9 @@
 | --- | --- |
 | `ruff.yml` | python lint gate — runs on **every PR and push** to `main` |
 | `integration-ci.yml` | integration CI — builds, smoke-checks, and tears down the stack |
-| `amy.yml` | placeholder for amy |
-| `yunus.yml` | placeholder for yunus |
-| `guhan.yml` | placeholder for guhan |
+| `plant_almanac.yml` | plant almanac service CI — triggers on `amy/**` branches and `almanac/` path changes |
+| `vgarden.yml` | virtual garden service CI — triggers on `yunz/**` branches and `vgarden/` path changes |
+| `health.yml` | health monitoring service CI — triggers on `bageutter/**` branches and `health/` path changes |
 
 ## integration CI
 
@@ -21,7 +21,7 @@ urls checked: (*CI Validation Contract*)
 - http://127.0.0.1:5000/ (frontend)
 - http://127.0.0.1:5001/login (auth)
 - http://127.0.0.1:5002/gardens (vgarden)
-- http://127.0.0.1:5003/gardens (plant health monitoring)
+- http://127.0.0.1:5004/gardens (plant health monitoring)
 
 
 
