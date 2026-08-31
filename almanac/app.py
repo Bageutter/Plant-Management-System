@@ -1,5 +1,4 @@
 import os
-from urllib.parse import quote
 
 from flask import Flask, jsonify, render_template
 from sqlalchemy import text
@@ -55,7 +54,7 @@ def create_app() -> Flask:
 
     @app.get("/api/plants/<slug>")
     def api_plant(slug: str):
-        record = PlantReference.query.filter_by(slug=quote(slug, safe="")).first()
+        record = PlantReference.query.filter_by(slug=slug).first()
         if record is None:
             return jsonify({"error": "plant reference not found"}), 404
         return jsonify(record.to_dict())
@@ -67,7 +66,8 @@ def create_app() -> Flask:
 
     with app.app_context():
         db.create_all()
-        seed_reference_data()
+        if not PlantReference.query.first():
+            seed_reference_data()
 
     return app
 
