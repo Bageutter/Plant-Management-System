@@ -43,19 +43,25 @@ services:
       - DATABASE_URL=sqlite:////app/instance/health.db
       - AUTH_PUBLIC_URL=http://localhost:5001
       - OLLAMA_URL=http://ollama:11434
-      - OLLAMA_MODEL=gemma3:4b
+      - OLLAMA_MODEL=qwen2.5vl:3b
       - OLLAMA_AUTO_PULL=true
+      - OLLAMA_KEEP_ALIVE=30m
     depends_on:
       - ollama
 
   # Locally hosted AI used by the health monitoring service. The model is pulled on
   # first use and cached in the ollama-models volume.
+  # Runs on CPU by default; add docker-compose.gpu.yml for NVIDIA GPU acceleration.
   ollama:
     image: ollama/ollama:latest
     ports:
       - "11434:11434"
     volumes:
       - ollama-models:/root/.ollama
+    environment:
+      # Keep one model resident so repeat requests skip the load cost.
+      - OLLAMA_KEEP_ALIVE=30m
+      - OLLAMA_MAX_LOADED_MODELS=1
 
 volumes:
   ollama-models:

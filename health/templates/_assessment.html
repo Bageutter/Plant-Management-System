@@ -5,11 +5,31 @@
             <span class="badge status-{{ assessment.status }}">{{ labels.get(assessment.status, assessment.status) }}</span>
             <h2 class="text-xl m-0">{{ assessment.plant_identification or assessment.plant_ref or "Plant assessment" }}</h2>
         </div>
-        <div class="text-sm text-muted-foreground">
-            {% if assessment.health_score is not none %}Health score {{ assessment.health_score }}/100 &middot; {% endif %}
-            {% if assessment.confidence is not none %}Confidence {{ (assessment.confidence * 100) | round | int }}%{% endif %}
-        </div>
     </header>
+
+    {% if assessment.health_score is not none %}
+        <section class="mt-4">
+            <div class="flex items-baseline justify-between gap-3 mb-1">
+                <span class="text-sm font-semibold">Health score</span>
+                <span class="text-sm text-muted-foreground">
+                    <strong class="text-foreground">{{ assessment.health_score }}</strong> out of 100
+                </span>
+            </div>
+            <div class="score-track" role="img"
+                 aria-label="Health score {{ assessment.health_score }} out of 100, where 100 is a thriving plant">
+                <div class="score-fill status-{{ assessment.status }}" style="width: {{ assessment.health_score }}%"></div>
+            </div>
+            <p class="text-sm text-muted-foreground mt-2">
+                {% if assessment.score_band %}<strong class="text-foreground">{{ assessment.score_band }}.</strong> {% endif %}
+                0 means the plant is dead, 100 means it is thriving. The score is the model's
+                overall rating of the condition described below — it is a judgement, not a measurement.
+            </p>
+        </section>
+    {% elif assessment.status == "unknown" %}
+        <p class="mt-4 text-sm text-muted-foreground">
+            No health score was given, because the evidence provided wasn't enough to judge the plant's condition.
+        </p>
+    {% endif %}
 
     <p class="mt-4">{{ assessment.summary }}</p>
 
@@ -46,8 +66,11 @@
 
     <footer class="mt-6 text-xs text-muted-foreground">
         Assessment #{{ assessment.id }} &middot; generated locally by {{ assessment.model }}
-        {%- if assessment.has_image %} &middot; from a photo{% endif %}
-        {%- if assessment.description %} &middot; from a description{% endif %}.
+        {%- if assessment.duration_ms %} in {{ (assessment.duration_ms / 1000) | round(1) }}s{% endif %}.
+        Based on
+        {%- if assessment.has_image and assessment.description %} a photo and your description
+        {%- elif assessment.has_image %} a photo only
+        {%- else %} your written description only{% endif %}.
         AI guidance is advisory only.
     </footer>
 </article>

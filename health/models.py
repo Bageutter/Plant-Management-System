@@ -23,7 +23,8 @@ class Assessment(db.Model):
     model = db.Column(db.String(120), nullable=False)
     status = db.Column(db.String(20), nullable=False)
     health_score = db.Column(db.Integer, nullable=True)
-    confidence = db.Column(db.Float, nullable=True)
+    score_band = db.Column(db.String(80), nullable=True)
+    duration_ms = db.Column(db.Integer, nullable=True)
     plant_identification = db.Column(db.String(200), nullable=True)
     summary = db.Column(db.Text, nullable=False, default="")
     issues_json = db.Column(db.Text, nullable=False, default="[]")
@@ -63,7 +64,8 @@ class Assessment(db.Model):
             model=model,
             status=result["status"],
             health_score=result["health_score"],
-            confidence=result["confidence"],
+            score_band=result["score_band"],
+            duration_ms=result.get("duration_ms"),
             plant_identification=result["plant_identification"],
             summary=result["summary"],
             issues_json=json.dumps(result["issues"]),
@@ -81,7 +83,8 @@ class Assessment(db.Model):
             "model": self.model,
             "status": self.status,
             "health_score": self.health_score,
-            "confidence": self.confidence,
+            "score_band": self.score_band,
+            "duration_ms": self.duration_ms,
             "plant_identification": self.plant_identification,
             "summary": self.summary,
             "issues": self.issues,

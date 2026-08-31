@@ -26,6 +26,9 @@ def create_app(config_class: type = Config) -> Flask:
         timeout=app.config["OLLAMA_TIMEOUT"],
         auto_pull=app.config["OLLAMA_AUTO_PULL"],
         pull_timeout=app.config["OLLAMA_PULL_TIMEOUT"],
+        keep_alive=app.config["OLLAMA_KEEP_ALIVE"],
+        num_predict=app.config["OLLAMA_NUM_PREDICT"],
+        num_ctx=app.config["OLLAMA_NUM_CTX"],
     )
 
     from routes import bp as health_bp

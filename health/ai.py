@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 
 import requests
 
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 STATUSES = ("healthy", "at_risk", "unhealthy", "unknown")
 SEVERITIES = ("low", "medium", "high")
 PRIORITIES = ("low", "medium", "high")
+MAX_LIST_ITEMS = 4
 
 SYSTEM_PROMPT = (
     "You are a horticultural plant health analyst for a small home garden system. "
@@ -24,20 +26,49 @@ SYSTEM_PROMPT = (
     "done to improve its health.\n"
     "Rules:\n"
     "- Base your assessment only on the evidence provided. Do not invent observations.\n"
-    "- If the evidence is too thin to judge, use status \"unknown\", a low confidence, "
-    "and ask for what extra information or photos would help.\n"
+    "- If the evidence is too thin to judge, use status \"unknown\" and list what extra "
+    "information or photos would help.\n"
     "- Recommendations must be concrete, actionable gardening steps a home gardener can "
     "carry out (e.g. \"reduce watering to twice a week until the top 3cm of soil dries\").\n"
     "- Prefer the least invasive effective action first.\n"
-    "- Respond only with JSON matching the requested schema."
+    "- Be concise. Report at most 4 issues and at most 4 recommendations, most important "
+    "first. Keep every text field under 200 characters.\n"
+    "- Respond only with JSON matching the requested schema.\n"
+    "\n"
+    "health_score is a 0-100 rating of the plant's overall condition, where 100 is a "
+    "thriving plant and 0 is a dead one. Use these bands, and keep the score consistent "
+    "with the status you report:\n"
+    "- 85-100 (healthy): thriving, no action needed beyond routine care.\n"
+    "- 60-84 (healthy or at_risk): minor cosmetic issues, easily corrected.\n"
+    "- 30-59 (at_risk): clear problems that will worsen without intervention.\n"
+    "- 0-29 (unhealthy): severe decline, dying, or already dead.\n"
+    "If the status is \"unknown\", set health_score to 0; it is not shown to the user."
 )
+
+# Bands used to explain the score in the UI. Kept in sync with SYSTEM_PROMPT.
+SCORE_BANDS = (
+    (85, 100, "Thriving — routine care only"),
+    (60, 84, "Minor issues — easily corrected"),
+    (30, 59, "At risk — will worsen without action"),
+    (0, 29, "Severe decline, dying, or dead"),
+)
+
+
+def describe_score(score: int | None) -> str | None:
+    """Plain-language meaning of a 0-100 health score."""
+    if score is None:
+        return None
+    for low, high, label in SCORE_BANDS:
+        if low <= score <= high:
+            return label
+    return None
+
 
 RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
         "status": {"type": "string", "enum": list(STATUSES)},
         "health_score": {"type": "integer", "minimum": 0, "maximum": 100},
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "plant_identification": {"type": "string"},
         "summary": {"type": "string"},
         "issues": {
@@ -69,7 +100,6 @@ RESPONSE_SCHEMA = {
     "required": [
         "status",
         "health_score",
-        "confidence",
         "summary",
         "issues",
         "recommendations",
@@ -89,12 +119,19 @@ class OllamaClient:
         timeout: int = 180,
         auto_pull: bool = True,
         pull_timeout: int = 1800,
+        keep_alive: str = "30m",
+        num_predict: int = 700,
+        num_ctx: int = 4096,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
         self.auto_pull = auto_pull
         self.pull_timeout = pull_timeout
+        # Keeping the model resident avoids a multi-second reload on every request.
+        self.keep_alive = keep_alive
+        self.num_predict = num_predict
+        self.num_ctx = num_ctx
         self._model_ready = False
 
     # -- infrastructure -------------------------------------------------
@@ -168,9 +205,16 @@ class OllamaClient:
             "messages": [{"role": "system", "content": SYSTEM_PROMPT}, message],
             "stream": False,
             "format": RESPONSE_SCHEMA,
-            "options": {"temperature": 0.2},
+            "keep_alive": self.keep_alive,
+            "options": {
+                "temperature": 0.2,
+                # Bound the response length; the schema only needs a few short fields.
+                "num_predict": self.num_predict,
+                "num_ctx": self.num_ctx,
+            },
         }
 
+        started = time.monotonic()
         try:
             response = requests.post(
                 f"{self.base_url}/api/chat", json=payload, timeout=self.timeout
@@ -184,6 +228,14 @@ class OllamaClient:
         except ValueError as exc:
             raise AIUnavailableError("The local AI instance returned an invalid response.") from exc
 
+        duration_ms = int((time.monotonic() - started) * 1000)
+        logger.info(
+            "assessment inference took %sms (model=%s, eval_count=%s)",
+            duration_ms,
+            self.model,
+            body.get("eval_count"),
+        )
+
         content = (body.get("message") or {}).get("content", "")
         try:
             result = json.loads(content)
@@ -196,7 +248,9 @@ class OllamaClient:
         if not isinstance(result, dict):
             raise AIUnavailableError("The local AI model returned an unexpected result shape.")
 
-        return normalise_result(result)
+        normalised = normalise_result(result)
+        normalised["duration_ms"] = duration_ms
+        return normalised
 
 
 def _build_prompt(description: str | None, plant_ref: str | None) -> str:
@@ -221,7 +275,9 @@ def normalise_result(result: dict) -> dict:
         status = "unknown"
 
     health_score = _clamp_int(result.get("health_score"), 0, 100)
-    confidence = _clamp_float(result.get("confidence"), 0.0, 1.0)
+    # An "unknown" verdict has no meaningful score to report.
+    if status == "unknown":
+        health_score = None
 
     issues = []
     for issue in result.get("issues") or []:
@@ -264,24 +320,17 @@ def normalise_result(result: dict) -> dict:
     return {
         "status": status,
         "health_score": health_score,
-        "confidence": confidence,
+        "score_band": describe_score(health_score),
         "plant_identification": str(result.get("plant_identification", "")).strip() or None,
         "summary": str(result.get("summary", "")).strip(),
-        "issues": issues,
-        "recommendations": recommendations,
-        "missing_information": missing,
+        "issues": issues[:MAX_LIST_ITEMS],
+        "recommendations": recommendations[:MAX_LIST_ITEMS],
+        "missing_information": missing[:MAX_LIST_ITEMS],
     }
 
 
 def _clamp_int(value, low: int, high: int) -> int | None:
     try:
         return max(low, min(high, int(round(float(value)))))
-    except (TypeError, ValueError):
-        return None
-
-
-def _clamp_float(value, low: float, high: float) -> float | None:
-    try:
-        return max(low, min(high, round(float(value), 2)))
     except (TypeError, ValueError):
         return None

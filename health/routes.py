@@ -5,6 +5,7 @@ from flask import Blueprint, current_app, jsonify, render_template, request
 
 from ai import AIUnavailableError
 from extensions import db
+from images import downscale_image, to_base64
 from models import Assessment
 
 bp = Blueprint("health", __name__)
@@ -108,10 +109,20 @@ def delete_assessment(assessment_id):
 
 
 def _wants_html() -> bool:
-    return request.headers.get("HX-Request") == "true" or (
-        request.mimetype in {"multipart/form-data", "application/x-www-form-urlencoded"}
-        and not request.is_json
-    )
+    """Whether to answer with an HTML fragment rather than JSON.
+
+    HTMX always gets HTML. Otherwise fall back to content negotiation, so a plain
+    API client posting multipart/form-data still receives JSON.
+    """
+
+    if request.headers.get("HX-Request") == "true":
+        return True
+
+    accept = request.accept_mimetypes
+    if not accept.provided:
+        return False
+    # A tie (e.g. "*/*" or no preference) falls through to JSON, the API default.
+    return accept["text/html"] > accept["application/json"]
 
 
 def _error(message: str, code: int, wants_html: bool):
@@ -171,7 +182,8 @@ def _read_json_image(data: dict) -> tuple[str | None, str | None]:
     if mime is not None and mime not in allowed:
         raise ValueError(f"Unsupported image type '{mime}'. Allowed: {', '.join(sorted(allowed))}")
 
-    return base64.b64encode(decoded).decode("ascii"), mime
+    decoded, new_mime = downscale_image(decoded, current_app.config["IMAGE_MAX_EDGE"])
+    return to_base64(decoded), new_mime or mime
 
 
 def _read_uploaded_image() -> tuple[str | None, str | None]:
@@ -190,7 +202,8 @@ def _read_uploaded_image() -> tuple[str | None, str | None]:
     if not payload:
         raise ValueError("The uploaded image is empty")
 
-    return base64.b64encode(payload).decode("ascii"), mime
+    payload, new_mime = downscale_image(payload, current_app.config["IMAGE_MAX_EDGE"])
+    return to_base64(payload), new_mime or mime
 
 
 def _clean(value, max_chars: int, field: str) -> str | None:

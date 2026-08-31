@@ -3,3 +3,4 @@ Flask-SQLAlchemy
 python-dotenv
 psycopg2-binary
 requests
+Pillow

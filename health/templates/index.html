@@ -33,7 +33,7 @@
                accept="image/jpeg,image/png,image/webp,image/gif">
 
         <div class="flex items-center gap-4">
-            <button class="uk-button bg-primary text-primary-foreground" type="submit"
+            <button class="uk-btn uk-btn-primary" type="submit"
                     :disabled="busy" x-bind:aria-busy="busy">
                 <span x-show="!busy">Assess plant health</span>
                 <span x-show="busy" x-cloak>Analysing…</span>
