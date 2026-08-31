@@ -6,12 +6,12 @@
             <span class="badge status-{{ assessment.status }}">{{ labels.get(assessment.status, assessment.status) }}</span>
             <h2 class="text-xl m-0">{{ assessment.plant_identification or assessment.plant_ref or "Plant assessment" }}</h2>
         </div>
-        {% if assessment.confidence %}
-            <span class="badge conf-{{ assessment.confidence }} help"
+        {% if assessment.confidence_level %}
+            <span class="badge conf-{{ assessment.confidence_level }} help"
                   uk-tooltip="title: {{ confidence_explanation }}; pos: bottom"
                   title="{{ confidence_explanation }}"
                   tabindex="0">
-                {{ conf_labels.get(assessment.confidence, assessment.confidence) }}
+                {{ conf_labels.get(assessment.confidence_level) }}
             </span>
         {% endif %}
     </header>
@@ -45,9 +45,9 @@
 
     <p class="mt-4">{{ assessment.summary }}</p>
 
-    {% if assessment.confidence_reason %}
+    {% if assessment.confidence_reason and assessment.confidence_level %}
         <p class="mt-2 text-sm text-muted-foreground">
-            <strong class="text-foreground">Why {{ assessment.confidence }} confidence:</strong>
+            <strong class="text-foreground">Why {{ assessment.confidence_level }} confidence:</strong>
             {{ assessment.confidence_reason }}
         </p>
     {% endif %}

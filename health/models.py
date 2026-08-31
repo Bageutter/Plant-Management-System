@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timezone
 
+from ai import CONFIDENCE_LEVELS
 from extensions import db
 
 
@@ -50,6 +51,19 @@ class Assessment(db.Model):
     def missing_information(self) -> list[str]:
         return json.loads(self.missing_information_json)
 
+    @property
+    def confidence_level(self) -> str | None:
+        """The confidence as a valid level, or None.
+
+        Records written before confidence became a graded level stored a float
+        (e.g. 0.7) in this column. Those values are meaningless as labels, so they
+        are reported as "no confidence recorded" rather than rendered verbatim.
+        """
+        value = self.confidence
+        if isinstance(value, str) and value.lower() in CONFIDENCE_LEVELS:
+            return value.lower()
+        return None
+
     @classmethod
     def from_result(
         cls,
@@ -93,7 +107,7 @@ class Assessment(db.Model):
             "status": self.status,
             "health_score": self.health_score,
             "score_band": self.score_band,
-            "confidence": self.confidence,
+            "confidence": self.confidence_level,
             "confidence_reason": self.confidence_reason,
             "duration_ms": self.duration_ms,
             "plant_identification": self.plant_identification,

@@ -8,6 +8,7 @@ load_dotenv()
 from ai import OllamaClient
 from config import Config
 from extensions import db
+from schema import sync_schema
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -54,7 +55,12 @@ def create_app(config_class: type = Config) -> Flask:
         }
 
     with app.app_context():
+        # Import models so create_all() and the schema sync see every table.
+        import models  # noqa: F401
+
         db.create_all()
+        # create_all() does not alter existing tables, so reconcile added columns.
+        sync_schema(db)
 
     return app
 

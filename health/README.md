@@ -226,3 +226,32 @@ partially-generated JSON, so the summary appears word by word as it is written.
 Uploaded photos **are** persisted, at the reduced resolution actually used for inference
 (typically ~75 KB), so a past record can be reviewed alongside the photo it was based on.
 The full-resolution original is never stored.
+
+## Database schema changes
+
+The service has no migration tool — SQLite is the documented development default, and
+`db.create_all()` creates missing *tables* but never alters existing ones. A database
+created by an older build therefore kept its old columns, and every query failed with
+`no such column: assessments.image_data`.
+
+On startup the service now compares each mapped table against the live database and adds
+any missing columns with `ALTER TABLE ... ADD COLUMN` (see [schema.py](schema.py)). This
+is deliberately limited:
+
+* It only **adds** columns. It never drops or retypes them — that needs a real migration
+  tool, and silently discarding data at startup would be worse than a stale column.
+* Added columns are nullable, so existing rows keep their data and simply have no value
+  for the new fields.
+* It is idempotent; a second run adds nothing.
+
+Because of this, upgrading no longer requires deleting `health/instance/health.db`.
+
+One consequence worth knowing: rows written before `confidence` became a graded level
+stored a float (e.g. `0.7`) in that column. Those values are not valid levels, so they are
+reported as "no confidence recorded" rather than rendered as a meaningless `0.7` badge.
+
+**This is a stop-gap, not the intended long-term solution.** It keeps no history, cannot
+express a destructive change, and covers only this service — `auth` and `vgarden` still
+use bare `db.create_all()` and will hit the same problem when their models change.
+Replacing it with Flask-Migrate/Alembic across all services is tracked in
+[issue #10](https://github.com/Bageutter/Plant-Management-System/issues/10).
