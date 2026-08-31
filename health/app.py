@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify
+from jinja2 import ChoiceLoader, FileSystemLoader
 
 # Keep imports at module top; delay importing `Config` until after loading env vars
 from ai import OllamaClient
@@ -20,6 +21,14 @@ def create_app(config_class: type | None = None) -> Flask:
 
     app = Flask(__name__)
     app.config.from_object(config_class)
+    app.jinja_loader = ChoiceLoader(
+        [
+            app.jinja_loader,
+            FileSystemLoader(
+                os.path.join(os.path.abspath(os.path.dirname(__file__)), "shared_templates")
+            ),
+        ]
+    )
 
     db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
     if db_uri.startswith("sqlite:///"):

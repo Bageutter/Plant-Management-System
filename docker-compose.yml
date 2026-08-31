@@ -5,6 +5,7 @@ services:
       - "5000:5000"
     volumes:
       - ./shared/frontend:/app
+      - ./shared/templates:/app/shared_templates
     environment:
       - AUTH_URL=http://localhost:5001
 
@@ -14,6 +15,7 @@ services:
       - "5001:5000"
     volumes:
       - ./auth:/app
+      - ./shared/templates:/app/shared_templates
     environment:
       - SECRET_KEY=dev-secret-key-change-me
       - DATABASE_URL=sqlite:////app/instance/auth.db
@@ -29,6 +31,7 @@ services:
       - "5002:5000"
     volumes:
       - ./vgarden:/app
+      - ./shared/templates:/app/shared_templates
     environment:
       - DATABASE_URL=sqlite:////app/instance/vgarden.db
       - AUTH_PUBLIC_URL=http://localhost:5001
@@ -39,6 +42,7 @@ services:
       - "5003:5000"
     volumes:
       - ./health:/app
+      - ./shared/templates:/app/shared_templates
     environment:
       - DATABASE_URL=sqlite:////app/instance/health.db
       - AUTH_PUBLIC_URL=http://localhost:5001

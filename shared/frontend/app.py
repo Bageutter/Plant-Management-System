@@ -1,8 +1,13 @@
 import os
 
 from flask import Flask, render_template
+from jinja2 import ChoiceLoader, FileSystemLoader
 
 app = Flask(__name__)
+app.jinja_loader = ChoiceLoader([
+    app.jinja_loader,
+    FileSystemLoader(os.path.join(os.path.abspath(os.path.dirname(__file__)), "shared_templates")),
+])
 
 AUTH_URL = os.environ.get("AUTH_URL", "http://localhost:5001")
 
