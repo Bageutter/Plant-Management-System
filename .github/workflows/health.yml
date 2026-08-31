@@ -1,0 +1,13 @@
+name: Health
+on:
+  push:
+    branches: ["bageutter/**"]
+    paths: ["health/**"]
+  pull_request:
+    branches: ["**"]
+    paths: ["health/**"]
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "placeholder"
