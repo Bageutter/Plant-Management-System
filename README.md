@@ -653,14 +653,3 @@ docker compose up --build
 ```
 
 Either way, open **http://127.0.0.1:5000** in your browser.
-
-## Plant Almanac Container
-
-one flask service, sqlite db, port `5003`
-
-```bash
-docker compose up -d --build almanac
-```
-
-- http://localhost:5003 — the ui
-- http://localhost:5003/api/plants — json
