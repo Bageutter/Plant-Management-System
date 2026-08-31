@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}{{ assessment.plant_ref or assessment.plant_identification or "Assessment" }} — Plant Health{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <a href="{{ url_for('health.index') }}" class="text-sm text-primary hover:underline">&larr; Back to plant health records</a>
+
+    <h1 class="text-2xl mt-3 mb-1">
+        {{ assessment.plant_ref or assessment.plant_identification or "Plant assessment" }}
+    </h1>
+    <p class="text-sm text-muted-foreground mb-8">
+        Recorded {{ assessment.created_at.strftime("%d %B %Y at %H:%M") }} UTC
+    </p>
+
+    <section class="border border-border rounded-lg p-6 mb-8">
+        <h2 class="text-lg mb-4">What was submitted</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+                <p class="uk-text-meta mb-1">Photo</p>
+                {% if assessment.has_image %}
+                    <a href="{{ url_for('health.assessment_image', assessment_id=assessment.id) }}" target="_blank" rel="noopener">
+                        <img class="submitted-image"
+                             src="{{ url_for('health.assessment_image', assessment_id=assessment.id) }}"
+                             alt="Photo submitted for this assessment">
+                    </a>
+                    <p class="text-xs text-muted-foreground mt-1">
+                        Stored at reduced resolution ({{ assessment.image_mime }}). Click to open full size.
+                    </p>
+                {% else %}
+                    <p class="text-sm text-muted-foreground">No photo was uploaded.</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <p class="uk-text-meta mb-1">Plant name / reference</p>
+                <p class="mb-4">{{ assessment.plant_ref or "—" }}</p>
+
+                <p class="uk-text-meta mb-1">Description</p>
+                <p class="whitespace-pre-line">{{ assessment.description or "—" }}</p>
+            </div>
+        </div>
+    </section>
+
+    <h2 class="text-lg mb-4">Assessment</h2>
+    {% with detail_view = True %}
+        {% include "_assessment.html" %}
+    {% endwith %}
+
+    {% if recent %}
+        <h2 class="text-lg mt-12 mb-3">Other records</h2>
+        {% include "_record_list.html" %}
+    {% endif %}
+</div>
+{% endblock %}

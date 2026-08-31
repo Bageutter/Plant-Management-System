@@ -32,8 +32,10 @@ def create_app(config_class: type = Config) -> Flask:
     )
 
     from routes import bp as health_bp
+    from routes import root_bp
 
     app.register_blueprint(health_bp)
+    app.register_blueprint(root_bp)
 
     @app.errorhandler(413)
     def payload_too_large(_error):
@@ -42,9 +44,13 @@ def create_app(config_class: type = Config) -> Flask:
 
     @app.context_processor
     def inject_template_globals():
+        from ai import CONFIDENCE_EXPLANATION, SCORE_EXPLANATION
+
         return {
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
             "ai_model": app.config["OLLAMA_MODEL"],
+            "score_explanation": SCORE_EXPLANATION,
+            "confidence_explanation": CONFIDENCE_EXPLANATION,
         }
 
     with app.app_context():

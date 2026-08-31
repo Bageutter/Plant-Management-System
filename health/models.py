@@ -19,11 +19,16 @@ class Assessment(db.Model):
     description = db.Column(db.Text, nullable=True)
     has_image = db.Column(db.Boolean, nullable=False, default=False)
     image_mime = db.Column(db.String(64), nullable=True)
+    # The downscaled image actually sent for inference, retained so a past
+    # assessment can be reviewed alongside the photo it was based on.
+    image_data = db.Column(db.LargeBinary, nullable=True)
 
     model = db.Column(db.String(120), nullable=False)
     status = db.Column(db.String(20), nullable=False)
     health_score = db.Column(db.Integer, nullable=True)
     score_band = db.Column(db.String(80), nullable=True)
+    confidence = db.Column(db.String(10), nullable=True)
+    confidence_reason = db.Column(db.Text, nullable=True)
     duration_ms = db.Column(db.Integer, nullable=True)
     plant_identification = db.Column(db.String(200), nullable=True)
     summary = db.Column(db.Text, nullable=False, default="")
@@ -55,16 +60,20 @@ class Assessment(db.Model):
         description: str | None,
         has_image: bool,
         image_mime: str | None,
+        image_data: bytes | None = None,
     ) -> "Assessment":
         return cls(
             plant_ref=plant_ref,
             description=description,
             has_image=has_image,
             image_mime=image_mime,
+            image_data=image_data,
             model=model,
             status=result["status"],
             health_score=result["health_score"],
             score_band=result["score_band"],
+            confidence=result["confidence"],
+            confidence_reason=result["confidence_reason"],
             duration_ms=result.get("duration_ms"),
             plant_identification=result["plant_identification"],
             summary=result["summary"],
@@ -84,6 +93,8 @@ class Assessment(db.Model):
             "status": self.status,
             "health_score": self.health_score,
             "score_band": self.score_band,
+            "confidence": self.confidence,
+            "confidence_reason": self.confidence_reason,
             "duration_ms": self.duration_ms,
             "plant_identification": self.plant_identification,
             "summary": self.summary,

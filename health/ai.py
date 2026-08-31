@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 
 import requests
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 STATUSES = ("healthy", "at_risk", "unhealthy", "unknown")
 SEVERITIES = ("low", "medium", "high")
 PRIORITIES = ("low", "medium", "high")
+CONFIDENCE_LEVELS = ("low", "medium", "high")
 MAX_LIST_ITEMS = 4
 
 SYSTEM_PROMPT = (
@@ -42,7 +44,23 @@ SYSTEM_PROMPT = (
     "- 60-84 (healthy or at_risk): minor cosmetic issues, easily corrected.\n"
     "- 30-59 (at_risk): clear problems that will worsen without intervention.\n"
     "- 0-29 (unhealthy): severe decline, dying, or already dead.\n"
-    "If the status is \"unknown\", set health_score to 0; it is not shown to the user."
+    "If the status is \"unknown\", set health_score to 0; it is not shown to the user.\n"
+    "\n"
+    "confidence is how sure you are of this assessment, given only the evidence you were "
+    "actually given. Judge it honestly — most home-garden reports deserve \"medium\" at "
+    "best, and you should not claim \"high\" merely because you produced an answer:\n"
+    "- high: clear, unambiguous evidence (e.g. a sharp photo showing a distinctive, "
+    "well-known symptom, or a detailed description covering watering, light and soil).\n"
+    "- medium: the evidence points one way but an important detail is missing or the "
+    "symptom has several plausible causes.\n"
+    "- low: the evidence is vague, blurry, contradictory, or could fit many conditions. "
+    "Use this whenever you are mostly guessing.\n"
+    "confidence_reason must state, in one short sentence, what specifically limits or "
+    "supports your confidence. It must be consistent with the EVIDENCE PROVIDED line in "
+    "the user message. If you were given a photo, do not claim you were not given one. If "
+    "you were not given a photo, never describe or judge one — you may only say that a "
+    "photo would help. The same applies to the written description. Quote or paraphrase "
+    "the gardener's own details where you can, and do not use generic filler."
 )
 
 # Bands used to explain the score in the UI. Kept in sync with SYSTEM_PROMPT.
@@ -51,6 +69,19 @@ SCORE_BANDS = (
     (60, 84, "Minor issues — easily corrected"),
     (30, 59, "At risk — will worsen without action"),
     (0, 29, "Severe decline, dying, or dead"),
+)
+
+# Shown next to the score so the number is never presented without its meaning.
+SCORE_EXPLANATION = (
+    "A 0-100 rating of the plant's overall condition, where 100 is thriving and 0 is dead. "
+    "It is the model's judgement of the evidence you provided, not a measurement. "
+    "85-100 thriving · 60-84 minor issues · 30-59 at risk · 0-29 severe decline."
+)
+
+CONFIDENCE_EXPLANATION = (
+    "How sure the model is of this assessment, as reported by the model itself. "
+    "Low means it is largely guessing; high means the evidence was clear and distinctive. "
+    "Treat it as a rough self-assessment, not a calibrated probability."
 )
 
 
@@ -69,6 +100,8 @@ RESPONSE_SCHEMA = {
     "properties": {
         "status": {"type": "string", "enum": list(STATUSES)},
         "health_score": {"type": "integer", "minimum": 0, "maximum": 100},
+        "confidence": {"type": "string", "enum": list(CONFIDENCE_LEVELS)},
+        "confidence_reason": {"type": "string"},
         "plant_identification": {"type": "string"},
         "summary": {"type": "string"},
         "issues": {
@@ -100,6 +133,8 @@ RESPONSE_SCHEMA = {
     "required": [
         "status",
         "health_score",
+        "confidence",
+        "confidence_reason",
         "summary",
         "issues",
         "recommendations",
@@ -185,6 +220,34 @@ class OllamaClient:
 
     # -- inference ------------------------------------------------------
 
+    def _payload(
+        self,
+        description: str | None,
+        image_b64: str | None,
+        plant_ref: str | None,
+        stream: bool,
+    ) -> dict:
+        message: dict = {
+            "role": "user",
+            "content": _build_prompt(description, plant_ref, has_image=bool(image_b64)),
+        }
+        if image_b64:
+            message["images"] = [image_b64]
+
+        return {
+            "model": self.model,
+            "messages": [{"role": "system", "content": SYSTEM_PROMPT}, message],
+            "stream": stream,
+            "format": RESPONSE_SCHEMA,
+            "keep_alive": self.keep_alive,
+            "options": {
+                "temperature": 0.2,
+                # Bound the response length; the schema only needs a few short fields.
+                "num_predict": self.num_predict,
+                "num_ctx": self.num_ctx,
+            },
+        }
+
     def assess(
         self,
         description: str | None = None,
@@ -195,24 +258,7 @@ class OllamaClient:
             raise ValueError("An image or a text description is required.")
 
         self.ensure_model()
-
-        message: dict = {"role": "user", "content": _build_prompt(description, plant_ref)}
-        if image_b64:
-            message["images"] = [image_b64]
-
-        payload = {
-            "model": self.model,
-            "messages": [{"role": "system", "content": SYSTEM_PROMPT}, message],
-            "stream": False,
-            "format": RESPONSE_SCHEMA,
-            "keep_alive": self.keep_alive,
-            "options": {
-                "temperature": 0.2,
-                # Bound the response length; the schema only needs a few short fields.
-                "num_predict": self.num_predict,
-                "num_ctx": self.num_ctx,
-            },
-        }
+        payload = self._payload(description, image_b64, plant_ref, stream=False)
 
         started = time.monotonic()
         try:
@@ -237,24 +283,158 @@ class OllamaClient:
         )
 
         content = (body.get("message") or {}).get("content", "")
-        try:
-            result = json.loads(content)
-        except (TypeError, ValueError) as exc:
-            raise AIUnavailableError(
-                "The local AI model did not return valid JSON. Try again, or use a model "
-                "that supports structured output."
-            ) from exc
-
-        if not isinstance(result, dict):
-            raise AIUnavailableError("The local AI model returned an unexpected result shape.")
-
-        normalised = normalise_result(result)
+        normalised = parse_content(content)
         normalised["duration_ms"] = duration_ms
         return normalised
 
+    def assess_stream(
+        self,
+        description: str | None = None,
+        image_b64: str | None = None,
+        plant_ref: str | None = None,
+    ):
+        """Yield progress events while the model composes its assessment.
 
-def _build_prompt(description: str | None, plant_ref: str | None) -> str:
-    parts = []
+        Emits ``{"type": "progress", ...}`` as text arrives, then exactly one
+        ``{"type": "result", "result": ...}`` or ``{"type": "error", "message": ...}``.
+        """
+
+        if not description and not image_b64:
+            yield {"type": "error", "message": "An image or a text description is required."}
+            return
+
+        try:
+            self.ensure_model()
+        except AIUnavailableError as exc:
+            yield {"type": "error", "message": str(exc)}
+            return
+
+        payload = self._payload(description, image_b64, plant_ref, stream=True)
+        started = time.monotonic()
+        content = ""
+
+        try:
+            with requests.post(
+                f"{self.base_url}/api/chat",
+                json=payload,
+                timeout=self.timeout,
+                stream=True,
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines(decode_unicode=True):
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except ValueError:
+                        continue
+
+                    content += (chunk.get("message") or {}).get("content", "")
+                    yield {
+                        "type": "progress",
+                        "field": _current_field(content),
+                        "summary": _partial_string(content, "summary"),
+                        "chars": len(content),
+                        "elapsed_ms": int((time.monotonic() - started) * 1000),
+                    }
+
+                    if chunk.get("done"):
+                        break
+        except requests.RequestException as exc:
+            yield {
+                "type": "error",
+                "message": f"Could not reach the local AI instance at {self.base_url}: {exc}",
+            }
+            return
+
+        duration_ms = int((time.monotonic() - started) * 1000)
+        try:
+            result = parse_content(content)
+        except AIUnavailableError as exc:
+            yield {"type": "error", "message": str(exc)}
+            return
+
+        result["duration_ms"] = duration_ms
+        yield {"type": "result", "result": result}
+
+
+def parse_content(content: str) -> dict:
+    """Parse and normalise a completed model response body."""
+    try:
+        result = json.loads(content)
+    except (TypeError, ValueError) as exc:
+        raise AIUnavailableError(
+            "The local AI model did not return valid JSON. Try again, or use a model "
+            "that supports structured output."
+        ) from exc
+
+    if not isinstance(result, dict):
+        raise AIUnavailableError("The local AI model returned an unexpected result shape.")
+
+    return normalise_result(result)
+
+
+# Human-readable labels for the schema keys, used to narrate streaming progress.
+FIELD_LABELS = {
+    "status": "Deciding overall status",
+    "health_score": "Scoring the plant's condition",
+    "confidence": "Judging its confidence",
+    "confidence_reason": "Explaining that confidence",
+    "plant_identification": "Identifying the plant",
+    "summary": "Writing the summary",
+    "issues": "Listing observed issues",
+    "recommendations": "Working out recommendations",
+    "missing_information": "Noting what else would help",
+}
+
+_KEY_RE = re.compile(r'"([a-z_]+)"\s*:')
+
+
+def _current_field(content: str) -> str:
+    """Best-effort label for whichever schema field is being generated."""
+    matches = _KEY_RE.findall(content)
+    for key in reversed(matches):
+        if key in FIELD_LABELS:
+            return FIELD_LABELS[key]
+    return "Thinking"
+
+
+def _partial_string(content: str, key: str) -> str:
+    """Extract a string value from partial JSON, even before it is closed."""
+    marker = f'"{key}"'
+    start = content.find(marker)
+    if start == -1:
+        return ""
+    quote = content.find('"', content.find(":", start + len(marker)))
+    if quote == -1:
+        return ""
+
+    out = []
+    i = quote + 1
+    while i < len(content):
+        char = content[i]
+        if char == "\\" and i + 1 < len(content):
+            out.append(content[i + 1])
+            i += 2
+            continue
+        if char == '"':
+            break
+        out.append(char)
+        i += 1
+    return "".join(out)
+
+
+def _build_prompt(
+    description: str | None, plant_ref: str | None, has_image: bool = False
+) -> str:
+    if has_image and description:
+        evidence = "one photo and a written description"
+    elif has_image:
+        evidence = "one photo, and no written description"
+    else:
+        evidence = "a written description only, and no photo"
+
+    parts = [f"EVIDENCE PROVIDED: {evidence}."]
     if plant_ref:
         parts.append(f"The gardener refers to this plant as: {plant_ref}")
     if description:
@@ -262,7 +442,8 @@ def _build_prompt(description: str | None, plant_ref: str | None) -> str:
     else:
         parts.append("No written description was provided; rely on the photo.")
     parts.append(
-        "Assess the plant's health and give recommendations to improve it if needed."
+        "Assess the plant's health and give recommendations to improve it if needed. "
+        "When explaining your confidence, refer only to the evidence listed above."
     )
     return "\n\n".join(parts)
 
@@ -278,6 +459,13 @@ def normalise_result(result: dict) -> dict:
     # An "unknown" verdict has no meaningful score to report.
     if status == "unknown":
         health_score = None
+
+    confidence = str(result.get("confidence", "")).strip().lower()
+    if confidence not in CONFIDENCE_LEVELS:
+        confidence = None
+    # A verdict of "unknown" is by definition not a confident one.
+    if status == "unknown" and confidence == "high":
+        confidence = "low"
 
     issues = []
     for issue in result.get("issues") or []:
@@ -321,6 +509,8 @@ def normalise_result(result: dict) -> dict:
         "status": status,
         "health_score": health_score,
         "score_band": describe_score(health_score),
+        "confidence": confidence,
+        "confidence_reason": str(result.get("confidence_reason", "")).strip() or None,
         "plant_identification": str(result.get("plant_identification", "")).strip() or None,
         "summary": str(result.get("summary", "")).strip(),
         "issues": issues[:MAX_LIST_ITEMS],

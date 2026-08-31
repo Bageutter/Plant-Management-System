@@ -19,7 +19,7 @@ With docker compose from the repository root:
 docker compose up --build health
 ```
 
-* UI: <http://localhost:5003/>
+* UI: <http://localhost:5003/plant-health-records>
 * Ollama: <http://localhost:11434>
 
 The first assessment triggers a model pull (~3 GB), so it can take several minutes.
@@ -112,23 +112,45 @@ The prompt anchors it to fixed bands so the number stays consistent with `status
 | 30-59 | At risk | Will worsen without action |
 | 0-29 | Severe | Dying or dead |
 
-When `status` is `unknown` the score is set to `null`, because there isn't enough
-evidence to rate the plant. The UI shows the band label and the scale alongside the
-number so it is never presented as a bare, unexplained figure.
+When `status` is `unknown` the score is `null`, because there isn't enough
+evidence to rate the plant. In the UI the number is accompanied by a progress bar, the
+band label, and a **tooltip** (hover or keyboard focus) giving the full scale, so it is
+never presented as a bare, unexplained figure.
 
 ### Why there is no confidence score
 
-An earlier version asked the model to report its own confidence. Self-reported LLM
-confidence is not a calibrated probability — it is just another generated token, and it
-tended to come back at or near 100% regardless of how thin the evidence was, which is
-actively misleading. It has been removed. Instead the service reports the facts it
-actually knows: which inputs the assessment was based on (photo, description, or both)
-and what extra information would improve it (`missing_information`).
+An earlier version asked the model for a numeric confidence (`0.0`-`1.0`). Self-reported
+numeric confidence is not a calibrated probability — it is just another generated token,
+and it came back at or near 100% regardless of how thin the evidence was.
+
+Confidence is now reported by the model as one of **low / medium / high**, together with a
+required `confidence_reason` explaining what specifically limits or supports it. Removing
+the false precision, requiring a justification, and telling the model explicitly which
+evidence it received (see below) makes the value far harder to inflate.
+
+It is still a self-assessment, not a calibrated probability, and the UI says so in its
+tooltip. Treat it as a rough signal.
+
+### Evidence grounding
+
+Every request tells the model exactly what it was given:
+
+```text
+EVIDENCE PROVIDED: a written description only, and no photo.
+```
+
+Without this the model would fabricate justifications — an early version replied *"the
+photo is blurry"* for a text-only request, parroting an example from the prompt. The model
+is now instructed never to describe a photo it wasn't given (it may only say one would
+help), and never to deny a photo it was given.
 
 
 ## API
 
-### `POST /assessments`
+All user-facing pages and the assessment API live under `/plant-health-records`.
+`GET /` redirects there, and `/healthz` stays at the root for infrastructure probes.
+
+### `POST /plant-health-records/assessments`
 
 Accepts `application/json` or `multipart/form-data`. At least one of the image or the
 description must be supplied.
@@ -138,7 +160,7 @@ raw base64 or a `data:` URL).
 Form fields: `plant_ref`, `description`, `image` (file upload).
 
 ```bash
-curl -X POST http://localhost:5003/assessments \
+curl -X POST http://localhost:5003/plant-health-records/assessments \
   -H 'Content-Type: application/json' \
   -d '{"plant_ref":"Tomato in the back bed","description":"Planted 6 weeks ago, lower leaves turning yellow, watered daily, soil stays wet."}'
 ```
@@ -152,6 +174,8 @@ Responds `201` with:
   "status": "at_risk",
   "health_score": 30,
   "score_band": "At risk — will worsen without action",
+  "confidence": "medium",
+  "confidence_reason": "The description covers watering and soil but no photo was provided.",
   "duration_ms": 6600,
   "plant_identification": "Tomato (Solanum lycopersicum)",
   "summary": "Lower-leaf yellowing with constantly wet soil suggests overwatering.",
@@ -167,20 +191,38 @@ Responds `201` with:
 ```
 
 `status` is one of `healthy`, `at_risk`, `unhealthy`, `unknown`. When `status` is
-`unknown`, `health_score` and `score_band` are `null`.
+`unknown`, `health_score` and `score_band` are `null`. `confidence` is `low`, `medium`
+or `high`.
 
 Errors: `400` for invalid/missing input, `413` when the image exceeds the size limit,
 `503` when the local AI instance is unreachable or the model cannot be pulled.
+
+### `POST /plant-health-records/assessments/stream`
+
+Same inputs, but responds with `text/event-stream` so the UI can show progress while the
+model works. Each event is a JSON object on a `data:` line:
+
+| Event | Fields | Meaning |
+| --- | --- | --- |
+| `progress` | `field`, `summary`, `chars`, `elapsed_ms` | Which part of the answer is being written, and the summary text so far |
+| `done` | `id`, `html` | Finished; the rendered assessment card and its record id |
+| `error` | `message` | Validation failure or the local AI being unavailable |
+
+The stream ends after exactly one `done` or `error` event. `summary` is extracted from
+partially-generated JSON, so the summary appears word by word as it is written.
 
 ### Other endpoints
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/` | HTMX/Alpine UI for submitting a photo or description |
+| `GET` | `/plant-health-records/` | UI: submit a plant, plus the list of past records |
+| `GET` | `/plant-health-records/<id>` | Full record: photo, name, description and assessment |
+| `GET` | `/plant-health-records/<id>/image` | The photo the assessment was based on |
 | `GET` | `/healthz` | Liveness plus local AI reachability |
-| `GET` | `/assessments?plant_ref=&limit=` | List assessments, newest first |
-| `GET` | `/assessments/<id>` | Fetch a single assessment |
-| `DELETE` | `/assessments/<id>` | Delete an assessment |
+| `GET` | `/plant-health-records/assessments?plant_ref=&limit=` | List assessments, newest first |
+| `GET` | `/plant-health-records/assessments/<id>` | Fetch a single assessment as JSON |
+| `DELETE` | `/plant-health-records/assessments/<id>` | Delete an assessment |
 
-Images are used for inference and are **not** persisted; only the fact that an image was
-supplied and its MIME type are stored.
+Uploaded photos **are** persisted, at the reduced resolution actually used for inference
+(typically ~75 KB), so a past record can be reviewed alongside the photo it was based on.
+The full-resolution original is never stored.

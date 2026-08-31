@@ -1,34 +1,47 @@
 import base64
 import binascii
+import json
 
-from flask import Blueprint, current_app, jsonify, render_template, request
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    current_app,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    stream_with_context,
+    url_for,
+)
 
 from ai import AIUnavailableError
 from extensions import db
 from images import downscale_image, to_base64
 from models import Assessment
 
-bp = Blueprint("health", __name__)
+# User-facing pages and the assessment API live under a descriptive prefix.
+URL_PREFIX = "/plant-health-records"
+
+bp = Blueprint("health", __name__, url_prefix=URL_PREFIX)
+# Infrastructure probes stay at the root, where orchestrators expect them.
+root_bp = Blueprint("root", __name__)
 
 MAX_DESCRIPTION_CHARS = 4000
 MAX_PLANT_REF_CHARS = 200
+RECENT_LIMIT = 10
 
 
 def _client():
     return current_app.extensions["ollama"]
 
 
-@bp.route("/")
-def index():
-    recent = (
-        Assessment.query.order_by(Assessment.created_at.desc(), Assessment.id.desc())
-        .limit(10)
-        .all()
-    )
-    return render_template("index.html", recent=recent)
+@root_bp.route("/")
+def root_redirect():
+    return redirect(url_for("health.index"))
 
 
-@bp.route("/healthz")
+@root_bp.route("/healthz")
 def healthz():
     client = _client()
     ai_up = client.ping()
@@ -38,6 +51,44 @@ def healthz():
         "ai": {"url": client.base_url, "model": client.model, "reachable": ai_up},
     }
     return jsonify(body), 200 if ai_up else 503
+
+
+@bp.route("/")
+def index():
+    return render_template("index.html", recent=_recent())
+
+
+@bp.route("/<int:assessment_id>")
+def view_assessment(assessment_id):
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None:
+        abort(404)
+    return render_template(
+        "detail.html", assessment=assessment, recent=_recent(exclude_id=assessment_id)
+    )
+
+
+@bp.route("/<int:assessment_id>/image")
+def assessment_image(assessment_id):
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None or not assessment.image_data:
+        abort(404)
+    return Response(
+        assessment.image_data,
+        mimetype=assessment.image_mime or "image/jpeg",
+        headers={"Cache-Control": "private, max-age=86400"},
+    )
+
+
+def _recent(limit: int = RECENT_LIMIT, exclude_id: int | None = None):
+    query = Assessment.query
+    if exclude_id is not None:
+        query = query.filter(Assessment.id != exclude_id)
+    return (
+        query.order_by(Assessment.created_at.desc(), Assessment.id.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 @bp.route("/assessments", methods=["POST"])
@@ -57,6 +108,69 @@ def create_assessment():
     except AIUnavailableError as exc:
         return _error(str(exc), 503, wants_html)
 
+    assessment = _persist(result, client, plant_ref, description, image_b64, image_mime)
+
+    if wants_html:
+        return render_template("_assessment.html", assessment=assessment)
+    return jsonify(assessment.to_dict()), 201
+
+
+@bp.route("/assessments/stream", methods=["POST"])
+def stream_assessment():
+    """Server-sent events reporting progress while the model works."""
+
+    try:
+        plant_ref, description, image_b64, image_mime = _read_input()
+    except ValueError as exc:
+        return _sse_error(str(exc))
+
+    client = _client()
+    app = current_app._get_current_object()
+
+    def generate():
+        try:
+            for event in client.assess_stream(
+                description=description, image_b64=image_b64, plant_ref=plant_ref
+            ):
+                if event["type"] == "result":
+                    assessment = _persist(
+                        event["result"], client, plant_ref, description, image_b64, image_mime
+                    )
+                    html = render_template("_assessment.html", assessment=assessment)
+                    yield _sse(
+                        {"type": "done", "id": assessment.id, "html": html}
+                    )
+                    return
+                if event["type"] == "error":
+                    yield _sse({"type": "error", "message": event["message"]})
+                    return
+                yield _sse(event)
+        except Exception:  # noqa: BLE001 - the stream must always terminate cleanly
+            app.logger.exception("streaming assessment failed")
+            yield _sse(
+                {"type": "error", "message": "The assessment failed unexpectedly."}
+            )
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+def _sse_error(message: str) -> Response:
+    return Response(
+        _sse({"type": "error", "message": message}),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+def _persist(result, client, plant_ref, description, image_b64, image_mime) -> Assessment:
     assessment = Assessment.from_result(
         result,
         model=client.model,
@@ -64,13 +178,11 @@ def create_assessment():
         description=description,
         has_image=image_b64 is not None,
         image_mime=image_mime,
+        image_data=base64.b64decode(image_b64) if image_b64 else None,
     )
     db.session.add(assessment)
     db.session.commit()
-
-    if wants_html:
-        return render_template("_assessment.html", assessment=assessment)
-    return jsonify(assessment.to_dict()), 201
+    return assessment
 
 
 @bp.route("/assessments", methods=["GET"])
