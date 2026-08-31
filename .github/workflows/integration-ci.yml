@@ -1,0 +1,59 @@
+name: Integration CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSE_PROJECT_NAME: plant-management-integration-ci
+
+jobs:
+  validate-compose:
+    name: Validate and build Compose stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - run: docker compose config --quiet
+      - run: docker compose build
+
+  smoke-check:
+    name: Start stack and smoke-check services
+    needs: validate-compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: start stack
+        run: docker compose up --detach --build
+
+      - name: smoke check
+        run: |
+          curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5000/
+          curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5001/login
+          curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5002/gardens
+
+      - name: save logs
+        if: always()
+        run: docker compose logs --no-color > compose.log 2>&1 || true
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: logs-${{ github.run_id }}
+          path: compose.log
+          retention-days: 7
+
+      - name: tear down
+        if: always()
+        run: docker compose down --volumes --remove-orphans
