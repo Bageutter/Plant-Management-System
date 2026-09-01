@@ -1,20 +1,33 @@
 services:
+  proxy:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - auth
+      - vgarden
+      - health
+      - almanac
+
   frontend:
     build: ./shared/frontend
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     volumes:
       - ./shared/frontend:/app
       - ./shared/templates:/app/shared_templates
     environment:
-      - AUTH_URL=http://localhost:5001
-      - HEALTH_URL=http://localhost:5003/plant-health-records/
-      - ALMANAC_URL=http://localhost:5004/
+      - AUTH_URL=http://auth:5000
+      - HEALTH_URL=http://health:5000/plant-health-records/
+      - ALMANAC_URL=http://almanac:5000/
 
   auth:
     build: ./auth
-    ports:
-      - "5001:5000"
+    expose:
+      - "5000"
     volumes:
       - ./auth:/app
       - ./shared/templates:/app/shared_templates
@@ -22,33 +35,33 @@ services:
       - SECRET_KEY=dev-secret-key-change-me
       - DATABASE_URL=sqlite:////app/instance/auth.db
       - VGARDEN_URL=http://vgarden:5000
-      - VGARDEN_PUBLIC_URL=http://localhost:5002
-      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records
-      - ALMANAC_PUBLIC_URL=http://localhost:5004/
+      - VGARDEN_PUBLIC_URL=http://localhost:8080/vgarden/
+      - HEALTH_PUBLIC_URL=http://localhost:8080/health/plant-health-records/
+      - ALMANAC_PUBLIC_URL=http://localhost:8080/almanac/
     depends_on:
       - vgarden
 
   vgarden:
     build: ./vgarden
-    ports:
-      - "5002:5000"
+    expose:
+      - "5000"
     volumes:
       - ./vgarden:/app
       - ./shared/templates:/app/shared_templates
     environment:
       - DATABASE_URL=sqlite:////app/instance/vgarden.db
-      - AUTH_PUBLIC_URL=http://localhost:5001
-      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
-      - ALMANAC_PUBLIC_URL=http://localhost:5004/
+      - AUTH_PUBLIC_URL=http://localhost:8080/auth/
+      - HEALTH_PUBLIC_URL=http://localhost:8080/health/plant-health-records/
+      - ALMANAC_PUBLIC_URL=http://localhost:8080/almanac/
 
   almanac:
     build: ./almanac
-    ports:
-      - "5004:5000"
+    expose:
+      - "5000"
     environment:
       - AUTH_URL=http://auth:5000
-      - AUTH_PUBLIC_URL=http://localhost:5001
-      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
+      - AUTH_PUBLIC_URL=http://localhost:8080/auth/
+      - HEALTH_PUBLIC_URL=http://localhost:8080/health/plant-health-records/
       - DATABASE_URL=sqlite:////app/instance/almanac.db
       - FLASK_DEBUG=1
       - OLLAMA_URL=http://host.docker.internal:11434
@@ -62,16 +75,16 @@ services:
 
   health:
     build: ./health
-    ports:
-      - "5003:5000"
+    expose:
+      - "5000"
     volumes:
       - ./health:/app
       - ./shared/templates:/app/shared_templates
     environment:
       - DATABASE_URL=sqlite:////app/instance/health.db
-      - AUTH_PUBLIC_URL=http://localhost:5001
-      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
-      - ALMANAC_PUBLIC_URL=http://localhost:5004/
+      - AUTH_PUBLIC_URL=http://localhost:8080/auth/
+      - HEALTH_PUBLIC_URL=http://localhost:8080/health/plant-health-records/
+      - ALMANAC_PUBLIC_URL=http://localhost:8080/almanac/
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=qwen2.5vl:3b
       - OLLAMA_AUTO_PULL=true
@@ -79,17 +92,14 @@ services:
     depends_on:
       - ollama
 
-  # Locally hosted AI used by the health monitoring service. The model is pulled on
-  # first use and cached in the ollama-models volume.
-  # Runs on CPU by default; add docker-compose.gpu.yml for NVIDIA GPU acceleration.
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
+    # No ports exposed to host
+    expose:
+      - "11434"
     volumes:
       - ollama-models:/root/.ollama
     environment:
-      # Keep one model resident so repeat requests skip the load cost.
       - OLLAMA_KEEP_ALIVE=30m
       - OLLAMA_MAX_LOADED_MODELS=1
 
