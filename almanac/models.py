@@ -60,3 +60,26 @@ class PlantingMonth(db.Model):
     @property
     def name(self) -> str:
         return month_name[self.month_number]
+
+
+class AIChatMessage(db.Model):
+    """One saved message in an authenticated user's Almanac conversation."""
+
+    __tablename__ = "ai_chat_messages"
+    __table_args__ = (
+        db.CheckConstraint(
+            "role IN ('user', 'assistant')", name="ck_ai_chat_message_role"
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    # Keep the existing database column name so local chat data needs no migration.
+    owner_key = db.Column("session_id", db.String(64), nullable=False, index=True)
+    role = db.Column(db.String(16), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    source_slugs = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )

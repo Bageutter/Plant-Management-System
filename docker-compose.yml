@@ -46,13 +46,17 @@ services:
     ports:
       - "5004:5000"
     environment:
+      - AUTH_URL=http://auth:5000
       - AUTH_PUBLIC_URL=http://localhost:5001
       - DATABASE_URL=sqlite:////app/instance/almanac.db
+      - FLASK_DEBUG=1
       - OLLAMA_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=qwen3:4b-instruct
     volumes:
       - ./almanac:/app
       - almanac_data:/app/instance
+    depends_on:
+      - auth
 
   health:
     build: ./health
