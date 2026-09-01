@@ -6,6 +6,18 @@ The system maintains a digital representation of a user's garden and combines in
 
 The project is built around a **microservice architecture**, with the **Virtual Garden Service** acting as the source of truth for the current state of a garden.
 
+## github workflow / how we work 💪
+
+branch → PR → review → merge.
+
+each contributor has a personal workflow placeholder (`amy.yml`, `yunus.yml`, `guhan.yml`) — implement yours as needed.
+
+shared CI:
+- [`ruff.yml`](.github/workflows/ruff.yml) — lints every Python service on every PR and push to `main`
+- [`integration-ci.yml`](.github/workflows/integration-ci.yml) — builds the stack, smoke-checks the endpoints, and tears it all down
+
+before merging: CI is green, at least one review, no unresolved comments.
+
 ## Overview
 
 Users can describe and update their garden through several input methods:
