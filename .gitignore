@@ -206,6 +206,9 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
+# Local AI feature-review evidence
+.ai-dev-runs/
+
 # PyPI configuration file
 .pypirc
 
