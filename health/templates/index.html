@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto" x-data="assessmentForm()">
+    <h1 class="text-3xl mb-2">Plant Health Records</h1>
+    <p class="text-muted-foreground mb-8">
+        Upload a photo of a plant, describe it in your own words, or both. The assessment runs
+        entirely on a locally hosted model ({{ ai_model }}) — nothing is sent to a third party.
+    </p>
+
+    <form class="border border-border rounded-lg p-6" @submit.prevent="submit($event)">
+        <label class="uk-form-label" for="plant_ref">Plant name or reference (optional)</label>
+        <input class="uk-input mb-4" type="text" id="plant_ref" name="plant_ref"
+               maxlength="200" placeholder="e.g. Tomato in the back bed">
+
+        <label class="uk-form-label" for="description">Description (optional if a photo is given)</label>
+        <textarea class="uk-textarea mb-4" id="description" name="description" rows="5"
+                  maxlength="4000"
+                  placeholder="e.g. Planted 6 weeks ago, lower leaves turning yellow, watered daily, soil stays wet."></textarea>
+
+        <label class="uk-form-label" for="image">Photo (optional if a description is given)</label>
+        <input class="uk-input mb-6" type="file" id="image" name="image"
+               accept="image/jpeg,image/png,image/webp,image/gif" @change="preview($event)">
+
+        <template x-if="previewUrl">
+            <div class="mb-6">
+                <img :src="previewUrl" alt="Selected photo preview" class="submitted-image">
+            </div>
+        </template>
+
+        <button class="uk-btn uk-btn-primary" type="submit" :disabled="busy">
+            <span x-show="!busy">Assess plant health</span>
+            <span x-show="busy" x-cloak class="flex items-center gap-2">
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Analysing…</span>
+            </span>
+        </button>
+    </form>
+
+    <!-- Live progress while the model works -->
+    <div x-show="busy" x-cloak class="border border-border rounded-lg p-6 mt-8 bg-muted"
+         role="status" aria-live="polite">
+        <div class="flex items-center gap-3 mb-3">
+            <span class="spinner spinner-lg" aria-hidden="true"></span>
+            <div>
+                <p class="font-semibold m-0" x-text="stage"></p>
+                <p class="text-sm text-muted-foreground m-0">
+                    <span x-text="(elapsed / 1000).toFixed(1)"></span>s elapsed
+                    <template x-if="chars > 0">
+                        <span> · <span x-text="chars"></span> characters written</span>
+                    </template>
+                </p>
+            </div>
+        </div>
+
+        <template x-if="liveSummary">
+            <p class="live-summary" x-text="liveSummary"></p>
+        </template>
+        <template x-if="!liveSummary">
+            <p class="text-sm text-muted-foreground m-0">
+                The model is reading your input. Its summary will appear here as it is written.
+            </p>
+        </template>
+    </div>
+
+    <div id="assessment-result" class="mt-8" x-html="resultHtml"></div>
+
+    <section class="mt-12">
+        <h2 class="text-2xl mb-4">Previous assessments</h2>
+        {% if recent %}
+            {% include "_record_list.html" %}
+        {% else %}
+            <p class="text-muted-foreground">No assessments yet. Your first one will appear here.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function assessmentForm() {
+    return {
+        busy: false,
+        stage: "Starting the local model…",
+        liveSummary: "",
+        chars: 0,
+        elapsed: 0,
+        resultHtml: "",
+        previewUrl: "",
+        _timer: null,
+
+        preview(event) {
+            const file = event.target.files[0];
+            if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
+            this.previewUrl = file ? URL.createObjectURL(file) : "";
+        },
+
+        reset() {
+            this.stage = "Starting the local model…";
+            this.liveSummary = "";
+            this.chars = 0;
+            this.elapsed = 0;
+            this.resultHtml = "";
+        },
+
+        async submit(event) {
+            if (this.busy) return;
+            this.reset();
+            this.busy = true;
+
+            const started = Date.now();
+            this._timer = setInterval(() => { this.elapsed = Date.now() - started; }, 100);
+
+            try {
+                const response = await fetch("{{ url_for('health.stream_assessment') }}", {
+                    method: "POST",
+                    body: new FormData(event.target),
+                });
+
+                if (!response.body) throw new Error("Streaming is not supported by this browser.");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split("\n\n");
+                    buffer = parts.pop();
+
+                    for (const part of parts) {
+                        const line = part.split("\n").find(l => l.startsWith("data: "));
+                        if (!line) continue;
+                        this.handle(JSON.parse(line.slice(6)));
+                    }
+                }
+            } catch (err) {
+                this.resultHtml =
+                    '<div class="uk-alert border border-border rounded-lg p-4 text-destructive">' +
+                    "<strong>Could not assess the plant.</strong><p class=\"mt-1 text-sm\">" +
+                    this.escape(err.message) + "</p></div>";
+            } finally {
+                clearInterval(this._timer);
+                this.busy = false;
+            }
+        },
+
+        handle(event) {
+            if (event.type === "progress") {
+                if (event.field) this.stage = event.field + "…";
+                if (event.summary) this.liveSummary = event.summary;
+                this.chars = event.chars || 0;
+            } else if (event.type === "done") {
+                this.resultHtml = event.html;
+                // Let Franken UI pick up tooltips inside the newly inserted markup.
+                this.$nextTick(() => window.UIkit && window.UIkit.update());
+            } else if (event.type === "error") {
+                this.resultHtml =
+                    '<div class="uk-alert border border-border rounded-lg p-4 text-destructive">' +
+                    "<strong>Could not assess the plant.</strong><p class=\"mt-1 text-sm\">" +
+                    this.escape(event.message) + "</p></div>";
+            }
+        },
+
+        escape(text) {
+            const el = document.createElement("div");
+            el.textContent = text == null ? "" : text;
+            return el.innerHTML;
+        },
+    };
+}
+</script>
+{% endblock %}

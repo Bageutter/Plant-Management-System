@@ -19,6 +19,7 @@ services:
       - DATABASE_URL=sqlite:////app/instance/auth.db
       - VGARDEN_URL=http://vgarden:5000
       - VGARDEN_PUBLIC_URL=http://localhost:5002
+      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records
     depends_on:
       - vgarden
 
@@ -31,3 +32,36 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/instance/vgarden.db
       - AUTH_PUBLIC_URL=http://localhost:5001
+
+  health:
+    build: ./health
+    ports:
+      - "5003:5000"
+    volumes:
+      - ./health:/app
+    environment:
+      - DATABASE_URL=sqlite:////app/instance/health.db
+      - AUTH_PUBLIC_URL=http://localhost:5001
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=qwen2.5vl:3b
+      - OLLAMA_AUTO_PULL=true
+      - OLLAMA_KEEP_ALIVE=30m
+    depends_on:
+      - ollama
+
+  # Locally hosted AI used by the health monitoring service. The model is pulled on
+  # first use and cached in the ollama-models volume.
+  # Runs on CPU by default; add docker-compose.gpu.yml for NVIDIA GPU acceleration.
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      # Keep one model resident so repeat requests skip the load cost.
+      - OLLAMA_KEEP_ALIVE=30m
+      - OLLAMA_MAX_LOADED_MODELS=1
+
+volumes:
+  ollama-models:

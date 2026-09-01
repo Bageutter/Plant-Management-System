@@ -1,0 +1,103 @@
+{% set labels = {"healthy": "Healthy", "at_risk": "At risk", "unhealthy": "Unhealthy", "unknown": "Unknown"} %}
+{% set conf_labels = {"low": "Low confidence", "medium": "Medium confidence", "high": "High confidence"} %}
+<article class="border border-border rounded-lg p-6 bg-muted">
+    <header class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+            <span class="badge status-{{ assessment.status }}">{{ labels.get(assessment.status, assessment.status) }}</span>
+            <h2 class="text-xl m-0">{{ assessment.plant_identification or assessment.plant_ref or "Plant assessment" }}</h2>
+        </div>
+        {% if assessment.confidence_level %}
+            <span class="badge conf-{{ assessment.confidence_level }} help"
+                  uk-tooltip="title: {{ confidence_explanation }}; pos: bottom"
+                  title="{{ confidence_explanation }}"
+                  tabindex="0">
+                {{ conf_labels.get(assessment.confidence_level) }}
+            </span>
+        {% endif %}
+    </header>
+
+    {% if assessment.health_score is not none %}
+        <section class="mt-4">
+            <div class="flex items-baseline justify-between gap-3 mb-1">
+                <span class="text-sm font-semibold help"
+                      uk-tooltip="title: {{ score_explanation }}; pos: top-left"
+                      title="{{ score_explanation }}"
+                      tabindex="0">
+                    Health score <span aria-hidden="true" class="info-dot">?</span>
+                </span>
+                <span class="text-sm text-muted-foreground">
+                    <strong class="text-foreground">{{ assessment.health_score }}</strong> out of 100
+                </span>
+            </div>
+            <div class="score-track" role="img"
+                 aria-label="Health score {{ assessment.health_score }} out of 100, where 100 is a thriving plant. {{ assessment.score_band }}">
+                <div class="score-fill status-{{ assessment.status }}" style="width: {{ assessment.health_score }}%"></div>
+            </div>
+            {% if assessment.score_band %}
+                <p class="text-sm text-muted-foreground mt-2">{{ assessment.score_band }}.</p>
+            {% endif %}
+        </section>
+    {% elif assessment.status == "unknown" %}
+        <p class="mt-4 text-sm text-muted-foreground">
+            No health score was given, because the evidence provided wasn't enough to judge the plant's condition.
+        </p>
+    {% endif %}
+
+    <p class="mt-4">{{ assessment.summary }}</p>
+
+    {% if assessment.confidence_reason and assessment.confidence_level %}
+        <p class="mt-2 text-sm text-muted-foreground">
+            <strong class="text-foreground">Why {{ assessment.confidence_level }} confidence:</strong>
+            {{ assessment.confidence_reason }}
+        </p>
+    {% endif %}
+
+    {% if assessment.issues %}
+        <h3 class="text-lg mt-6 mb-2">Observed issues</h3>
+        <ul class="uk-list uk-list-disc">
+            {% for issue in assessment.issues %}
+                <li>
+                    <span class="sev-{{ issue.severity }}">{{ issue.name }} ({{ issue.severity }})</span>
+                    {% if issue.evidence %}<br><span class="text-sm text-muted-foreground">{{ issue.evidence }}</span>{% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if assessment.recommendations %}
+        <h3 class="text-lg mt-6 mb-2">Recommended actions</h3>
+        <ol class="uk-list uk-list-decimal">
+            {% for rec in assessment.recommendations %}
+                <li>
+                    <span class="sev-{{ rec.priority }}">{{ rec.action }} ({{ rec.priority }} priority)</span>
+                    {% if rec.details %}<br><span class="text-sm text-muted-foreground">{{ rec.details }}</span>{% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    {% endif %}
+
+    {% if assessment.missing_information %}
+        <h3 class="text-lg mt-6 mb-2">Would help the next assessment</h3>
+        <ul class="uk-list uk-list-disc text-sm text-muted-foreground">
+            {% for item in assessment.missing_information %}<li>{{ item }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+
+    <footer class="mt-6 text-xs text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
+        <span>
+            Assessment #{{ assessment.id }} &middot; generated locally by {{ assessment.model }}
+            {%- if assessment.duration_ms %} in {{ (assessment.duration_ms / 1000) | round(1) }}s{% endif %}.
+            Based on
+            {%- if assessment.has_image and assessment.description %} a photo and your description
+            {%- elif assessment.has_image %} a photo only
+            {%- else %} your written description only{% endif %}.
+            AI guidance is advisory only.
+        </span>
+        {% if not detail_view %}
+            <a class="text-primary hover:underline whitespace-nowrap"
+               href="{{ url_for('health.view_assessment', assessment_id=assessment.id) }}">
+                View full record &rarr;
+            </a>
+        {% endif %}
+    </footer>
+</article>

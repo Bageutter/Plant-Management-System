@@ -82,6 +82,7 @@ def account():
         gardens=gardens,
         gardens_error=gardens_error,
         vgarden_public_url=current_app.config["VGARDEN_PUBLIC_URL"],
+        health_public_url=current_app.config["HEALTH_PUBLIC_URL"],
     )
 
 

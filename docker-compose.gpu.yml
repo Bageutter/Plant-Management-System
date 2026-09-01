@@ -1,0 +1,18 @@
+# Optional GPU acceleration for the locally hosted AI.
+#
+# Inference on CPU is roughly an order of magnitude slower than on a GPU, so if the
+# host has an NVIDIA GPU and the NVIDIA Container Toolkit installed, run:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+#
+# This is kept as a separate override so the base compose file still works on
+# machines without a GPU.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

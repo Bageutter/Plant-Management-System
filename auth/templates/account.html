@@ -51,6 +51,23 @@
         {% endif %}
     </div>
 
+    <div class="uk-card uk-card-default uk-card-body mb-6">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+                <h2 class="text-lg font-semibold mb-1">
+                    <span aria-hidden="true">🩺</span> Plant health
+                </h2>
+                <p class="text-sm text-muted-foreground">
+                    Upload a photo or describe a plant, and get an assessment of its health
+                    plus what to do about it. Runs on a locally hosted AI model.
+                </p>
+            </div>
+            <a href="{{ health_public_url }}" class="uk-btn uk-btn-default uk-btn-sm shrink-0">
+                Check plant health
+            </a>
+        </div>
+    </div>
+
     <form method="post" action="{{ url_for('auth.logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <button type="submit" class="uk-btn uk-btn-default w-full">Log out</button>

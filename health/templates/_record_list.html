@@ -1,0 +1,34 @@
+{% set labels = {"healthy": "Healthy", "at_risk": "At risk", "unhealthy": "Unhealthy", "unknown": "Unknown"} %}
+<ul class="uk-list record-list">
+    {% for item in recent %}
+        <li>
+            <a class="record-row" href="{{ url_for('health.view_assessment', assessment_id=item.id) }}">
+                <span class="record-thumb">
+                    {% if item.has_image %}
+                        <img src="{{ url_for('health.assessment_image', assessment_id=item.id) }}"
+                             alt="Photo submitted for assessment #{{ item.id }}" loading="lazy">
+                    {% else %}
+                        <span aria-hidden="true">📝</span>
+                    {% endif %}
+                </span>
+                <span class="record-body">
+                    <span class="flex items-center gap-2 flex-wrap">
+                        <span class="badge status-{{ item.status }}">{{ labels.get(item.status, item.status) }}</span>
+                        <strong>{{ item.plant_ref or item.plant_identification or "Unnamed plant" }}</strong>
+                        {% if item.health_score is not none %}
+                            <span class="text-sm text-muted-foreground">{{ item.health_score }}/100</span>
+                        {% endif %}
+                    </span>
+                    {% if item.description %}
+                        <span class="record-desc text-sm text-muted-foreground">{{ item.description }}</span>
+                    {% elif item.summary %}
+                        <span class="record-desc text-sm text-muted-foreground">{{ item.summary }}</span>
+                    {% endif %}
+                </span>
+                <span class="text-xs text-muted-foreground whitespace-nowrap">
+                    {{ item.created_at.strftime("%d %b %Y, %H:%M") }}
+                </span>
+            </a>
+        </li>
+    {% endfor %}
+</ul>
