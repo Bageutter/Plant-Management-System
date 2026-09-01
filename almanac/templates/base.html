@@ -125,22 +125,16 @@
 </head>
 <body style="background-color: hsl(var(--background)); color: hsl(var(--foreground));">
 
-    <nav class="uk-navbar-container uk-navbar-transparent" style="border-bottom: 1px solid hsl(var(--border));" uk-navbar>
-        <div class="uk-container" style="display:flex; align-items:center; justify-content:space-between; padding-top:0.75rem; padding-bottom:0.75rem;">
-            <a href="{{ url_for('index') }}" style="display:flex; align-items:center; gap:0.5rem; font-weight:600; font-size:1.125rem;">
-                <span aria-hidden="true">🌱</span>
-                <span>Plant Management System</span>
-            </a>
-            <div style="display:flex; gap:1.5rem; font-size:0.9rem; color: hsl(var(--muted-foreground));">
-                <a href="{{ url_for('index') }}" style="font-weight:500;">Almanac</a>
-                {% if auth_user %}
-                <a href="{{ auth_public_url }}/account">My Garden</a>
-                {% else %}
-                <a href="{{ auth_public_url }}/login">Log in</a>
-                {% endif %}
-            </div>
-        </div>
-    </nav>
+    {% from '_header.html' import header %}
+    {{ header(
+        brand_url=url_for('index'),
+        nav_links=[
+            {"label": "My Gardens", "url": auth_public_url ~ "/account"},
+            {"label": "Plant Health", "url": health_public_url},
+            {"label": "Almanac", "url": url_for('index')}
+        ],
+        cta=none if auth_user else {"label": "Log in", "url": auth_public_url ~ "/login"}
+    ) }}
 
     <main class="uk-container" style="padding-top:3rem; padding-bottom:4rem;">
         {% block content %}{% endblock %}
