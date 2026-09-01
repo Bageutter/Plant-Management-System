@@ -29,8 +29,16 @@ def create_app(config_class: type = Config) -> Flask:
     app.register_blueprint(gardens_bp)
 
     @app.context_processor
-    def inject_auth_public_url():
-        return {"auth_public_url": app.config["AUTH_PUBLIC_URL"]}
+    def inject_public_urls():
+        return {
+            "auth_public_url": app.config["AUTH_PUBLIC_URL"],
+            "health_public_url": app.config.get(
+                "HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records/"
+            ),
+            "almanac_public_url": app.config.get(
+                "ALMANAC_PUBLIC_URL", "http://localhost:5004/"
+            ),
+        }
 
     with app.app_context():
         db.create_all()

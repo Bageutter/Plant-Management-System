@@ -7,12 +7,11 @@
 {{ header(
     brand_url="#",
     nav_links=[
-        {"label": "Services", "url": "#services"},
-        {"label": "How it works", "url": "#flow"},
-        {"label": "Roadmap", "url": "#mvp"},
-        {"label": "Log in", "url": auth_url ~ "/login"}
+        {"label": "My Gardens", "url": auth_url ~ "/account"},
+        {"label": "Plant Health", "url": health_url},
+        {"label": "Almanac", "url": almanac_url}
     ],
-    cta={"label": "Get started", "url": auth_url ~ "/register"}
+    cta={"label": "Log in", "url": auth_url ~ "/login"}
 ) }}
 <div x-data="{ mobileNavOpen: false }">
 

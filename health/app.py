@@ -64,6 +64,12 @@ def create_app(config_class: type | None = None) -> Flask:
 
         return {
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
+            "health_public_url": app.config.get(
+                "HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records/"
+            ),
+            "almanac_public_url": app.config.get(
+                "ALMANAC_PUBLIC_URL", "http://localhost:5004/"
+            ),
             "ai_model": app.config["OLLAMA_MODEL"],
             "score_explanation": SCORE_EXPLANATION,
             "confidence_explanation": CONFIDENCE_EXPLANATION,
