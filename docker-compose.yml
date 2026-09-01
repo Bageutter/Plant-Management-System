@@ -48,12 +48,14 @@ services:
     environment:
       - AUTH_URL=http://auth:5000
       - AUTH_PUBLIC_URL=http://localhost:5001
+      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
       - DATABASE_URL=sqlite:////app/instance/almanac.db
       - FLASK_DEBUG=1
       - OLLAMA_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=qwen3:4b-instruct
     volumes:
       - ./almanac:/app
+      - ./shared/templates:/app/shared_templates
       - almanac_data:/app/instance
     depends_on:
       - auth

@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask, current_app, g, jsonify, render_template, request
+from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import text
 
 from ai import AIUnavailableError, OllamaAlmanacAI
@@ -66,6 +67,17 @@ def _render_chat(owner_key: str, error: str | None = None):
 
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__, template_folder="templates")
+    app.jinja_loader = ChoiceLoader(
+        [
+            app.jinja_loader,
+            FileSystemLoader(
+                [
+                    os.path.join(BASE_DIR, "shared_templates"),
+                    os.path.join(BASE_DIR, "..", "shared", "templates"),
+                ]
+            ),
+        ]
+    )
     app.config.from_mapping(
         SQLALCHEMY_DATABASE_URI=os.environ.get(
             "DATABASE_URL",
@@ -74,6 +86,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         AUTH_URL=os.environ.get("AUTH_URL", "http://localhost:5001"),
         AUTH_PUBLIC_URL=os.environ.get("AUTH_PUBLIC_URL", "http://localhost:5001"),
+        HEALTH_PUBLIC_URL=os.environ.get(
+            "HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records/"
+        ),
         OLLAMA_URL=os.environ.get("OLLAMA_URL", "http://localhost:11434"),
         OLLAMA_MODEL=os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
         OLLAMA_TIMEOUT=int(os.environ.get("OLLAMA_TIMEOUT", "120")),
@@ -99,6 +114,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     def inject_service_urls():
         return {
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
+            "health_public_url": app.config["HEALTH_PUBLIC_URL"],
             "auth_user": _current_auth_user(),
         }
 
