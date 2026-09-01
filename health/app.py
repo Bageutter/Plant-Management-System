@@ -3,15 +3,21 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, jsonify
 
-load_dotenv()
-
+# Keep imports at module top; delay importing `Config` until after loading env vars
 from ai import OllamaClient
-from config import Config
 from extensions import db
 from schema import sync_schema
 
 
-def create_app(config_class: type = Config) -> Flask:
+def create_app(config_class: type | None = None) -> Flask:
+    # Load environment variables before importing configuration that reads them.
+    load_dotenv()
+
+    if config_class is None:
+        from config import Config
+
+        config_class = Config
+
     app = Flask(__name__)
     app.config.from_object(config_class)
 
