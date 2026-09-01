@@ -1,0 +1,43 @@
+{% if error %}
+<div role="alert" style="padding:1rem; border-radius:var(--uk-global-radius-s); background:hsl(0 70% 96%); color:hsl(0 55% 32%);">
+    {{ error }}
+</div>
+{% endif %}
+
+{% if messages %}
+<div style="display:grid; gap:0.75rem;">
+    {% for message in messages %}
+    <div style="display:flex; justify-content:{{ 'flex-end' if message.role == 'user' else 'flex-start' }};">
+    <article style="max-width:82%; padding:0.8rem 0.95rem; border-radius:1rem; {% if message.role == 'user' %}border-bottom-right-radius:0.3rem; background:hsl(var(--primary)); color:hsl(var(--primary-foreground));{% else %}border-bottom-left-radius:0.3rem; border:1px solid hsl(var(--border)); background:hsl(var(--card));{% endif %}">
+        <p style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin:0 0 0.3rem; opacity:0.75; color:{% if message.role == 'user' %}hsl(var(--primary-foreground)){% else %}hsl(var(--muted-foreground)){% endif %};">
+            {{ "You" if message.role == "user" else "Almanac" }}
+        </p>
+        <p style="margin:0; line-height:1.6; white-space:pre-wrap;">{{ message.content }}</p>
+        {% if message.source_slugs %}
+        <div style="margin-top:0.65rem; display:flex; align-items:center; flex-wrap:wrap; gap:0.4rem;">
+            <span class="text-muted-foreground" style="font-size:0.7rem;">Sources:</span>
+            {% for slug in message.source_slugs %}
+                {% if slug in sources %}
+                <a class="tag" href="{{ url_for('plant_detail', slug=slug) }}">{{ sources[slug].common_name }}</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </article>
+    </div>
+    {% endfor %}
+</div>
+
+<form hx-post="{{ url_for('clear_ai_chat') }}"
+      hx-target="#ai-messages"
+      hx-swap="innerHTML"
+      hx-confirm="Clear this chat history?"
+      style="margin-top:0.75rem; text-align:right;">
+    <button type="submit" class="uk-btn uk-btn-default uk-btn-sm">Clear chat</button>
+</form>
+{% else %}
+<div class="text-muted-foreground" style="display:grid; min-height:11rem; place-content:center; text-align:center;">
+    <span aria-hidden="true" style="font-size:1.8rem;">🌱</span>
+    <p style="font-size:0.82rem; margin:0.45rem 0 0;">Ask a question to start your Almanac chat.</p>
+</div>
+{% endif %}

@@ -1,15 +1,17 @@
 import os
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, current_app, g, jsonify, render_template, request
 from sqlalchemy import text
 
 from ai import AIUnavailableError, OllamaAlmanacAI
+from auth_client import AuthClient
 from extensions import db
-from models import PlantReference
+from models import AIChatMessage, PlantReference
 from seed_data import seed_reference_data
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+CHAT_HISTORY_LIMIT = 20
 
 
 def _records_for_question(question: str, records: list[PlantReference]) -> list[PlantReference]:
@@ -24,6 +26,44 @@ def _records_for_question(question: str, records: list[PlantReference]) -> list[
     return matches or records
 
 
+def _current_auth_user() -> dict | None:
+    if "auth_user" not in g:
+        g.auth_user = current_app.extensions["auth_client"].current_user(
+            request.headers.get("Cookie", "")
+        )
+    return g.auth_user
+
+
+def _chat_owner_key() -> str | None:
+    user = _current_auth_user()
+    return f"user:{user['id']}" if user else None
+
+
+def _chat_history(owner_key: str) -> list[AIChatMessage]:
+    messages = (
+        AIChatMessage.query.filter_by(owner_key=owner_key)
+        .order_by(AIChatMessage.id.desc())
+        .limit(CHAT_HISTORY_LIMIT)
+        .all()
+    )
+    return list(reversed(messages))
+
+
+def _chat_context(owner_key: str) -> tuple[list[AIChatMessage], dict[str, dict]]:
+    messages = _chat_history(owner_key)
+    source_slugs = {
+        slug for message in messages for slug in (message.source_slugs or [])
+    }
+    source_records = PlantReference.query.filter(PlantReference.slug.in_(source_slugs)).all()
+    sources = {record.slug: record.to_dict() for record in source_records}
+    return messages, sources
+
+
+def _render_chat(owner_key: str, error: str | None = None):
+    messages, sources = _chat_context(owner_key)
+    return render_template("_ai_history.html", messages=messages, sources=sources, error=error)
+
+
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__, template_folder="templates")
     app.config.from_mapping(
@@ -32,6 +72,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             "sqlite:///" + os.path.join(BASE_DIR, "instance", "almanac.db"),
         ),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        AUTH_URL=os.environ.get("AUTH_URL", "http://localhost:5001"),
         AUTH_PUBLIC_URL=os.environ.get("AUTH_PUBLIC_URL", "http://localhost:5001"),
         OLLAMA_URL=os.environ.get("OLLAMA_URL", "http://localhost:11434"),
         OLLAMA_MODEL=os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
@@ -47,6 +88,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             os.makedirs(database_directory, exist_ok=True)
 
     db.init_app(app)
+    app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])
     app.extensions["almanac_ai"] = OllamaAlmanacAI(
         base_url=app.config["OLLAMA_URL"],
         model=app.config["OLLAMA_MODEL"],
@@ -55,13 +97,23 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.context_processor
     def inject_service_urls():
-        return {"auth_public_url": app.config["AUTH_PUBLIC_URL"]}
+        return {
+            "auth_public_url": app.config["AUTH_PUBLIC_URL"],
+            "auth_user": _current_auth_user(),
+        }
 
     @app.get("/")
     def index():
         plants = PlantReference.query.order_by(PlantReference.common_name).all()
         plants = [p.to_dict() for p in plants]
-        return render_template("index.html", plants=plants)
+        owner_key = _chat_owner_key()
+        messages, sources = _chat_context(owner_key) if owner_key else ([], {})
+        return render_template(
+            "index.html",
+            plants=plants,
+            messages=messages,
+            sources=sources,
+        )
 
     @app.get("/plants/<slug>")
     def plant_detail(slug: str):
@@ -84,13 +136,14 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.post("/ai/ask")
     def ask_almanac():
+        owner_key = _chat_owner_key()
+        if owner_key is None:
+            return jsonify({"error": "login required"}), 401
         question = request.form.get("question", "").strip()
         if not question:
-            return render_template("_ai_answer.html", error="Enter a question first."), 400
+            return _render_chat(owner_key, "Enter a question first."), 400
         if len(question) > 500:
-            return render_template(
-                "_ai_answer.html", error="Keep your question under 500 characters."
-            ), 400
+            return _render_chat(owner_key, "Keep your question under 500 characters."), 400
 
         all_records = PlantReference.query.order_by(PlantReference.common_name).all()
         records = _records_for_question(question, all_records)
@@ -98,16 +151,33 @@ def create_app(test_config: dict | None = None) -> Flask:
         try:
             result = app.extensions["almanac_ai"].ask(question, plants)
         except AIUnavailableError:
-            return render_template(
-                "_ai_answer.html",
-                error="The local AI model is unavailable. Check that Ollama is running and try again.",
+            return _render_chat(
+                owner_key,
+                "The local AI model is unavailable. Check that Ollama is running and try again.",
             ), 503
 
-        plants_by_slug = {plant["slug"]: plant for plant in plants}
-        sources = [plants_by_slug[slug] for slug in result["sources"] if slug in plants_by_slug]
-        return render_template(
-            "_ai_answer.html", answer=result["answer"], sources=sources, question=question
+        db.session.add_all(
+            [
+                AIChatMessage(owner_key=owner_key, role="user", content=question),
+                AIChatMessage(
+                    owner_key=owner_key,
+                    role="assistant",
+                    content=result["answer"],
+                    source_slugs=result["sources"],
+                ),
+            ]
         )
+        db.session.commit()
+        return _render_chat(owner_key)
+
+    @app.post("/ai/clear")
+    def clear_ai_chat():
+        owner_key = _chat_owner_key()
+        if owner_key is None:
+            return jsonify({"error": "login required"}), 401
+        AIChatMessage.query.filter_by(owner_key=owner_key).delete()
+        db.session.commit()
+        return _render_chat(owner_key)
 
     @app.get("/health")
     def health():

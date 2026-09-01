@@ -8,46 +8,97 @@
         <h1 style="font-size:2.25rem; font-weight:700; margin:0 0 0.5rem;">Plant Almanac</h1>
     </div>
 
-    <section x-data="{ question: '' }" style="margin-bottom:2.5rem; padding:1.5rem; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); background:hsl(var(--card));">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
-            <div>
-                <h2 style="font-size:1.4rem; margin:0;">Ask the Almanac</h2>
+    {% if auth_user %}
+    <div x-data="{ chatOpen: false, question: '', pendingQuestion: '' }" @keydown.escape.window="chatOpen = false">
+        <button type="button"
+                class="ai-chat-launcher"
+                aria-controls="ai-chat-panel"
+                :aria-expanded="chatOpen.toString()"
+                x-show="!chatOpen"
+                x-transition
+                @click="chatOpen = true; $nextTick(() => { $refs.conversation.scrollTop = $refs.conversation.scrollHeight; $refs.question.focus(); })">
+            <span aria-hidden="true">🌱</span>
+            <span>Ask the Almanac</span>
+        </button>
+
+        <aside id="ai-chat-panel"
+               class="ai-chat-panel"
+               role="dialog"
+               aria-label="Plant Almanac chat"
+               x-cloak
+               x-show="chatOpen"
+               x-transition.origin.bottom.right>
+            <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem; border-bottom:1px solid hsl(var(--border));">
+                <div>
+                    <h2 style="font-size:1.15rem; margin:0;">Ask the Almanac</h2>
+                </div>
+                <button type="button"
+                        aria-label="Close Almanac chat"
+                        @click="chatOpen = false"
+                        style="width:2rem; height:2rem; border:0; border-radius:9999px; background:hsl(var(--muted)); color:hsl(var(--foreground)); cursor:pointer; font-size:1.1rem;">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </header>
+
+            <div id="ai-conversation"
+                 x-ref="conversation"
+                 aria-live="polite"
+                 style="min-height:0; flex:1; overflow-y:auto; padding:1rem; background:hsl(var(--background));">
+                <div id="ai-messages"
+                     hx-on::after-swap="this.parentElement.scrollTop = this.parentElement.scrollHeight">
+                    {% include "_ai_history.html" %}
+                </div>
+                <template x-if="pendingQuestion">
+                    <div style="display:flex; justify-content:flex-end; margin-top:0.75rem;">
+                        <article style="max-width:82%; padding:0.8rem 0.95rem; border-radius:1rem 1rem 0.3rem 1rem; background:hsl(var(--primary)); color:hsl(var(--primary-foreground));">
+                            <p style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin:0 0 0.3rem; opacity:0.75;">You</p>
+                            <p x-text="pendingQuestion" style="margin:0; line-height:1.6; white-space:pre-wrap;"></p>
+                            <p style="font-size:0.68rem; margin:0.35rem 0 0; opacity:0.7;">Sending…</p>
+                        </article>
+                    </div>
+                </template>
             </div>
-            <span class="tag">qwen3:4b-instruct</span>
-        </div>
 
-        <form hx-post="{{ url_for('ask_almanac') }}"
-              hx-target="#ai-answer"
-              hx-swap="innerHTML"
-              hx-indicator="#ai-loading"
-              style="margin-top:1.25rem;">
-            <label for="ai-question" style="font-size:0.875rem; font-weight:600;">Your question</label>
-            <textarea id="ai-question"
-                      name="question"
-                      x-model="question"
-                      maxlength="500"
-                      required
-                      rows="2"
-                      placeholder="When should I plant tomatoes?"
-                      style="display:block; width:100%; box-sizing:border-box; margin-top:0.4rem; padding:0.8rem; resize:vertical; border:1px solid hsl(var(--border)); border-radius:var(--uk-global-radius-s); background:hsl(var(--background)); color:hsl(var(--foreground));"></textarea>
-            <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.75rem;">
-                <button type="submit" class="uk-btn uk-btn-primary uk-btn-sm">Ask</button>
-                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="font-size:0.8rem;">Thinking locally…</span>
-            </div>
-        </form>
+            <footer style="padding:0.8rem 0.9rem; border-top:1px solid hsl(var(--border));">
+                <div style="display:flex; gap:0.35rem; margin-bottom:0.6rem; overflow-x:auto; padding-bottom:0.1rem;">
+                    {% for example in ["Plant tomatoes?", "What can I plant now?", "Compare basil and zucchini"] %}
+                    <button type="button"
+                            @click='question = {{ example|tojson }}; document.getElementById("ai-question").focus()'
+                            style="flex:none; padding:0.3rem 0.5rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--muted-foreground)); font-size:0.68rem; cursor:pointer;">
+                        {{ example }}
+                    </button>
+                    {% endfor %}
+                </div>
 
-        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:1rem;">
-            {% for example in ["When should I plant tomatoes?", "What can I plant this month?", "Compare basil and zucchini planting months."] %}
-            <button type="button"
-                    @click='question = {{ example|tojson }}; document.getElementById("ai-question").focus()'
-                    style="padding:0.4rem 0.65rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--muted-foreground)); font-size:0.75rem; cursor:pointer;">
-                {{ example }}
-            </button>
-            {% endfor %}
-        </div>
-
-        <div id="ai-answer" aria-live="polite" style="margin-top:1.25rem;"></div>
-    </section>
+                <form hx-post="{{ url_for('ask_almanac') }}"
+                      hx-target="#ai-messages"
+                      hx-swap="innerHTML"
+                      hx-indicator="#ai-loading"
+                      x-on:htmx:before-request="pendingQuestion = question.trim(); question = ''; $nextTick(() => { $refs.conversation.scrollTop = $refs.conversation.scrollHeight; })"
+                      x-on:htmx:after-request="pendingQuestion = ''"
+                      style="display:flex; align-items:flex-end; gap:0.5rem;">
+                    <label class="sr-only" for="ai-question">Your question</label>
+                    <textarea id="ai-question"
+                              x-ref="question"
+                              name="question"
+                              x-model="question"
+                              maxlength="500"
+                              required
+                              rows="2"
+                              placeholder="Ask about a plant…"
+                              style="min-height:2.6rem; flex:1; box-sizing:border-box; padding:0.65rem 0.75rem; resize:none; border:1px solid hsl(var(--border)); border-radius:0.75rem; background:hsl(var(--background)); color:hsl(var(--foreground));"></textarea>
+                    <button type="submit" class="uk-btn uk-btn-primary uk-btn-sm" style="height:2.6rem;">Send</button>
+                </form>
+                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="display:block; font-size:0.7rem; margin-top:0.35rem;">Thinking locally…</span>
+            </footer>
+        </aside>
+    </div>
+    {% else %}
+    <a class="ai-chat-launcher" href="{{ auth_public_url }}/login">
+        <span aria-hidden="true">🌱</span>
+        <span>Log in to ask the Almanac</span>
+    </a>
+    {% endif %}
 
     {% if plants %}
     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(17rem, 1fr)); gap:1.25rem;">

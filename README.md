@@ -43,7 +43,7 @@ orrrr just what you need:
 
 ```bash
 docker compose up -d --build auth vgarden
-docker compose up -d --build almanac
+docker compose up -d --build auth ollama almanac
 ```
 
 | service | url |
@@ -196,6 +196,16 @@ When information belongs to another domain, the Virtual Garden Service should qu
 ## Plant Almanac Service
 
 The **Plant Almanac Service** provides general knowledge about plants.
+
+### Current implementation
+
+The current service provides public plant reference pages and APIs plus an authenticated,
+Ollama-powered chat at <http://localhost:5004>.
+
+See [the Plant Almanac microservice README](almanac/README.md) for setup, architecture,
+endpoints, configuration, tests, and persistence.
+
+### Intended knowledge scope
 
 Examples include:
 
