@@ -83,6 +83,9 @@ def account():
         gardens_error=gardens_error,
         vgarden_public_url=current_app.config["VGARDEN_PUBLIC_URL"],
         health_public_url=current_app.config["HEALTH_PUBLIC_URL"],
+        almanac_public_url=current_app.config.get(
+            "ALMANAC_PUBLIC_URL", "http://localhost:5004/"
+        ),
     )
 
 

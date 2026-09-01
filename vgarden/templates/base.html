@@ -77,7 +77,9 @@
     {{ header(
         brand_url=auth_public_url ~ "/account",
         nav_links=[
-            {"label": "← My Gardens", "url": auth_public_url ~ "/account"}
+            {"label": "My Gardens", "url": auth_public_url ~ "/account"},
+            {"label": "Plant Health", "url": health_public_url},
+            {"label": "Almanac", "url": almanac_public_url}
         ]
     ) }}
 

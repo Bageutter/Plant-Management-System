@@ -17,6 +17,10 @@ class Config:
 
     # Browser-facing base URL of the auth service, used in links rendered to the user.
     AUTH_PUBLIC_URL = os.environ.get("AUTH_PUBLIC_URL", "http://localhost:5001")
+    HEALTH_PUBLIC_URL = os.environ.get(
+        "HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records/"
+    )
+    ALMANAC_PUBLIC_URL = os.environ.get("ALMANAC_PUBLIC_URL", "http://localhost:5004/")
 
     # Locally hosted AI (Ollama). Nothing leaves the local network.
     OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")

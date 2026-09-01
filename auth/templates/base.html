@@ -94,7 +94,14 @@
 <body class="bg-background text-foreground">
 
     {% from '_header.html' import header %}
-    {{ header(brand_url=url_for('auth.login')) }}
+    {{ header(
+        brand_url=url_for('auth.account'),
+        nav_links=[
+            {"label": "My Gardens", "url": url_for('auth.account')},
+            {"label": "Plant Health", "url": health_public_url},
+            {"label": "Almanac", "url": almanac_public_url}
+        ]
+    ) }}
 
     <main class="uk-container mx-auto py-16">
         {% block content %}{% endblock %}

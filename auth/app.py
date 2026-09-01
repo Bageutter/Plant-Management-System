@@ -37,6 +37,17 @@ def create_app(config_class: type = Config) -> Flask:
 
     app.register_blueprint(auth_bp)
 
+    @app.context_processor
+    def inject_public_urls():
+        return {
+            "health_public_url": app.config.get(
+                "HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records/"
+            ),
+            "almanac_public_url": app.config.get(
+                "ALMANAC_PUBLIC_URL", "http://localhost:5004/"
+            ),
+        }
+
     with app.app_context():
         db.create_all()
 

@@ -8,6 +8,8 @@ services:
       - ./shared/templates:/app/shared_templates
     environment:
       - AUTH_URL=http://localhost:5001
+      - HEALTH_URL=http://localhost:5003/plant-health-records/
+      - ALMANAC_URL=http://localhost:5004/
 
   auth:
     build: ./auth
@@ -22,6 +24,7 @@ services:
       - VGARDEN_URL=http://vgarden:5000
       - VGARDEN_PUBLIC_URL=http://localhost:5002
       - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records
+      - ALMANAC_PUBLIC_URL=http://localhost:5004/
     depends_on:
       - vgarden
 
@@ -35,6 +38,8 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/instance/vgarden.db
       - AUTH_PUBLIC_URL=http://localhost:5001
+      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
+      - ALMANAC_PUBLIC_URL=http://localhost:5004/
 
   health:
     build: ./health
@@ -46,6 +51,8 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/instance/health.db
       - AUTH_PUBLIC_URL=http://localhost:5001
+      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
+      - ALMANAC_PUBLIC_URL=http://localhost:5004/
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=qwen2.5vl:3b
       - OLLAMA_AUTO_PULL=true
