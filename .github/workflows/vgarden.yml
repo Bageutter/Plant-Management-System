@@ -1,0 +1,13 @@
+name: Virtual Garden
+on:
+  push:
+    branches: ["yunz/**"]
+    paths: ["vgarden/**"]
+  pull_request:
+    branches: ["**"]
+    paths: ["vgarden/**"]
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "placeholder"
