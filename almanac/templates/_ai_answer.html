@@ -1,0 +1,17 @@
+{% if error %}
+<div role="alert" style="padding:1rem; border-radius:var(--uk-global-radius-s); background:hsl(0 70% 96%); color:hsl(0 55% 32%);">
+    {{ error }}
+</div>
+{% else %}
+<article style="padding:1.25rem; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); background:hsl(var(--card));">
+    <p style="margin:0; line-height:1.7; white-space:pre-wrap;">{{ answer }}</p>
+    {% if sources %}
+    <div style="margin-top:1rem; display:flex; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+        <span class="text-muted-foreground" style="font-size:0.75rem;">Almanac sources:</span>
+        {% for plant in sources %}
+        <a class="tag" href="{{ url_for('plant_detail', slug=plant.slug) }}">{{ plant.common_name }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</article>
+{% endif %}

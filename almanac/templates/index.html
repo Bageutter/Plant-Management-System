@@ -6,8 +6,48 @@
 <div style="max-width:56rem; margin:0 auto;">
     <div style="margin-bottom:2.5rem;">
         <h1 style="font-size:2.25rem; font-weight:700; margin:0 0 0.5rem;">Plant Almanac</h1>
-        <p class="text-muted-foreground" style="font-size:1rem; margin:0;">Browse our library of plants, care guides, and planting calendars.</p>
     </div>
+
+    <section x-data="{ question: '' }" style="margin-bottom:2.5rem; padding:1.5rem; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); background:hsl(var(--card));">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <div>
+                <h2 style="font-size:1.4rem; margin:0;">Ask the Almanac</h2>
+            </div>
+            <span class="tag">qwen3:4b-instruct</span>
+        </div>
+
+        <form hx-post="{{ url_for('ask_almanac') }}"
+              hx-target="#ai-answer"
+              hx-swap="innerHTML"
+              hx-indicator="#ai-loading"
+              style="margin-top:1.25rem;">
+            <label for="ai-question" style="font-size:0.875rem; font-weight:600;">Your question</label>
+            <textarea id="ai-question"
+                      name="question"
+                      x-model="question"
+                      maxlength="500"
+                      required
+                      rows="2"
+                      placeholder="When should I plant tomatoes?"
+                      style="display:block; width:100%; box-sizing:border-box; margin-top:0.4rem; padding:0.8rem; resize:vertical; border:1px solid hsl(var(--border)); border-radius:var(--uk-global-radius-s); background:hsl(var(--background)); color:hsl(var(--foreground));"></textarea>
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.75rem;">
+                <button type="submit" class="uk-btn uk-btn-primary uk-btn-sm">Ask</button>
+                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="font-size:0.8rem;">Thinking locally…</span>
+            </div>
+        </form>
+
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:1rem;">
+            {% for example in ["When should I plant tomatoes?", "What can I plant this month?", "Compare basil and zucchini planting months."] %}
+            <button type="button"
+                    @click='question = {{ example|tojson }}; document.getElementById("ai-question").focus()'
+                    style="padding:0.4rem 0.65rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--muted-foreground)); font-size:0.75rem; cursor:pointer;">
+                {{ example }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <div id="ai-answer" aria-live="polite" style="margin-top:1.25rem;"></div>
+    </section>
 
     {% if plants %}
     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(17rem, 1fr)); gap:1.25rem;">
