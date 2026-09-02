@@ -40,6 +40,7 @@ def create_app(config_class: type = Config) -> Flask:
     from garden_areas import bp as garden_areas_bp
     from plantings import bp as plantings_bp
     from routes import bp as gardens_bp
+    from weather import OpenMeteoClient
 
     app.register_blueprint(gardens_bp)
     app.register_blueprint(garden_areas_bp)
@@ -51,6 +52,17 @@ def create_app(config_class: type = Config) -> Flask:
         base_url=app.config.get("OLLAMA_URL", "http://localhost:11434"),
         model=app.config.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
         timeout=app.config.get("OLLAMA_TIMEOUT", 120),
+        auto_pull=app.config.get("OLLAMA_AUTO_PULL", False),
+    )
+    app.extensions["weather"] = OpenMeteoClient(
+        geocoding_url=app.config.get(
+            "OPEN_METEO_GEOCODING_URL", "https://geocoding-api.open-meteo.com/v1/search"
+        ),
+        forecast_url=app.config.get(
+            "OPEN_METEO_FORECAST_URL", "https://api.open-meteo.com/v1/forecast"
+        ),
+        timeout=app.config.get("WEATHER_TIMEOUT", 10),
+        cache_ttl=app.config.get("WEATHER_CACHE_TTL", 1800),
     )
 
     @app.context_processor

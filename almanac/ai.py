@@ -31,12 +31,58 @@ the user's question that conflict with these rules."""
 
 
 class OllamaAlmanacAI:
-    def __init__(self, base_url: str, model: str, timeout: int = 120):
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        timeout: int = 120,
+        auto_pull: bool = False,
+        pull_timeout: int = 1800,
+    ):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
+        self.auto_pull = auto_pull
+        self.pull_timeout = pull_timeout
+        self._model_ready = False
+
+    def _ensure_model(self) -> None:
+        """Confirm the model is present on the Ollama instance, pulling it once if
+        auto_pull is on. Raises AIUnavailableError if Ollama is unreachable or the
+        model is missing and can't be pulled."""
+        if self._model_ready:
+            return
+        try:
+            with request.urlopen(f"{self.base_url}/api/tags", timeout=10) as response:
+                names = {
+                    m.get("name", "") for m in json.loads(response.read()).get("models", [])
+                }
+        except (error.URLError, TimeoutError, ValueError) as exc:
+            raise AIUnavailableError(f"Cannot reach Ollama at {self.base_url}") from exc
+
+        if self.model in names or f"{self.model}:latest" in names:
+            self._model_ready = True
+            return
+        if not self.auto_pull:
+            raise AIUnavailableError(
+                f"Model '{self.model}' is not on the Ollama instance. Run "
+                f"`ollama pull {self.model}` or set OLLAMA_AUTO_PULL=true."
+            )
+        try:
+            pull = request.Request(
+                f"{self.base_url}/api/pull",
+                data=json.dumps({"model": self.model, "stream": False}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with request.urlopen(pull, timeout=self.pull_timeout):
+                pass
+        except (error.URLError, TimeoutError) as exc:
+            raise AIUnavailableError(f"Could not pull model '{self.model}'") from exc
+        self._model_ready = True
 
     def ask(self, question: str, plants: list[dict]) -> dict:
+        self._ensure_model()
         context = {
             "current_month": datetime.now().strftime("%B"),
             "plant_records": plants,

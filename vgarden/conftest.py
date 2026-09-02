@@ -47,3 +47,40 @@ def login_as(client):
 @pytest.fixture
 def service_headers(app):
     return {"Authorization": f"Bearer {app.config['INTER_SERVICE_SECRET']}"}
+
+
+class FakeWeather:
+    """Stand-in for weather.OpenMeteoClient. Defaults to "Open-Meteo unreachable"
+    so tests never touch the network; opt into results per-test."""
+
+    def __init__(self):
+        self.raise_error = True
+        self.geocode_result = None
+        self.weather_result = None
+        self.geocode_calls = []
+        self.weather_calls = []
+
+    def geocode(self, name):
+        self.geocode_calls.append(name)
+        if self.raise_error:
+            from weather import WeatherUnavailableError
+
+            raise WeatherUnavailableError("test: offline")
+        return self.geocode_result
+
+    def garden_weather(self, latitude, longitude):
+        self.weather_calls.append((latitude, longitude))
+        if self.raise_error:
+            from weather import WeatherUnavailableError
+
+            raise WeatherUnavailableError("test: offline")
+        return self.weather_result
+
+
+@pytest.fixture(autouse=True)
+def weather(app):
+    """Autouse: every test gets an offline weather stub. Tests that exercise
+    geocoding/forecast set `weather.raise_error = False` and the *_result fields."""
+    fake = FakeWeather()
+    app.extensions["weather"] = fake
+    return fake

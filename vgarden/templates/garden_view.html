@@ -173,21 +173,15 @@
     <div class="grid grid-cols-2 gap-3">
         <div>
             <label for="edit-location" class="uk-form-label">Location</label>
-            <input id="edit-location" type="text" name="location_label" value="{{ garden.location_label }}" placeholder="e.g. Melbourne, Australia" class="uk-input">
+            <input id="edit-location" type="text" name="location_label" maxlength="255" value="{{ garden.location_label }}" placeholder="e.g. Melbourne, Australia" class="uk-input">
+            <p class="text-xs text-muted-foreground mt-1">
+                Type a city/town — we look up its coordinates for the AI assistant's weather.
+                {%- if garden.latitude is not none %} Currently {{ '%.2f'|format(garden.latitude) }}, {{ '%.2f'|format(garden.longitude) }}.{% endif %}
+            </p>
         </div>
         <div>
             <label for="edit-climate" class="uk-form-label">Climate zone</label>
             <input id="edit-climate" type="text" name="climate_zone" value="{{ garden.climate_zone }}" placeholder="e.g. temperate" class="uk-input">
-        </div>
-    </div>
-    <div class="grid grid-cols-2 gap-3">
-        <div>
-            <label for="edit-lat" class="uk-form-label">Latitude</label>
-            <input id="edit-lat" type="number" step="any" name="latitude" value="{{ garden.latitude if garden.latitude is not none else '' }}" class="uk-input">
-        </div>
-        <div>
-            <label for="edit-lon" class="uk-form-label">Longitude</label>
-            <input id="edit-lon" type="number" step="any" name="longitude" value="{{ garden.longitude if garden.longitude is not none else '' }}" class="uk-input">
         </div>
     </div>
     <div class="grid grid-cols-2 gap-3">
@@ -395,7 +389,7 @@
 
         <footer style="padding:0.8rem 0.9rem; border-top:1px solid hsl(var(--border));">
             <div style="display:flex; gap:0.35rem; margin-bottom:0.6rem; overflow-x:auto; padding-bottom:0.1rem;">
-                {% for example in ["What's planted here?", "Which plantings are ready to harvest?", "What's in each area?"] %}
+                {% for example in ["What's planted here?", "Do I need to water today?", "Any frost risk this week?", "What's ready to harvest?"] %}
                 <button type="button"
                         @click='question = {{ example|tojson }}; $refs.question.focus()'
                         style="flex:none; padding:0.3rem 0.5rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--muted-foreground)); font-size:0.68rem;">

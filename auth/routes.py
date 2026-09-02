@@ -117,12 +117,17 @@ def create_garden():
         flash("Garden name is required.", "error")
         return redirect(url_for("auth.account"))
 
+    payload = {"owner_id": current_user.id, "name": name}
+    location = (request.form.get("location") or "").strip()
+    if location:
+        payload["location"] = location
+
     try:
         resp = requests.post(
             f"{current_app.config['VGARDEN_URL']}/gardens",
-            json={"owner_id": current_user.id, "name": name},
+            json=payload,
             headers=_vgarden_service_headers(),
-            timeout=5,
+            timeout=10,
         )
     except requests.RequestException:
         flash("Couldn't reach the garden service. Please try again.", "error")

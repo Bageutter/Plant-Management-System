@@ -89,6 +89,18 @@
             x-effect="if (showAdd) $nextTick(() => $el.focus())"
         >
     </div>
+    <div>
+        <label for="garden-location" class="uk-form-label">Location <span class="text-muted-foreground">(optional)</span></label>
+        <input
+            id="garden-location"
+            type="text"
+            name="location"
+            maxlength="255"
+            placeholder="e.g. Melbourne, Australia"
+            class="uk-input"
+        >
+        <p class="text-xs text-muted-foreground mt-1">Used for local weather in the garden's AI assistant. You can set or change it later.</p>
+    </div>
     <button type="submit" class="uk-btn uk-btn-primary w-full">Create garden</button>
 </form>
 {% endcall %}

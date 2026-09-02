@@ -97,6 +97,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         OLLAMA_URL=os.environ.get("OLLAMA_URL", "http://localhost:11434"),
         OLLAMA_MODEL=os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
         OLLAMA_TIMEOUT=int(os.environ.get("OLLAMA_TIMEOUT", "120")),
+        OLLAMA_AUTO_PULL=os.environ.get("OLLAMA_AUTO_PULL", "false").lower() == "true",
     )
     if test_config:
         app.config.update(test_config)
@@ -113,6 +114,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         base_url=app.config["OLLAMA_URL"],
         model=app.config["OLLAMA_MODEL"],
         timeout=app.config["OLLAMA_TIMEOUT"],
+        auto_pull=app.config.get("OLLAMA_AUTO_PULL", False),
     )
 
     @app.context_processor
@@ -159,7 +161,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     def ask_almanac():
         owner_key = _chat_owner_key()
         if owner_key is None:
-            return jsonify({"error": "login required"}), 401
+            return _render_chat(None, "Your session has expired. Log in again to use the chat."), 401
         question = request.form.get("question", "").strip()
         if not question:
             return _render_chat(owner_key, "Enter a question first."), 400
@@ -195,7 +197,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     def clear_ai_chat():
         owner_key = _chat_owner_key()
         if owner_key is None:
-            return jsonify({"error": "login required"}), 401
+            return _render_chat(None, "Your session has expired. Log in again to use the chat."), 401
         AIChatMessage.query.filter_by(owner_key=owner_key).delete()
         db.session.commit()
         return _render_chat(owner_key)
