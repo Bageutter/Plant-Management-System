@@ -32,6 +32,9 @@ class Config:
     OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct")
     OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
 
+    # Distinct per service so auth's and vgarden's cookies don't clobber each other
+    # when both are served from the same origin (the nginx proxy).
+    SESSION_COOKIE_NAME = "vgarden_session"
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"

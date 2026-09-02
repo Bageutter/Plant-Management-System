@@ -25,6 +25,9 @@ class Config:
     HEALTH_PUBLIC_URL = os.environ.get("HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records")
     ALMANAC_PUBLIC_URL = os.environ.get("ALMANAC_PUBLIC_URL", "http://localhost:5004/")
 
+    # Distinct per service so auth's and vgarden's cookies don't clobber each other
+    # when both are served from the same origin (the nginx proxy).
+    SESSION_COOKIE_NAME = "auth_session"
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"

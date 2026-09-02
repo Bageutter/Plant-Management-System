@@ -1,30 +1,48 @@
 services:
+  # Single entry point. Everything is reached through http://localhost:3000
+  # and path-routed to the individual services (see nginx.conf).
+  proxy:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - auth
+      - vgarden
+      - health
+      - almanac
+
   frontend:
     build: ./shared/frontend
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     volumes:
       - ./shared/frontend:/app
       - ./shared/templates:/app/shared_templates
     environment:
-      - AUTH_URL=http://localhost:5001
-      - HEALTH_URL=http://localhost:5003/plant-health-records/
-      - ALMANAC_URL=http://localhost:5004/
+      # Browser-facing URLs of the sibling services, all via the proxy.
+      - AUTH_URL=http://localhost:3000/auth
+      - HEALTH_URL=http://localhost:3000/health/plant-health-records/
+      - ALMANAC_URL=http://localhost:3000/almanac/
 
   auth:
     build: ./auth
-    ports:
-      - "5001:5000"
+    expose:
+      - "5000"
     volumes:
       - ./auth:/app
       - ./shared/templates:/app/shared_templates
     environment:
       - SECRET_KEY=dev-secret-key-change-me
       - DATABASE_URL=sqlite:////app/instance/auth.db
+      # Server-to-server (internal Docker network).
       - VGARDEN_URL=http://vgarden:5000
-      - VGARDEN_PUBLIC_URL=http://localhost:5002
-      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records
-      - ALMANAC_PUBLIC_URL=http://localhost:5004/
+      # Browser-facing (via the proxy).
+      - VGARDEN_PUBLIC_URL=http://localhost:3000/vgarden
+      - HEALTH_PUBLIC_URL=http://localhost:3000/health/plant-health-records
+      - ALMANAC_PUBLIC_URL=http://localhost:3000/almanac/
       # Must match vgarden's INTER_SERVICE_SECRET exactly.
       - INTER_SERVICE_SECRET=${INTER_SERVICE_SECRET:-dev-inter-service-secret-change-me}
     depends_on:
@@ -32,8 +50,8 @@ services:
 
   vgarden:
     build: ./vgarden
-    ports:
-      - "5002:5000"
+    expose:
+      - "5000"
     volumes:
       - ./vgarden:/app
       - ./shared/templates:/app/shared_templates
@@ -41,9 +59,10 @@ services:
     environment:
       - SECRET_KEY=dev-vgarden-secret-key-change-me
       - DATABASE_URL=sqlite:////app/instance/vgarden.db
-      - AUTH_PUBLIC_URL=http://localhost:5001
-      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
-      - ALMANAC_PUBLIC_URL=http://localhost:5004/
+      # Browser-facing (via the proxy).
+      - AUTH_PUBLIC_URL=http://localhost:3000/auth
+      - HEALTH_PUBLIC_URL=http://localhost:3000/health/plant-health-records/
+      - ALMANAC_PUBLIC_URL=http://localhost:3000/almanac/
       # Must match auth's INTER_SERVICE_SECRET exactly.
       - INTER_SERVICE_SECRET=${INTER_SERVICE_SECRET:-dev-inter-service-secret-change-me}
       # Locally hosted AI for the "ask about this garden" assistant (mirrors almanac).
@@ -54,12 +73,14 @@ services:
 
   almanac:
     build: ./almanac
-    ports:
-      - "5004:5000"
+    expose:
+      - "5000"
     environment:
+      # Server-to-server (internal Docker network).
       - AUTH_URL=http://auth:5000
-      - AUTH_PUBLIC_URL=http://localhost:5001
-      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
+      # Browser-facing (via the proxy).
+      - AUTH_PUBLIC_URL=http://localhost:3000/auth
+      - HEALTH_PUBLIC_URL=http://localhost:3000/health/plant-health-records/
       - DATABASE_URL=sqlite:////app/instance/almanac.db
       - FLASK_DEBUG=1
       - OLLAMA_URL=http://host.docker.internal:11434
@@ -73,16 +94,17 @@ services:
 
   health:
     build: ./health
-    ports:
-      - "5003:5000"
+    expose:
+      - "5000"
     volumes:
       - ./health:/app
       - ./shared/templates:/app/shared_templates
     environment:
       - DATABASE_URL=sqlite:////app/instance/health.db
-      - AUTH_PUBLIC_URL=http://localhost:5001
-      - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
-      - ALMANAC_PUBLIC_URL=http://localhost:5004/
+      # Browser-facing (via the proxy).
+      - AUTH_PUBLIC_URL=http://localhost:3000/auth
+      - HEALTH_PUBLIC_URL=http://localhost:3000/health/plant-health-records/
+      - ALMANAC_PUBLIC_URL=http://localhost:3000/almanac/
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=qwen2.5vl:3b
       - OLLAMA_AUTO_PULL=true
@@ -91,12 +113,14 @@ services:
       - ollama
 
   # Locally hosted AI used by the health monitoring service. The model is pulled on
-  # first use and cached in the ollama-models volume.
+  # first use and cached in the ollama-models volume. Reached only from inside the
+  # compose network (almanac and vgarden use the host's own Ollama via
+  # host.docker.internal instead).
   # Runs on CPU by default; add docker-compose.gpu.yml for NVIDIA GPU acceleration.
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
+    expose:
+      - "11434"
     volumes:
       - ollama-models:/root/.ollama
     environment:

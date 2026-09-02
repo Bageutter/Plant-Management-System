@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from flask import Flask
 from jinja2 import ChoiceLoader, FileSystemLoader
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
 
@@ -13,6 +14,10 @@ from extensions import csrf, db, login_manager
 def create_app(config_class: type = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
+    # Behind the nginx proxy each service is mounted under a path prefix
+    # (/auth, /vgarden, ...). Honour X-Forwarded-* so url_for() and redirects
+    # carry that prefix. A no-op when the headers are absent (direct/local runs).
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     here = os.path.abspath(os.path.dirname(__file__))
     app.jinja_loader = ChoiceLoader([
         app.jinja_loader,

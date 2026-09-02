@@ -39,20 +39,23 @@ everything:
 docker compose up -d --build
 ```
 
-orrrr just what you need:
+orrrr just what you need (the `proxy` is what publishes port 3000, so include it):
 
 ```bash
-docker compose up -d --build auth vgarden
-docker compose up -d --build auth ollama almanac
+docker compose up -d --build proxy auth vgarden
+docker compose up -d --build proxy auth ollama almanac
 ```
+
+Everything is served through the nginx proxy on **one port, 3000**, and path-routed:
 
 | service | url |
 | --- | --- |
-| frontend | http://localhost:5000 |
-| auth | http://localhost:5001/account |
-| vgarden | http://localhost:5002/gardens |
-| almanac | http://localhost:5004 |
-| almanac api | http://localhost:5004/api/plants |
+| frontend | http://localhost:3000/ |
+| auth | http://localhost:3000/auth/account |
+| vgarden | http://localhost:3000/vgarden/ |
+| almanac | http://localhost:3000/almanac/ |
+| almanac api | http://localhost:3000/almanac/api/plants |
+| plant health | http://localhost:3000/health/plant-health-records/ |
 
 ### 3. logs, troubleshoot, stop
 
@@ -200,7 +203,7 @@ The **Plant Almanac Service** provides general knowledge about plants.
 ### Current implementation
 
 The current service provides public plant reference pages and APIs plus an authenticated,
-Ollama-powered chat at <http://localhost:5004>.
+Ollama-powered chat at <http://localhost:3000/almanac/>.
 
 See [the Plant Almanac microservice README](almanac/README.md) for setup, architecture,
 endpoints, configuration, tests, and persistence.
@@ -656,10 +659,12 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Or, with Docker, from the repository root:
+Run this way, the standalone frontend is on **http://127.0.0.1:5000**.
+
+Or, with Docker, from the repository root (brings up every service behind the proxy):
 
 ```bash
 docker compose up --build
 ```
 
-Either way, open **http://127.0.0.1:5000** in your browser.
+Then open **http://127.0.0.1:3000** in your browser.
