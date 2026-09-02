@@ -13,9 +13,13 @@ from extensions import db
 def create_app(config_class: type = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
+    here = os.path.abspath(os.path.dirname(__file__))
     app.jinja_loader = ChoiceLoader([
         app.jinja_loader,
-        FileSystemLoader(os.path.join(os.path.abspath(os.path.dirname(__file__)), "shared_templates")),
+        FileSystemLoader([
+            os.path.join(here, "shared_templates"),
+            os.path.join(here, "..", "shared", "templates"),
+        ]),
     ])
 
     db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
