@@ -1,6 +1,5 @@
 """Root-level so this directory lands on sys.path during test collection,
-letting tests import app/routes/models/etc. as top-level modules, and so
-fixtures here are shared by every test module.
+letting tests import app/routes/models/etc. as top-level modules.
 """
 
 import pytest
@@ -10,20 +9,18 @@ class TestConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = "test-secret-key"
     INTER_SERVICE_SECRET = "test-inter-service-secret"
-    AUTH_PUBLIC_URL = "http://auth.test"
+    VGARDEN_URL = "http://vgarden.test"
+    VGARDEN_PUBLIC_URL = "http://vgarden.test"
     WTF_CSRF_ENABLED = False
     TESTING = True
 
 
 @pytest.fixture
 def app(tmp_path):
-    """A fresh Flask app + SQLite file per test."""
     import app as app_module
 
-    db_path = tmp_path / "test.db"
-
     class _Config(TestConfig):
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{tmp_path / 'test.db'}"
 
     return app_module.create_app(_Config)
 
@@ -35,15 +32,11 @@ def client(app):
 
 @pytest.fixture
 def login_as(client):
-    """login_as(user_id) puts a vgarden session cookie on `client` as if /sso had run."""
+    """login_as(user_id) authenticates `client` as that user via Flask-Login's session key."""
 
     def _login(user_id: int):
         with client.session_transaction() as sess:
-            sess["user_id"] = user_id
+            sess["_user_id"] = str(user_id)
+            sess["_fresh"] = True
 
     return _login
-
-
-@pytest.fixture
-def service_headers(app):
-    return {"Authorization": f"Bearer {app.config['INTER_SERVICE_SECRET']}"}

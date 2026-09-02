@@ -55,9 +55,11 @@
         }
         button { font: inherit; }
         button:not(:disabled) { cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         a { color: inherit; text-decoration: none; }
         a:hover, .hover\:text-primary:hover { color: hsl(var(--primary)); }
         :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+        [x-cloak] { display: none !important; }
 
         .bg-background { background-color: hsl(var(--background)); }
         .text-foreground { color: hsl(var(--foreground)); }
@@ -67,6 +69,30 @@
         .bg-primary { background-color: hsl(var(--primary)); }
         .text-primary { color: hsl(var(--primary)); }
         .text-primary-foreground { color: hsl(var(--primary-foreground)); }
+        .text-destructive { color: hsl(var(--destructive)); }
+
+        .card-interactive { transition: transform .15s ease, box-shadow .15s ease; cursor: pointer; }
+        .card-interactive:hover { transform: translateY(-2px); box-shadow: 0 8px 20px hsl(20 10% 10% / 0.08); }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background-color: hsl(20 10% 10% / 0.45);
+        }
+        .modal-panel { position: relative; width: 100%; max-width: 26rem; max-height: 90vh; overflow-y: auto; }
+        .modal-panel--wide { max-width: 36rem; }
+        .modal-close { line-height: 1; font-size: 1.125rem; color: hsl(var(--muted-foreground)); }
+        .modal-close:hover { color: hsl(var(--foreground)); }
+
+        .view-tab { padding: 0.5rem 1rem; border-radius: var(--uk-global-radius-s); font-size: 0.875rem; font-weight: 500; }
+        .view-tab[aria-selected="true"] { background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+        .view-tab:not([aria-selected="true"]) { color: hsl(var(--muted-foreground)); }
+        .view-tab:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 
     {% block extra_head %}{% endblock %}

@@ -3,3 +3,6 @@ __pycache__
 *.pyc
 instance
 .env
+tests
+conftest.py
+requirements-dev.txt

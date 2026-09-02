@@ -1,0 +1,76 @@
+name: Auth
+
+on:
+  push:
+    branches: ["yunz/**"]
+    paths:
+      - "auth/**"
+      - "shared/templates/**"
+      - "pyproject.toml"
+      - ".github/workflows/auth.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "auth/**"
+      - "shared/templates/**"
+      - "pyproject.toml"
+      - ".github/workflows/auth.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run Ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.16.4"
+          args: check --output-format=github auth
+
+      - name: Compile-check Python files
+        run: python -m compileall -q auth
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: auth/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r auth/requirements-dev.txt
+
+      - name: Run tests
+        working-directory: auth
+        run: python -m pytest -q
+
+  docker-build:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build --tag auth:ci ./auth
