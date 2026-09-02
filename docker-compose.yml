@@ -46,6 +46,11 @@ services:
       - ALMANAC_PUBLIC_URL=http://localhost:5004/
       # Must match auth's INTER_SERVICE_SECRET exactly.
       - INTER_SERVICE_SECRET=${INTER_SERVICE_SECRET:-dev-inter-service-secret-change-me}
+      # Locally hosted AI for the "ask about this garden" assistant (mirrors almanac).
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen3:4b-instruct
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   almanac:
     build: ./almanac

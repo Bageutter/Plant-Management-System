@@ -29,6 +29,9 @@ class Garden(db.Model):
 
     areas = db.relationship("GardenArea", backref="garden", cascade="all, delete-orphan")
     plantings = db.relationship("Planting", backref="garden", cascade="all, delete-orphan")
+    chat_messages = db.relationship(
+        "GardenChatMessage", backref="garden", cascade="all, delete-orphan"
+    )
 
     def to_dict(self) -> dict:
         return {
@@ -187,3 +190,24 @@ class PlantingLocation(db.Model):
             "pos_x": self.pos_x,
             "pos_y": self.pos_y,
         }
+
+
+class GardenChatMessage(db.Model):
+    """One saved message in a garden's AI conversation.
+
+    Scoped by garden_id only - the routes that read/write these already enforce
+    that the caller owns the garden.
+    """
+
+    __tablename__ = "garden_chat_messages"
+    __table_args__ = (
+        db.CheckConstraint("role IN ('user', 'assistant')", name="ck_garden_chat_message_role"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    garden_id = db.Column(
+        db.Integer, db.ForeignKey("gardens.id"), nullable=False, index=True
+    )
+    role = db.Column(db.String(16), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=_now, nullable=False)
