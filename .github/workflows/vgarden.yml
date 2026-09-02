@@ -1,13 +1,76 @@
 name: Virtual Garden
+
 on:
   push:
     branches: ["yunz/**"]
-    paths: ["vgarden/**"]
+    paths:
+      - "vgarden/**"
+      - "shared/templates/**"
+      - "pyproject.toml"
+      - ".github/workflows/vgarden.yml"
   pull_request:
     branches: ["**"]
-    paths: ["vgarden/**"]
+    paths:
+      - "vgarden/**"
+      - "shared/templates/**"
+      - "pyproject.toml"
+      - ".github/workflows/vgarden.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vgarden-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  placeholder:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - run: echo "placeholder"
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run Ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.16.4"
+          args: check --output-format=github vgarden
+
+      - name: Compile-check Python files
+        run: python -m compileall -q vgarden
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: vgarden/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r vgarden/requirements-dev.txt
+
+      - name: Run tests
+        working-directory: vgarden
+        run: python -m pytest -q
+
+  docker-build:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build --tag vgarden:ci ./vgarden
