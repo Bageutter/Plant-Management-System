@@ -26,7 +26,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {% for garden in gardens %}
             <div class="uk-card uk-card-default uk-card-body card-interactive">
-                <a href="{{ vgarden_public_url }}/gardens/{{ garden.id }}/view" class="flex items-center gap-2 font-medium">
+                <a href="{{ url_for('auth.open_garden', garden_id=garden.id) }}" class="flex items-center gap-2 font-medium">
                     <span aria-hidden="true">🪴</span>
                     <span>{{ garden.name }}</span>
                 </a>

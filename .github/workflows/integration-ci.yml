@@ -41,7 +41,7 @@ jobs:
         run: |
           curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5000/
           curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5001/login
-          curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5002/gardens
+          curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5002/healthz
 
       - name: save logs
         if: always()

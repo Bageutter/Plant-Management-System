@@ -15,6 +15,12 @@ class Config:
     # Browser-facing base URL, used in links rendered to the user.
     VGARDEN_PUBLIC_URL = os.environ.get("VGARDEN_PUBLIC_URL", "http://localhost:5002")
 
+    # Shared with vgarden: signs the short-lived SSO handoff token (auth -> vgarden) and
+    # authenticates auth's own server-to-server calls to vgarden's /gardens API.
+    INTER_SERVICE_SECRET = os.environ.get(
+        "INTER_SERVICE_SECRET", "dev-inter-service-secret-change-me"
+    )
+
     # Browser-facing base URL of the plant health monitoring service.
     HEALTH_PUBLIC_URL = os.environ.get("HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records")
     ALMANAC_PUBLIC_URL = os.environ.get("ALMANAC_PUBLIC_URL", "http://localhost:5004/")

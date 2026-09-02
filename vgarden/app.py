@@ -7,7 +7,7 @@ from jinja2 import ChoiceLoader, FileSystemLoader
 load_dotenv()
 
 from config import Config
-from extensions import db
+from extensions import csrf, db
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -27,10 +27,17 @@ def create_app(config_class: type = Config) -> Flask:
         os.makedirs(os.path.dirname(db_uri.removeprefix("sqlite:///")), exist_ok=True)
 
     db.init_app(app)
+    csrf.init_app(app)
 
+    from containers import bp as containers_bp
+    from garden_areas import bp as garden_areas_bp
+    from plantings import bp as plantings_bp
     from routes import bp as gardens_bp
 
     app.register_blueprint(gardens_bp)
+    app.register_blueprint(garden_areas_bp)
+    app.register_blueprint(containers_bp)
+    app.register_blueprint(plantings_bp)
 
     @app.context_processor
     def inject_public_urls():

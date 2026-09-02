@@ -1,109 +1,347 @@
 {% extends "base.html" %}
+{% from "_macros.html" import modal, flash_messages %}
 
 {% block title %}{{ garden.name }} — Plant Management System{% endblock %}
 
-{% block extra_head %}
-<style>
-    .garden-canvas {
-        position: relative;
-        min-height: 32rem;
-        border-radius: var(--uk-global-radius);
-        border: 1px dashed hsl(var(--border));
-        background-color: hsl(var(--card));
-        background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
-        background-size: 24px 24px;
-        overflow: hidden;
-    }
-    .garden-canvas__empty {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 2rem;
-    }
-    .garden-canvas__controls {
-        position: absolute;
-        bottom: 1rem;
-        right: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .garden-canvas__zoom {
-        display: flex;
-        flex-direction: column;
-        border-radius: var(--uk-global-radius-s);
-        overflow: hidden;
-        border: 1px solid hsl(var(--border));
-        background-color: hsl(var(--card));
-    }
-    .garden-canvas__zoom button {
-        width: 2.5rem;
-        height: 2.5rem;
-        font-size: 1.125rem;
-        color: hsl(var(--muted-foreground));
-    }
-    .garden-canvas__zoom button:not(:last-child) { border-bottom: 1px solid hsl(var(--border)); }
-    .garden-canvas__fab {
-        width: 3rem;
-        height: 3rem;
-        border-radius: 999px;
-        background-color: hsl(var(--muted));
-        color: hsl(var(--muted-foreground));
-        font-size: 1.25rem;
-        box-shadow: 0 4px 12px hsl(20 10% 10% / 0.12);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        align-self: flex-end;
-    }
-    .coming-soon-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        border-radius: 999px;
-        background-color: hsl(var(--muted));
-        color: hsl(var(--muted-foreground));
-        padding: 0.25rem 0.75rem;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="mb-6 flex items-center justify-between gap-4 flex-wrap">
+<div x-data="{
+    showEditGarden: false,
+    showAddArea: false,
+    showAddContainer: false,
+    showAddPlanting: false,
+}">
+
+{{ flash_messages() }}
+
+<div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
     <div>
-        <div class="flex items-center gap-2 mb-1">
-            <h1 class="text-2xl font-bold">{{ garden.name }}</h1>
-            <span class="coming-soon-badge" title="This view is a placeholder">🚧 Coming soon</span>
-        </div>
-        <p class="text-sm text-muted-foreground">
-            This is where you'll walk through {{ garden.name }} the way you'd browse a map —
-            pan around beds, zoom into a single plant, and see everything that's happening in one place.
+        <h1 class="text-2xl font-bold mb-1">{{ garden.name }}</h1>
+        {% if garden.description %}<p class="text-sm text-muted-foreground mb-1">{{ garden.description }}</p>{% endif %}
+        <p class="text-xs text-muted-foreground">
+            {% if garden.location_label %}📍 {{ garden.location_label }} · {% endif %}
+            {% if garden.climate_zone %}{{ garden.climate_zone }} · {% endif %}
+            Map: {{ garden.map_width_m }}m × {{ garden.map_height_m }}m
         </p>
     </div>
+    <button type="button" class="uk-btn uk-btn-default uk-btn-sm" @click="showEditGarden = true">Edit garden info</button>
 </div>
 
-<div class="garden-canvas" role="img" aria-label="Placeholder for an interactive, pannable and zoomable view of {{ garden.name }}">
-    <div class="garden-canvas__empty">
-        <p class="text-4xl mb-3" aria-hidden="true">🗺️</p>
-        <p class="font-display text-lg font-semibold mb-1">The interactive garden view isn't built yet</p>
-        <p class="text-sm text-muted-foreground max-w-sm">
-            Eventually you'll be able to pan and zoom around a live layout of {{ garden.name }} —
-            beds, plants, and their current state — similar to a map.
-        </p>
-    </div>
+<div class="flex gap-2 mb-8 border-b border-border pb-3" role="tablist" aria-label="Garden view">
+    <button type="button" class="view-tab" role="tab" aria-selected="true">Table</button>
+    <button type="button" class="view-tab" role="tab" aria-selected="false" disabled title="Coming soon">2D (soon)</button>
+    <button type="button" class="view-tab" role="tab" aria-selected="false" disabled title="Coming soon">3D (soon)</button>
+</div>
 
-    <div class="garden-canvas__controls">
-        <button type="button" class="garden-canvas__fab" disabled aria-label="Add a plant (not yet available)">+</button>
-        <div class="garden-canvas__zoom">
-            <button type="button" disabled aria-label="Zoom in (not yet available)">+</button>
-            <button type="button" disabled aria-label="Zoom out (not yet available)">–</button>
+<div class="flex flex-col gap-10">
+
+    <section>
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-display text-lg font-semibold">Garden Areas</h2>
+            <button type="button" class="uk-btn uk-btn-primary uk-btn-sm" @click="showAddArea = true">+ Add area</button>
+        </div>
+        {% if areas %}
+        <div class="uk-card uk-card-default" style="overflow-x: auto;">
+            <table class="uk-table uk-table-divider uk-table-small uk-table-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th><th>Type</th><th>Position (m)</th><th>Dimensions (m)</th>
+                        <th>Containers</th><th>Plantings</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for area in areas %}
+                    <tr class="card-interactive" @click="window.location = '{{ url_for('garden_areas.view_area', garden_id=garden.id, area_id=area.id) }}'">
+                        <td class="font-medium">{{ area.name }}</td>
+                        <td>{{ area.area_type }}</td>
+                        <td>({{ area.pos_x }}, {{ area.pos_y }})</td>
+                        <td>{{ area.width }} × {{ area.length }}</td>
+                        <td>{{ area.containers|length }}</td>
+                        <td>{{ area.planting_locations|length }}</td>
+                        <td class="text-right text-primary text-sm">View →</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-muted-foreground">No areas yet — add a plot, bed, or row to get started.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-display text-lg font-semibold">Containers</h2>
+            <button
+                type="button"
+                class="uk-btn uk-btn-primary uk-btn-sm"
+                :disabled="{{ (areas|length == 0)|tojson }}"
+                title="{{ 'Add a garden area first' if not areas else '' }}"
+                @click="showAddContainer = true"
+            >+ Add container</button>
+        </div>
+        {% if containers %}
+        <div class="uk-card uk-card-default" style="overflow-x: auto;">
+            <table class="uk-table uk-table-divider uk-table-small uk-table-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th><th>Type</th><th>Area</th><th>Position</th><th>Dimensions (cm)</th>
+                        <th>Plantings</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for container in containers %}
+                    <tr class="card-interactive" @click="window.location = '{{ url_for('containers.view_container', garden_id=garden.id, container_id=container.id) }}'">
+                        <td class="font-medium">{{ container.name }}</td>
+                        <td>{{ container.container_type }}</td>
+                        <td>{{ container.garden_area.name }}</td>
+                        <td>({{ container.pos_x }}, {{ container.pos_y }})</td>
+                        <td>
+                            {%- if container.width or container.depth or container.height -%}
+                                {{ container.width or '?' }} × {{ container.depth or '?' }} × {{ container.height or '?' }}
+                            {%- else -%}—{%- endif -%}
+                        </td>
+                        <td>{{ container.planting_locations|length }}</td>
+                        <td class="text-right text-primary text-sm">View →</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-muted-foreground">No containers yet.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-display text-lg font-semibold">Plantings</h2>
+            <button
+                type="button"
+                class="uk-btn uk-btn-primary uk-btn-sm"
+                :disabled="{{ (areas|length == 0 and containers|length == 0)|tojson }}"
+                title="{{ 'Add a garden area or container first' if (not areas and not containers) else '' }}"
+                @click="showAddPlanting = true"
+            >+ Add planting</button>
+        </div>
+        {% if plantings %}
+        <div class="uk-card uk-card-default" style="overflow-x: auto;">
+            <table class="uk-table uk-table-divider uk-table-small uk-table-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Crop</th><th>Qty</th><th>Location</th><th>Lifecycle</th><th>Growth stage</th>
+                        <th>Planted</th><th>Expected harvest</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for planting in plantings %}
+                    <tr class="card-interactive" @click="window.location = '{{ url_for('plantings.view_planting', garden_id=garden.id, planting_id=planting.id) }}'">
+                        <td class="font-medium">{{ planting.crop_name }}</td>
+                        <td>{{ planting.quantity }}</td>
+                        <td>
+                            {% if planting.location.garden_area %}📍 {{ planting.location.garden_area.name }}
+                            {% elif planting.location.container %}🪴 {{ planting.location.container.name }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>{{ planting.lifecycle_state }}</td>
+                        <td>{{ planting.growth_stage or '—' }}</td>
+                        <td>{{ planting.planted_date or '—' }}</td>
+                        <td>{{ planting.expected_harvest_date or '—' }}</td>
+                        <td class="text-right text-primary text-sm">View →</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-muted-foreground">No plantings yet.</p>
+        {% endif %}
+    </section>
+
+</div>
+
+{% call modal('showEditGarden', 'showEditGarden = false', 'Edit garden info', wide=true) %}
+<form method="post" action="{{ url_for('gardens.edit_garden', garden_id=garden.id) }}" class="flex flex-col gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div>
+        <label for="edit-name" class="uk-form-label">Name</label>
+        <input id="edit-name" type="text" name="name" required maxlength="120" value="{{ garden.name }}" class="uk-input">
+    </div>
+    <div>
+        <label for="edit-description" class="uk-form-label">Description</label>
+        <textarea id="edit-description" name="description" rows="2" class="uk-textarea">{{ garden.description }}</textarea>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label for="edit-location" class="uk-form-label">Location</label>
+            <input id="edit-location" type="text" name="location_label" value="{{ garden.location_label }}" placeholder="e.g. Melbourne, Australia" class="uk-input">
+        </div>
+        <div>
+            <label for="edit-climate" class="uk-form-label">Climate zone</label>
+            <input id="edit-climate" type="text" name="climate_zone" value="{{ garden.climate_zone }}" placeholder="e.g. temperate" class="uk-input">
         </div>
     </div>
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label for="edit-lat" class="uk-form-label">Latitude</label>
+            <input id="edit-lat" type="number" step="any" name="latitude" value="{{ garden.latitude if garden.latitude is not none else '' }}" class="uk-input">
+        </div>
+        <div>
+            <label for="edit-lon" class="uk-form-label">Longitude</label>
+            <input id="edit-lon" type="number" step="any" name="longitude" value="{{ garden.longitude if garden.longitude is not none else '' }}" class="uk-input">
+        </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label for="edit-w" class="uk-form-label">Map width (m)</label>
+            <input id="edit-w" type="number" step="any" min="0" name="map_width_m" value="{{ garden.map_width_m }}" class="uk-input">
+        </div>
+        <div>
+            <label for="edit-h" class="uk-form-label">Map height (m)</label>
+            <input id="edit-h" type="number" step="any" min="0" name="map_height_m" value="{{ garden.map_height_m }}" class="uk-input">
+        </div>
+    </div>
+    <button type="submit" class="uk-btn uk-btn-primary w-full">Save</button>
+</form>
+{% endcall %}
+
+{% call modal('showAddArea', 'showAddArea = false', 'Add garden area') %}
+<form method="post" action="{{ url_for('garden_areas.create_area', garden_id=garden.id) }}" class="flex flex-col gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div>
+        <label for="area-name" class="uk-form-label">Name</label>
+        <input id="area-name" type="text" name="name" required maxlength="120" placeholder="e.g. North bed" class="uk-input">
+    </div>
+    <div>
+        <label for="area-type" class="uk-form-label">Type</label>
+        <select id="area-type" name="area_type" class="uk-select">
+            <option value="bed">Bed</option>
+            <option value="plot">Plot</option>
+            <option value="row">Row</option>
+            <option value="greenhouse">Greenhouse</option>
+            <option value="other">Other</option>
+        </select>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+        <div><label for="area-x" class="uk-form-label">Position X (m)</label><input id="area-x" type="number" step="any" name="pos_x" value="0" class="uk-input"></div>
+        <div><label for="area-y" class="uk-form-label">Position Y (m)</label><input id="area-y" type="number" step="any" name="pos_y" value="0" class="uk-input"></div>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+        <div><label for="area-w" class="uk-form-label">Width (m)</label><input id="area-w" type="number" step="any" min="0" name="width" value="1" class="uk-input"></div>
+        <div><label for="area-l" class="uk-form-label">Length (m)</label><input id="area-l" type="number" step="any" min="0" name="length" value="1" class="uk-input"></div>
+    </div>
+    <div>
+        <label for="area-notes" class="uk-form-label">Notes</label>
+        <textarea id="area-notes" name="notes" rows="2" class="uk-textarea"></textarea>
+    </div>
+    <button type="submit" class="uk-btn uk-btn-primary w-full">Add area</button>
+</form>
+{% endcall %}
+
+{% call modal('showAddContainer', 'showAddContainer = false', 'Add container') %}
+<form method="post" action="{{ url_for('containers.create_container', garden_id=garden.id) }}" class="flex flex-col gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div>
+        <label for="container-name" class="uk-form-label">Name</label>
+        <input id="container-name" type="text" name="name" required maxlength="120" placeholder="e.g. Patio pot 1" class="uk-input">
+    </div>
+    <div>
+        <label for="container-type" class="uk-form-label">Type</label>
+        <select id="container-type" name="container_type" class="uk-select">
+            <option value="pot">Pot</option>
+            <option value="box">Box</option>
+            <option value="hanging-basket">Hanging basket</option>
+            <option value="other">Other</option>
+        </select>
+    </div>
+    <div>
+        <label for="container-area" class="uk-form-label">Garden area</label>
+        <select id="container-area" name="garden_area_id" required class="uk-select">
+            {% for area in areas %}
+            <option value="{{ area.id }}">{{ area.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+        <div><label for="container-x" class="uk-form-label">Position X</label><input id="container-x" type="number" step="any" name="pos_x" value="0" class="uk-input"></div>
+        <div><label for="container-y" class="uk-form-label">Position Y</label><input id="container-y" type="number" step="any" name="pos_y" value="0" class="uk-input"></div>
+    </div>
+    <div class="grid grid-cols-3 gap-3">
+        <div><label for="container-w" class="uk-form-label">Width (cm)</label><input id="container-w" type="number" step="any" min="0" name="width" class="uk-input"></div>
+        <div><label for="container-d" class="uk-form-label">Depth (cm)</label><input id="container-d" type="number" step="any" min="0" name="depth" class="uk-input"></div>
+        <div><label for="container-h" class="uk-form-label">Height (cm)</label><input id="container-h" type="number" step="any" min="0" name="height" class="uk-input"></div>
+    </div>
+    <div>
+        <label for="container-vol" class="uk-form-label">Volume (liters)</label>
+        <input id="container-vol" type="number" step="any" min="0" name="volume_liters" class="uk-input">
+    </div>
+    <button type="submit" class="uk-btn uk-btn-primary w-full">Add container</button>
+</form>
+{% endcall %}
+
+{% call modal('showAddPlanting', 'showAddPlanting = false', 'Add planting', wide=true) %}
+<form method="post" action="{{ url_for('plantings.create_planting', garden_id=garden.id) }}" class="flex flex-col gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <p class="text-xs text-muted-foreground -mt-1">
+        Picking a crop/variety from Amy's Crop Almanac is coming in a later update — enter the crop name for now.
+    </p>
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label for="planting-crop" class="uk-form-label">Crop name</label>
+            <input id="planting-crop" type="text" name="crop_name" required maxlength="120" placeholder="e.g. Tomato (Roma)" class="uk-input">
+        </div>
+        <div>
+            <label for="planting-qty" class="uk-form-label">Quantity</label>
+            <input id="planting-qty" type="number" min="1" name="quantity" value="1" class="uk-input">
+        </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label for="planting-area" class="uk-form-label">Garden area</label>
+            <select id="planting-area" name="garden_area_id" class="uk-select">
+                <option value="">— none —</option>
+                {% for area in areas %}
+                <option value="{{ area.id }}">{{ area.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="planting-container" class="uk-form-label">Container</label>
+            <select id="planting-container" name="container_id" class="uk-select">
+                <option value="">— none —</option>
+                {% for container in containers %}
+                <option value="{{ container.id }}">{{ container.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <p class="text-xs text-muted-foreground -mt-1">Choose exactly one: a garden area or a container.</p>
+    <div class="grid grid-cols-2 gap-3">
+        <div><label for="planting-x" class="uk-form-label">Position X</label><input id="planting-x" type="number" step="any" name="pos_x" value="0" class="uk-input"></div>
+        <div><label for="planting-y" class="uk-form-label">Position Y</label><input id="planting-y" type="number" step="any" name="pos_y" value="0" class="uk-input"></div>
+    </div>
+    <div>
+        <label for="planting-lifecycle" class="uk-form-label">Lifecycle state</label>
+        <select id="planting-lifecycle" name="lifecycle_state" class="uk-select">
+            <option value="planned">Planned</option>
+            <option value="sown">Sown</option>
+            <option value="growing">Growing</option>
+            <option value="harvested">Harvested</option>
+            <option value="removed">Removed</option>
+        </select>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+        <div>
+            <label for="planting-planted" class="uk-form-label">Planted date</label>
+            <input id="planting-planted" type="date" name="planted_date" class="uk-input">
+        </div>
+        <div>
+            <label for="planting-harvest" class="uk-form-label">Expected harvest</label>
+            <input id="planting-harvest" type="date" name="expected_harvest_date" class="uk-input">
+        </div>
+    </div>
+    <button type="submit" class="uk-btn uk-btn-primary w-full">Add planting</button>
+</form>
+{% endcall %}
+
 </div>
 {% endblock %}

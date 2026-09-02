@@ -25,6 +25,8 @@ services:
       - VGARDEN_PUBLIC_URL=http://localhost:5002
       - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records
       - ALMANAC_PUBLIC_URL=http://localhost:5004/
+      # Must match vgarden's INTER_SERVICE_SECRET exactly.
+      - INTER_SERVICE_SECRET=${INTER_SERVICE_SECRET:-dev-inter-service-secret-change-me}
     depends_on:
       - vgarden
 
@@ -35,11 +37,15 @@ services:
     volumes:
       - ./vgarden:/app
       - ./shared/templates:/app/shared_templates
+      - vgarden_data:/app/instance
     environment:
+      - SECRET_KEY=dev-vgarden-secret-key-change-me
       - DATABASE_URL=sqlite:////app/instance/vgarden.db
       - AUTH_PUBLIC_URL=http://localhost:5001
       - HEALTH_PUBLIC_URL=http://localhost:5003/plant-health-records/
       - ALMANAC_PUBLIC_URL=http://localhost:5004/
+      # Must match auth's INTER_SERVICE_SECRET exactly.
+      - INTER_SERVICE_SECRET=${INTER_SERVICE_SECRET:-dev-inter-service-secret-change-me}
 
   almanac:
     build: ./almanac
@@ -96,3 +102,4 @@ services:
 volumes:
   ollama-models:
   almanac_data:
+  vgarden_data:
