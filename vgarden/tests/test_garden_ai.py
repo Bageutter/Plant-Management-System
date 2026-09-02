@@ -27,9 +27,11 @@ def fake_ai(app):
     return fake
 
 
-def _seed_garden(app, owner_id=1):
+def _seed_garden(app, owner_id=1, latitude=None, longitude=None):
     with app.app_context():
-        garden = Garden(owner_id=owner_id, name="Backyard")
+        garden = Garden(
+            owner_id=owner_id, name="Backyard", latitude=latitude, longitude=longitude
+        )
         db.session.add(garden)
         db.session.commit()
 
@@ -97,6 +99,42 @@ def test_ask_grounds_on_the_garden_snapshot_and_persists(app, client, login_as):
         rows = GardenChatMessage.query.order_by(GardenChatMessage.id).all()
         assert [r.role for r in rows] == ["user", "assistant"]
         assert rows[0].garden_id == garden_id
+    # No coordinates on this garden -> no weather in the snapshot.
+    assert call["garden_context"]["weather"] is None
+    assert call["garden_context"]["coordinates"] is None
+
+
+def test_weather_is_included_when_the_garden_has_coordinates(app, client, login_as, weather):
+    garden_id = _seed_garden(app, latitude=-37.81, longitude=144.96)
+    fake = FakeGardenAI({"answer": "Rain tomorrow — hold off watering."})
+    app.extensions["garden_ai"] = fake
+    weather.raise_error = False
+    weather.weather_result = {
+        "as_of": "2026-09-02T00:00Z",
+        "current": {"temperature_c": 14.0, "conditions": "Overcast"},
+        "forecast": [{"date": "2026-09-03", "conditions": "Slight rain", "precipitation_mm": 4.2}],
+    }
+    login_as(1)
+
+    client.post(f"/gardens/{garden_id}/ai/ask", data={"question": "Should I water?"})
+
+    ctx = fake.calls[0]["garden_context"]
+    assert ctx["coordinates"] == {"latitude": -37.81, "longitude": 144.96}
+    assert ctx["weather"]["current"]["conditions"] == "Overcast"
+    assert weather.weather_calls == [(-37.81, 144.96)]
+
+
+def test_weather_outage_does_not_break_the_chat(app, client, login_as, weather):
+    garden_id = _seed_garden(app, latitude=1.0, longitude=2.0)
+    fake = FakeGardenAI({"answer": "ok"})
+    app.extensions["garden_ai"] = fake
+    weather.raise_error = True  # Open-Meteo down
+    login_as(1)
+
+    response = client.post(f"/gardens/{garden_id}/ai/ask", data={"question": "hi"})
+
+    assert response.status_code == 200
+    assert fake.calls[0]["garden_context"]["weather"] is None
 
 
 def test_follow_up_question_passes_prior_history(app, client, login_as):

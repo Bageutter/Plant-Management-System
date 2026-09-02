@@ -4,6 +4,7 @@ from ai import AIUnavailableError
 from auth_utils import require_garden_owner, require_login
 from extensions import db
 from models import Container, Garden, GardenArea, GardenChatMessage, Planting
+from weather import WeatherUnavailableError
 
 bp = Blueprint("garden_ai", __name__)
 
@@ -44,6 +45,19 @@ def _planting_location(planting: Planting) -> str | None:
     return None
 
 
+def _weather_context(garden: Garden) -> dict | None:
+    """Live weather for the garden's location, or None if it has no coordinates
+    or Open-Meteo can't be reached (never blocks the chat)."""
+    if garden.latitude is None or garden.longitude is None:
+        return None
+    try:
+        return current_app.extensions["weather"].garden_weather(
+            garden.latitude, garden.longitude
+        )
+    except WeatherUnavailableError:
+        return None
+
+
 def _garden_snapshot(garden: Garden) -> dict:
     areas = GardenArea.query.filter_by(garden_id=garden.id).order_by(GardenArea.name).all()
     containers = (
@@ -60,6 +74,12 @@ def _garden_snapshot(garden: Garden) -> dict:
         "description": garden.description or None,
         "location_label": garden.location_label or None,
         "climate_zone": garden.climate_zone or None,
+        "coordinates": (
+            {"latitude": garden.latitude, "longitude": garden.longitude}
+            if garden.latitude is not None and garden.longitude is not None
+            else None
+        ),
+        "weather": _weather_context(garden),
         "areas": [
             {"name": a.name, "type": a.area_type, "notes": a.notes} for a in areas
         ],

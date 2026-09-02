@@ -65,11 +65,13 @@ services:
       - ALMANAC_PUBLIC_URL=http://localhost:3000/almanac/
       # Must match auth's INTER_SERVICE_SECRET exactly.
       - INTER_SERVICE_SECRET=${INTER_SERVICE_SECRET:-dev-inter-service-secret-change-me}
-      # Locally hosted AI for the "ask about this garden" assistant (mirrors almanac).
-      - OLLAMA_URL=http://host.docker.internal:11434
+      # "Ask about this garden" AI. Uses the shared ollama service; the text model
+      # is pulled on first use and cached in the ollama-models volume.
+      - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=qwen3:4b-instruct
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - OLLAMA_AUTO_PULL=true
+    depends_on:
+      - ollama
 
   almanac:
     build: ./almanac
@@ -83,14 +85,16 @@ services:
       - HEALTH_PUBLIC_URL=http://localhost:3000/health/plant-health-records/
       - DATABASE_URL=sqlite:////app/instance/almanac.db
       - FLASK_DEBUG=1
-      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=qwen3:4b-instruct
+      - OLLAMA_AUTO_PULL=true
     volumes:
       - ./almanac:/app
       - ./shared/templates:/app/shared_templates
       - almanac_data:/app/instance
     depends_on:
       - auth
+      - ollama
 
   health:
     build: ./health

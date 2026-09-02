@@ -31,6 +31,18 @@ class Config:
     OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
     OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct")
     OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
+    OLLAMA_AUTO_PULL = os.environ.get("OLLAMA_AUTO_PULL", "false").lower() == "true"
+
+    # Open-Meteo (no API key): geocodes a garden's location and feeds current
+    # conditions + a short forecast to the AI assistant.
+    OPEN_METEO_GEOCODING_URL = os.environ.get(
+        "OPEN_METEO_GEOCODING_URL", "https://geocoding-api.open-meteo.com/v1/search"
+    )
+    OPEN_METEO_FORECAST_URL = os.environ.get(
+        "OPEN_METEO_FORECAST_URL", "https://api.open-meteo.com/v1/forecast"
+    )
+    WEATHER_TIMEOUT = int(os.environ.get("WEATHER_TIMEOUT", "10"))
+    WEATHER_CACHE_TTL = int(os.environ.get("WEATHER_CACHE_TTL", "1800"))
 
     # Distinct per service so auth's and vgarden's cookies don't clobber each other
     # when both are served from the same origin (the nginx proxy).

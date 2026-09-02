@@ -14,6 +14,24 @@ from auth_utils import require_garden_owner, require_login, require_service_toke
 from extensions import csrf, db
 from form_helpers import parse_float
 from models import Container, Garden, GardenArea, Planting
+from weather import WeatherUnavailableError
+
+
+def _apply_location(garden: Garden, place_name: str) -> None:
+    """Geocode a typed place name (Open-Meteo) onto the garden. Best-effort: on a
+    lookup miss keep the raw text; on a network error keep whatever's there."""
+    place_name = (place_name or "").strip()
+    if not place_name:
+        return
+    garden.location_label = place_name
+    try:
+        geo = current_app.extensions["weather"].geocode(place_name)
+    except WeatherUnavailableError:
+        return
+    if geo:
+        garden.location_label = geo["label"]
+        garden.latitude = geo["latitude"]
+        garden.longitude = geo["longitude"]
 
 bp = Blueprint("gardens", __name__)
 
@@ -82,17 +100,28 @@ def edit_garden(garden_id):
         flash("Garden name is required.", "error")
         return redirect(url_for("gardens.view_garden", garden_id=garden_id))
 
+    new_label = (request.form.get("location_label") or "").strip()
+    label_changed = new_label != (garden.location_label or "")
+
     garden.name = name
     garden.description = (request.form.get("description") or "").strip()
-    garden.location_label = (request.form.get("location_label") or "").strip()
+    garden.location_label = new_label
     garden.climate_zone = (request.form.get("climate_zone") or "").strip()
-    garden.latitude = parse_float(request.form.get("latitude"))
-    garden.longitude = parse_float(request.form.get("longitude"))
     garden.map_width_m = parse_float(request.form.get("map_width_m"), garden.map_width_m)
     garden.map_height_m = parse_float(request.form.get("map_height_m"), garden.map_height_m)
+
+    if not new_label:
+        garden.latitude = garden.longitude = None
+    elif label_changed or garden.latitude is None:
+        garden.latitude = garden.longitude = None
+        _apply_location(garden, new_label)
+
     db.session.commit()
 
-    flash("Garden info updated.", "success")
+    if new_label and garden.latitude is None:
+        flash("Saved, but couldn't find that location for weather. Try a nearby city.", "error")
+    else:
+        flash("Garden info updated.", "success")
     return redirect(url_for("gardens.view_garden", garden_id=garden_id))
 
 
@@ -117,6 +146,9 @@ def create_garden():
         return jsonify({"error": "name must be 120 characters or fewer"}), 400
 
     garden = Garden(owner_id=owner_id, name=name)
+    location = data.get("location")
+    if isinstance(location, str):
+        _apply_location(garden, location)
     db.session.add(garden)
     db.session.commit()
     return jsonify(garden.to_dict()), 201
