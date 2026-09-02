@@ -40,7 +40,9 @@ def sso():
     session["user_id"] = data["user_id"]
     session["email"] = data.get("email")
     session.permanent = True
-    return redirect(next_path)
+    # next_path is app-relative (e.g. /gardens/1/view). Behind the proxy, prepend
+    # this service's mount prefix so the browser lands back on /vgarden/...
+    return redirect(request.script_root + next_path)
 
 
 @bp.route("/gardens/<int:garden_id>/view")

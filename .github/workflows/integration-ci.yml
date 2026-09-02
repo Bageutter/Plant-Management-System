@@ -39,9 +39,12 @@ jobs:
 
       - name: smoke check
         run: |
-          curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5000/
-          curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5001/login
-          curl --retry 10 --retry-delay 3 --retry-all-errors --fail --silent http://127.0.0.1:5002/healthz
+          # Everything is reached through the nginx proxy on :3000.
+          base=http://127.0.0.1:3000
+          curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/"
+          curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/auth/login"
+          curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/vgarden/healthz"
+          curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/almanac/"
 
       - name: save logs
         if: always()

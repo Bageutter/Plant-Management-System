@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from flask import Flask, jsonify
 from jinja2 import ChoiceLoader, FileSystemLoader
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Keep imports at module top; delay importing `Config` until after loading env vars
 from ai import OllamaClient
@@ -21,6 +22,10 @@ def create_app(config_class: type | None = None) -> Flask:
 
     app = Flask(__name__)
     app.config.from_object(config_class)
+    # Behind the nginx proxy this service is mounted under /health; honour
+    # X-Forwarded-* so url_for()/redirects carry that prefix. No-op without the
+    # headers (direct/local runs).
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     app.jinja_loader = ChoiceLoader(
         [
             app.jinja_loader,

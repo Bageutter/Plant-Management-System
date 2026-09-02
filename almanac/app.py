@@ -3,6 +3,7 @@ import os
 from flask import Flask, current_app, g, jsonify, render_template, request
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import text
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from ai import AIUnavailableError, OllamaAlmanacAI
 from auth_client import AuthClient
@@ -67,6 +68,10 @@ def _render_chat(owner_key: str, error: str | None = None):
 
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__, template_folder="templates")
+    # Behind the nginx proxy this service is mounted under /almanac; honour
+    # X-Forwarded-* so url_for()/redirects carry that prefix. No-op without the
+    # headers (direct/local runs).
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     app.jinja_loader = ChoiceLoader(
         [
             app.jinja_loader,
