@@ -27,6 +27,11 @@ class Config:
         "INTER_SERVICE_SECRET", "dev-inter-service-secret-change-me"
     )
 
+    # Locally hosted Ollama used by the "ask about this garden" AI assistant. Mirrors almanac.
+    OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+    OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct")
+    OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
+
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
