@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flash_messages %}
+
+{% block title %}{{ area.name }} — {{ garden.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <a href="{{ url_for('gardens.view_garden', garden_id=garden.id) }}" class="text-sm text-muted-foreground hover:text-primary">← {{ garden.name }}</a>
+    <h1 class="text-2xl font-bold mt-2 mb-1">{{ area.name }}</h1>
+    <p class="text-sm text-muted-foreground mb-6">
+        {{ area.area_type }} · {{ area.containers|length }} container{{ 's' if area.containers|length != 1 }}
+        · {{ area.planting_locations|length }} planting{{ 's' if area.planting_locations|length != 1 }}
+    </p>
+
+    {{ flash_messages() }}
+
+    <form method="post" action="{{ url_for('garden_areas.edit_area', garden_id=garden.id, area_id=area.id) }}" class="uk-card uk-card-default uk-card-body flex flex-col gap-3 mb-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div>
+            <label class="uk-form-label">Name</label>
+            <input type="text" name="name" required maxlength="120" value="{{ area.name }}" class="uk-input">
+        </div>
+        <div>
+            <label class="uk-form-label">Type</label>
+            <select name="area_type" class="uk-select">
+                {% for t in ['plot', 'bed', 'row', 'greenhouse', 'other'] %}
+                <option value="{{ t }}" {{ 'selected' if area.area_type == t }}>{{ t|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="uk-form-label">Position X (m)</label><input type="number" step="any" name="pos_x" value="{{ area.pos_x }}" class="uk-input"></div>
+            <div><label class="uk-form-label">Position Y (m)</label><input type="number" step="any" name="pos_y" value="{{ area.pos_y }}" class="uk-input"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="uk-form-label">Width (m)</label><input type="number" step="any" min="0" name="width" value="{{ area.width }}" class="uk-input"></div>
+            <div><label class="uk-form-label">Length (m)</label><input type="number" step="any" min="0" name="length" value="{{ area.length }}" class="uk-input"></div>
+        </div>
+        <div>
+            <label class="uk-form-label">Notes</label>
+            <textarea name="notes" rows="3" class="uk-textarea">{{ area.notes or '' }}</textarea>
+        </div>
+        <button type="submit" class="uk-btn uk-btn-primary w-full">Save changes</button>
+    </form>
+
+    {% if area.containers %}
+    <div class="uk-card uk-card-default uk-card-body mb-6">
+        <h2 class="font-display font-semibold mb-3">Containers in this area</h2>
+        <ul class="flex flex-col gap-1 text-sm">
+            {% for container in area.containers %}
+            <li><a href="{{ url_for('containers.view_container', garden_id=garden.id, container_id=container.id) }}" class="text-primary hover:underline">{{ container.name }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if area.planting_locations %}
+    <div class="uk-card uk-card-default uk-card-body mb-6">
+        <h2 class="font-display font-semibold mb-3">Plantings in this area</h2>
+        <ul class="flex flex-col gap-1 text-sm">
+            {% for loc in area.planting_locations %}
+            <li><a href="{{ url_for('plantings.view_planting', garden_id=garden.id, planting_id=loc.planting.id) }}" class="text-primary hover:underline">{{ loc.planting.crop_name }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="uk-card uk-card-default uk-card-body">
+        <p class="text-sm text-muted-foreground mb-4">
+            Care tasks, event history, and AI context for this area are coming in a later update.
+        </p>
+        <form
+            method="post"
+            action="{{ url_for('garden_areas.delete_area', garden_id=garden.id, area_id=area.id) }}"
+            onsubmit="return confirm('Delete {{ area.name }}? This also deletes its containers and plantings.');"
+        >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="text-sm text-destructive">Delete this area</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

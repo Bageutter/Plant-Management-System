@@ -1,4 +1,6 @@
 Flask
 Flask-SQLAlchemy
+Flask-WTF
+itsdangerous
 python-dotenv
 psycopg2-binary

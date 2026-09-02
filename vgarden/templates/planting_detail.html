@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flash_messages %}
+
+{% block title %}{{ planting.crop_name }} — {{ garden.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <a href="{{ url_for('gardens.view_garden', garden_id=garden.id) }}" class="text-sm text-muted-foreground hover:text-primary">← {{ garden.name }}</a>
+    <h1 class="text-2xl font-bold mt-2 mb-1">{{ planting.crop_name }}</h1>
+    <p class="text-sm text-muted-foreground mb-6">
+        Qty {{ planting.quantity }} · {{ planting.lifecycle_state }}
+        {% if planting.growth_stage %} · {{ planting.growth_stage }}{% endif %}
+    </p>
+
+    {{ flash_messages() }}
+
+    <form method="post" action="{{ url_for('plantings.edit_planting', garden_id=garden.id, planting_id=planting.id) }}" class="uk-card uk-card-default uk-card-body flex flex-col gap-3 mb-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <p class="text-xs text-muted-foreground -mt-1">
+            Crop/variety lookup from Amy's Crop Almanac is coming in a later update.
+        </p>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="uk-form-label">Crop name</label>
+                <input type="text" name="crop_name" required maxlength="120" value="{{ planting.crop_name }}" class="uk-input">
+            </div>
+            <div>
+                <label class="uk-form-label">Quantity</label>
+                <input type="number" min="1" name="quantity" value="{{ planting.quantity }}" class="uk-input">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="uk-form-label">Garden area</label>
+                <select name="garden_area_id" class="uk-select">
+                    <option value="">— none —</option>
+                    {% for area in areas %}
+                    <option value="{{ area.id }}" {{ 'selected' if planting.location.garden_area_id == area.id }}>{{ area.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="uk-form-label">Container</label>
+                <select name="container_id" class="uk-select">
+                    <option value="">— none —</option>
+                    {% for container in containers %}
+                    <option value="{{ container.id }}" {{ 'selected' if planting.location.container_id == container.id }}>{{ container.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <p class="text-xs text-muted-foreground -mt-1">Choose exactly one: a garden area or a container. Changing this "moves" the planting.</p>
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="uk-form-label">Position X</label><input type="number" step="any" name="pos_x" value="{{ planting.location.pos_x }}" class="uk-input"></div>
+            <div><label class="uk-form-label">Position Y</label><input type="number" step="any" name="pos_y" value="{{ planting.location.pos_y }}" class="uk-input"></div>
+        </div>
+
+        <div>
+            <label class="uk-form-label">Lifecycle state</label>
+            <select name="lifecycle_state" class="uk-select">
+                {% for s in ['planned', 'sown', 'growing', 'harvested', 'removed'] %}
+                <option value="{{ s }}" {{ 'selected' if planting.lifecycle_state == s }}>{{ s|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="uk-form-label">Growth stage</label>
+            <input type="text" name="growth_stage" value="{{ planting.growth_stage or '' }}" placeholder="e.g. seedling, flowering, fruiting" class="uk-input">
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+            <div>
+                <label class="uk-form-label">Planted date</label>
+                <input type="date" name="planted_date" value="{{ planting.planted_date or '' }}" class="uk-input">
+            </div>
+            <div>
+                <label class="uk-form-label">Expected harvest</label>
+                <input type="date" name="expected_harvest_date" value="{{ planting.expected_harvest_date or '' }}" class="uk-input">
+            </div>
+            <div>
+                <label class="uk-form-label">Actual harvest</label>
+                <input type="date" name="actual_harvest_date" value="{{ planting.actual_harvest_date or '' }}" class="uk-input">
+            </div>
+        </div>
+
+        <div>
+            <label class="uk-form-label">Notes</label>
+            <textarea name="notes" rows="3" class="uk-textarea">{{ planting.notes or '' }}</textarea>
+        </div>
+
+        <button type="submit" class="uk-btn uk-btn-primary w-full">Save changes</button>
+    </form>
+
+    <div class="uk-card uk-card-default uk-card-body">
+        <p class="text-sm text-muted-foreground mb-4">
+            Crop details from the Almanac, health observations, upcoming care tasks, event history,
+            and weather context for this planting are coming in later updates.
+        </p>
+        <form
+            method="post"
+            action="{{ url_for('plantings.delete_planting', garden_id=garden.id, planting_id=planting.id) }}"
+            onsubmit="return confirm('Delete this planting of {{ planting.crop_name }}?');"
+        >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="text-sm text-destructive">Delete this planting</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

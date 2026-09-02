@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flash_messages %}
+
+{% block title %}{{ container.name }} — {{ garden.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <a href="{{ url_for('gardens.view_garden', garden_id=garden.id) }}" class="text-sm text-muted-foreground hover:text-primary">← {{ garden.name }}</a>
+    <h1 class="text-2xl font-bold mt-2 mb-1">{{ container.name }}</h1>
+    <p class="text-sm text-muted-foreground mb-6">
+        {{ container.container_type }} · in
+        <a href="{{ url_for('garden_areas.view_area', garden_id=garden.id, area_id=container.garden_area.id) }}" class="text-primary hover:underline">{{ container.garden_area.name }}</a>
+        · {{ container.planting_locations|length }} planting{{ 's' if container.planting_locations|length != 1 }}
+    </p>
+
+    {{ flash_messages() }}
+
+    <form method="post" action="{{ url_for('containers.edit_container', garden_id=garden.id, container_id=container.id) }}" class="uk-card uk-card-default uk-card-body flex flex-col gap-3 mb-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div>
+            <label class="uk-form-label">Name</label>
+            <input type="text" name="name" required maxlength="120" value="{{ container.name }}" class="uk-input">
+        </div>
+        <div>
+            <label class="uk-form-label">Type</label>
+            <select name="container_type" class="uk-select">
+                {% for t in ['pot', 'box', 'hanging-basket', 'other'] %}
+                <option value="{{ t }}" {{ 'selected' if container.container_type == t }}>{{ t|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="uk-form-label">Garden area</label>
+            <select name="garden_area_id" required class="uk-select">
+                {% for area in garden.areas %}
+                <option value="{{ area.id }}" {{ 'selected' if area.id == container.garden_area_id }}>{{ area.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div><label class="uk-form-label">Position X</label><input type="number" step="any" name="pos_x" value="{{ container.pos_x }}" class="uk-input"></div>
+            <div><label class="uk-form-label">Position Y</label><input type="number" step="any" name="pos_y" value="{{ container.pos_y }}" class="uk-input"></div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+            <div><label class="uk-form-label">Width (cm)</label><input type="number" step="any" min="0" name="width" value="{{ container.width if container.width is not none else '' }}" class="uk-input"></div>
+            <div><label class="uk-form-label">Depth (cm)</label><input type="number" step="any" min="0" name="depth" value="{{ container.depth if container.depth is not none else '' }}" class="uk-input"></div>
+            <div><label class="uk-form-label">Height (cm)</label><input type="number" step="any" min="0" name="height" value="{{ container.height if container.height is not none else '' }}" class="uk-input"></div>
+        </div>
+        <div>
+            <label class="uk-form-label">Volume (liters)</label>
+            <input type="number" step="any" min="0" name="volume_liters" value="{{ container.volume_liters if container.volume_liters is not none else '' }}" class="uk-input">
+        </div>
+        <button type="submit" class="uk-btn uk-btn-primary w-full">Save changes</button>
+    </form>
+
+    {% if container.planting_locations %}
+    <div class="uk-card uk-card-default uk-card-body mb-6">
+        <h2 class="font-display font-semibold mb-3">Plantings in this container</h2>
+        <ul class="flex flex-col gap-1 text-sm">
+            {% for loc in container.planting_locations %}
+            <li><a href="{{ url_for('plantings.view_planting', garden_id=garden.id, planting_id=loc.planting.id) }}" class="text-primary hover:underline">{{ loc.planting.crop_name }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="uk-card uk-card-default uk-card-body">
+        <p class="text-sm text-muted-foreground mb-4">
+            Care tasks, event history, and AI context for this container are coming in a later update.
+        </p>
+        <form
+            method="post"
+            action="{{ url_for('containers.delete_container', garden_id=garden.id, container_id=container.id) }}"
+            onsubmit="return confirm('Delete {{ container.name }}? This also deletes its plantings.');"
+        >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="text-sm text-destructive">Delete this container</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

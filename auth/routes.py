@@ -1,12 +1,31 @@
+from urllib.parse import urlencode
+
 import requests
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
+from itsdangerous import URLSafeTimedSerializer
 
 from extensions import db
 from forms import LoginForm, RegisterForm
 from models import Garden, User
 
 bp = Blueprint("auth", __name__)
+
+SSO_SALT = "vgarden-sso"
+
+
+def _vgarden_service_headers() -> dict:
+    return {"Authorization": f"Bearer {current_app.config['INTER_SERVICE_SECRET']}"}
 
 
 @bp.route("/register", methods=["GET", "POST"])
@@ -67,6 +86,7 @@ def account():
             resp = requests.get(
                 f"{current_app.config['VGARDEN_URL']}/gardens",
                 params={"owner_id": current_user.id},
+                headers=_vgarden_service_headers(),
                 timeout=5,
             )
             resp.raise_for_status()
@@ -97,11 +117,17 @@ def create_garden():
         flash("Garden name is required.", "error")
         return redirect(url_for("auth.account"))
 
+    payload = {"owner_id": current_user.id, "name": name}
+    location = (request.form.get("location") or "").strip()
+    if location:
+        payload["location"] = location
+
     try:
         resp = requests.post(
             f"{current_app.config['VGARDEN_URL']}/gardens",
-            json={"owner_id": current_user.id, "name": name},
-            timeout=5,
+            json=payload,
+            headers=_vgarden_service_headers(),
+            timeout=10,
         )
     except requests.RequestException:
         flash("Couldn't reach the garden service. Please try again.", "error")
@@ -127,7 +153,11 @@ def delete_garden(garden_id):
         return redirect(url_for("auth.account"))
 
     try:
-        resp = requests.get(f"{current_app.config['VGARDEN_URL']}/gardens/{garden_id}", timeout=5)
+        resp = requests.get(
+            f"{current_app.config['VGARDEN_URL']}/gardens/{garden_id}",
+            headers=_vgarden_service_headers(),
+            timeout=5,
+        )
     except requests.RequestException:
         flash("Couldn't reach the garden service. Please try again.", "error")
         return redirect(url_for("auth.account"))
@@ -143,7 +173,11 @@ def delete_garden(garden_id):
         return redirect(url_for("auth.account"))
 
     try:
-        del_resp = requests.delete(f"{current_app.config['VGARDEN_URL']}/gardens/{garden_id}", timeout=5)
+        del_resp = requests.delete(
+            f"{current_app.config['VGARDEN_URL']}/gardens/{garden_id}",
+            headers=_vgarden_service_headers(),
+            timeout=5,
+        )
     except requests.RequestException:
         flash("Couldn't reach the garden service. Please try again.", "error")
         return redirect(url_for("auth.account"))
@@ -156,6 +190,20 @@ def delete_garden(garden_id):
     db.session.commit()
     flash(f'Deleted "{actual_name}".', "success")
     return redirect(url_for("auth.account"))
+
+
+@bp.route("/gardens/<int:garden_id>/open")
+@login_required
+def open_garden(garden_id):
+    """Hand the browser off to vgarden with a short-lived signed identity token."""
+    ownership = Garden.query.filter_by(garden_id=garden_id, user_id=current_user.id).first()
+    if ownership is None:
+        abort(404)
+
+    serializer = URLSafeTimedSerializer(current_app.config["INTER_SERVICE_SECRET"], salt=SSO_SALT)
+    token = serializer.dumps({"user_id": current_user.id, "email": current_user.email})
+    query = urlencode({"token": token, "next": f"/gardens/{garden_id}/view"})
+    return redirect(f"{current_app.config['VGARDEN_PUBLIC_URL']}/sso?{query}")
 
 
 @bp.route("/me")

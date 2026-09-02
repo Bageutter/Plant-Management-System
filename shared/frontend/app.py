@@ -2,8 +2,11 @@ import os
 
 from flask import Flask, render_template
 from jinja2 import ChoiceLoader, FileSystemLoader
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+# Served at the proxy root; honour X-Forwarded-* for correct scheme/host.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.jinja_loader = ChoiceLoader([
     app.jinja_loader,
     FileSystemLoader(os.path.join(os.path.abspath(os.path.dirname(__file__)), "shared_templates")),
