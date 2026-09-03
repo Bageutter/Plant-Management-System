@@ -4,6 +4,33 @@
 
 {% block title %}{{ "Edit" if is_edit else "Add" }} plant — Almanac{% endblock %}
 
+{% block extra_head %}
+<style>
+    .month-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.7rem;
+        border: 1px solid hsl(var(--border));
+        border-radius: 9999px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+    }
+    .month-toggle input { accent-color: hsl(var(--primary)); width: 1rem; height: 1rem; cursor: pointer; }
+    .month-toggle:hover { border-color: hsl(var(--primary)); }
+    .month-toggle:has(input:checked) {
+        background-color: hsl(var(--primary));
+        border-color: hsl(var(--primary));
+        color: hsl(var(--primary-foreground));
+        font-weight: 600;
+    }
+    .month-toggle:has(input:checked) input { accent-color: hsl(var(--primary-foreground)); }
+    /* Fallback for browsers without :has() — the native checkbox still shows a tick. */
+</style>
+{% endblock %}
+
 {% block content %}
 <div style="max-width:44rem; margin:0 auto;">
     <a href="{{ url_for('plant_detail', slug=plant.slug) if is_edit else url_for('index') }}"
@@ -43,15 +70,17 @@
 
         <fieldset style="border:1px solid hsl(var(--border)); border-radius:var(--uk-global-radius-s); padding:1rem;">
             <legend class="uk-form-label" style="padding:0 0.4rem;">Planting months</legend>
-            <div style="display:flex; flex-wrap:wrap; gap:0.75rem;">
+            <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
                 {% for m in range(1, 13) %}
-                <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:0.9rem;">
-                    <input type="checkbox" class="uk-checkbox" name="months" value="{{ m }}"
-                           {{ 'checked' if m in months }}>
+                <label class="month-toggle">
+                    <input type="checkbox" name="months" value="{{ m }}" {{ 'checked' if m in months }}>
                     {{ ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m - 1] }}
                 </label>
                 {% endfor %}
             </div>
+            <p class="text-muted-foreground" style="font-size:0.75rem; margin:0.75rem 0 0;">
+                Selected months are filled in. Leave all unchecked if planting time isn't known.
+            </p>
         </fieldset>
 
         <div style="display:flex; gap:0.75rem;">
