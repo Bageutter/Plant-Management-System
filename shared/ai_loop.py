@@ -227,7 +227,7 @@ class LoopLogger:
             fh.write(f"\n## {name.upper()}  ·  +{elapsed_ms} ms\n\n")
             for key, value in data.items():
                 if key in self._BLOCK_KEYS:
-                    fh.write(f"\n**{key}:**\n\n```\n{value}\n```\n")
+                    fh.write(f"\n**{key}:**\n\n```\n{value}\n```\n\n")
                 else:
                     fh.write(f"- **{key}:** {value}\n")
 

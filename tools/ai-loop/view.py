@@ -72,7 +72,7 @@ def cmd_list(service: str | None, last: int) -> int:
         print(f"No loop runs logged yet under {LOG_DIR}/")
         return 0
     rows = list(runs.items())[-last:]
-    print(f"{BOLD}{'run_id':<34}{'phases':<28}{'result':<16}iters{RESET}")
+    print(f"{BOLD}{'run_id':<34}{'phases':<22}{'result':<16}iters{RESET}")
     for run_id, events in rows:
         phases = [e["phase"] for e in events]
         adapt = [e for e in events if e["phase"] in ("adapt", "fallback")]
@@ -80,8 +80,9 @@ def cmd_list(service: str | None, last: int) -> int:
         if adapt:
             verdict = adapt[-1].get("decision") or adapt[-1].get("reason", "fallback")
         iters = max((e.get("iteration", 0) for e in events), default=0) or 1
-        seq = " ".join(_c(p, p[0].upper()) for p in phases)
-        print(f"{run_id:<34}{seq:<37}{verdict:<16}{iters}")
+        plain = " ".join(p[0].upper() for p in phases)          # for width
+        seq = " ".join(_c(p, p[0].upper()) for p in phases)     # colored
+        print(f"{run_id:<34}{seq}{' ' * max(1, 22 - len(plain))}{verdict:<16}{iters}")
     print(f"\n{DIM}view one:  python tools/ai-loop/view.py <run_id>{RESET}")
     return 0
 
