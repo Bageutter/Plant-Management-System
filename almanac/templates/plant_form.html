@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set is_edit = mode == "edit" %}
+{% set f = fields or {} %}
+
+{% block title %}{{ "Edit" if is_edit else "Add" }} plant — Almanac{% endblock %}
+
+{% block content %}
+<div style="max-width:44rem; margin:0 auto;">
+    <a href="{{ url_for('plant_detail', slug=plant.slug) if is_edit else url_for('index') }}"
+       class="text-muted-foreground" style="font-size:0.875rem;">← Back</a>
+
+    <h1 style="font-size:2rem; font-weight:700; margin:0.4rem 0 1.5rem;">
+        {{ "Edit " ~ plant.common_name if is_edit else "Add a plant" }}
+    </h1>
+
+    <form method="post"
+          action="{{ url_for('update_plant', slug=plant.slug) if is_edit else url_for('create_plant') }}"
+          style="display:grid; gap:1.1rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <label style="display:grid; gap:0.35rem;">
+            <span class="uk-form-label">Common name</span>
+            <input class="uk-input" type="text" name="common_name" required maxlength="120"
+                   value="{{ f.common_name if f else (plant.common_name if is_edit else '') }}">
+        </label>
+
+        <label style="display:grid; gap:0.35rem;">
+            <span class="uk-form-label">Scientific name</span>
+            <input class="uk-input" type="text" name="scientific_name" required maxlength="160"
+                   value="{{ f.scientific_name if f else (plant.scientific_name if is_edit else '') }}">
+        </label>
+
+        <label style="display:grid; gap:0.35rem;">
+            <span class="uk-form-label">Family</span>
+            <input class="uk-input" type="text" name="family" maxlength="120"
+                   value="{{ f.family if f else (plant.family if is_edit else '') }}">
+        </label>
+
+        <label style="display:grid; gap:0.35rem;">
+            <span class="uk-form-label">Summary</span>
+            <textarea class="uk-textarea" name="summary" rows="3">{{ f.summary if f else (plant.summary if is_edit else '') }}</textarea>
+        </label>
+
+        <fieldset style="border:1px solid hsl(var(--border)); border-radius:var(--uk-global-radius-s); padding:1rem;">
+            <legend class="uk-form-label" style="padding:0 0.4rem;">Planting months</legend>
+            <div style="display:flex; flex-wrap:wrap; gap:0.75rem;">
+                {% for m in range(1, 13) %}
+                <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:0.9rem;">
+                    <input type="checkbox" class="uk-checkbox" name="months" value="{{ m }}"
+                           {{ 'checked' if m in months }}>
+                    {{ ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m - 1] }}
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+
+        <div style="display:flex; gap:0.75rem;">
+            <button type="submit" class="uk-btn uk-btn-primary">{{ "Save changes" if is_edit else "Add plant" }}</button>
+            <a href="{{ url_for('plant_detail', slug=plant.slug) if is_edit else url_for('index') }}"
+               class="uk-btn uk-btn-default">Cancel</a>
+        </div>
+    </form>
+
+    {% if is_edit %}
+    <form method="post" action="{{ url_for('delete_plant', slug=plant.slug) }}"
+          onsubmit="return confirm('Delete {{ plant.common_name }} from the Almanac?');"
+          style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid hsl(var(--border));">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="uk-btn uk-btn-danger">Delete this plant</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

@@ -57,6 +57,7 @@
       hx-swap="innerHTML"
       hx-confirm="Clear this chat history?"
       style="margin-top:0.75rem; text-align:right;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <button type="submit" class="uk-btn uk-btn-default uk-btn-sm">Clear chat</button>
 </form>
 {% else %}
