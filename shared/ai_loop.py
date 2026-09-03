@@ -39,17 +39,19 @@ log = logging.getLogger("ai_loop")
 # Mirrors tools/ai-dev/prompts/observe.txt, adapted to review a chat answer.
 PROMPT_REVIEW = """You are an independent reviewer of an AI assistant's DRAFT answer.
 
-You are given GROUNDING (the only facts the assistant may use) and the DRAFT.
-Judge the draft only against the grounding and return "revise" when — and only when —
-one of these is clearly true:
-- The draft states a fact (plant, area, container, date, quantity, weather value,
-  care instruction) that is NOT in the grounding, or that contradicts it.
-- The question needs information the grounding does not contain, and the draft
-  guesses or answers confidently instead of saying so.
-- The draft does not address the user's question, or wanders off-topic.
+Every value in GROUNDING is a fact the assistant IS allowed to state — quantities,
+names, dates and weather values in the grounding are supported, and restating or
+rephrasing them is correct, not an error.
 
-Paraphrasing the grounding, reasonable summarising, and minor wording are fine —
-do not "revise" for those. Prefer "approved" when in doubt.
+Return "revise" only when one of these is clearly true:
+- The draft asserts something that is absent from the grounding AND not a plain
+  restatement of it, or that directly contradicts a grounding value.
+- The question needs a fact the grounding does not contain, and the draft guesses
+  or answers confidently instead of saying the information isn't available.
+- The draft does not answer the user's question, or goes off-topic.
+
+If the draft only uses facts that appear in the grounding and answers the
+question, return "approved". When genuinely unsure, return "approved".
 
 Return JSON only, exactly these keys:
 {
@@ -132,9 +134,12 @@ class Reviewer:
 
     def review(self, question: str, grounding: dict, draft: str) -> dict:
         self.ensure_ready()
-        user = json.dumps(
-            {"question": question, "grounding": grounding, "draft": draft},
-            ensure_ascii=False,
+        user = (
+            "GROUNDING (the complete set of facts the assistant may use — every "
+            "value here counts as supported):\n"
+            f"{json.dumps(grounding, ensure_ascii=False, indent=2)}\n\n"
+            f"USER QUESTION:\n{question}\n\n"
+            f"DRAFT ANSWER TO REVIEW:\n{draft}"
         )
         try:
             body = _ollama_post(
@@ -190,8 +195,12 @@ class LoopLogger:
                 "Workflow: **Plan → Act → Observe → Adapt**\n"
             )
 
+    _BLOCK_KEYS = ("draft", "answer", "body")  # rendered as a code block, not a bullet
+
     def phase(self, name: str, data: dict, *, body: str | None = None) -> None:
         elapsed_ms = int((time.monotonic() - self.started) * 1000)
+        if body is not None:
+            data = {**data, "answer": body}
         event = {
             "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
             "run_id": self.run_id,
@@ -206,16 +215,21 @@ class LoopLogger:
             "[%s] %s %s",
             self.run_id,
             name.upper(),
-            " ".join(f"{k}={v}" for k, v in data.items() if k != "question"),
+            " ".join(
+                f"{k}={v}"
+                for k, v in data.items()
+                if k not in ("question", *self._BLOCK_KEYS)
+            ),
         )
         with open(self.jsonl_path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(event, ensure_ascii=False) + "\n")
         with open(self.transcript_path, "a", encoding="utf-8") as fh:
             fh.write(f"\n## {name.upper()}  ·  +{elapsed_ms} ms\n\n")
             for key, value in data.items():
-                fh.write(f"- **{key}:** {value}\n")
-            if body:
-                fh.write(f"\n```\n{body}\n```\n")
+                if key in self._BLOCK_KEYS:
+                    fh.write(f"\n**{key}:**\n\n```\n{value}\n```\n")
+                else:
+                    fh.write(f"- **{key}:** {value}\n")
 
 
 # --------------------------------------------------------------------------- #
@@ -295,10 +309,10 @@ class AgenticLoop:
                 {
                     "iteration": i,
                     "carried_feedback": feedback or "(none)",
+                    "draft": answer,
                     "draft_chars": len(answer),
                     "ms": int((time.monotonic() - t0) * 1000),
                 },
-                body=answer,
             )
 
             # -- OBSERVE -----------------------------------------------
