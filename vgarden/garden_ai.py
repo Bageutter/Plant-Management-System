@@ -1,15 +1,55 @@
-from flask import Blueprint, current_app, render_template, request
+import os
+import sys
+
+from flask import Blueprint, abort, current_app, render_template, request
 
 from ai import AIUnavailableError
 from auth_utils import require_garden_owner, require_login
 from extensions import db
-from models import Container, Garden, GardenArea, GardenChatMessage, Planting
+from models import Container, Garden, GardenArea, GardenAILoopRun, GardenChatMessage, Planting
 from weather import WeatherUnavailableError
+
+_SHARED = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "shared")
+if os.path.isdir(_SHARED) and _SHARED not in sys.path:
+    sys.path.insert(0, _SHARED)
+
+try:
+    import ai_loop  # noqa: E402  (needs the sys.path entry above)
+except ImportError:  # bare image without shared/ai_loop.py mounted -> single-shot
+    ai_loop = None
 
 bp = Blueprint("garden_ai", __name__)
 
 CHAT_HISTORY_LIMIT = 20
 MAX_QUESTION_LENGTH = 500
+
+
+class _SingleShot:
+    """Minimal LoopResult-alike for the bare-image path (no shared/ai_loop.py)."""
+
+    def __init__(self, answer):
+        self.answer = answer
+        self.iterations = 1
+        self.verdict = "fallback"
+        self.run_id = None
+        self.transcript_path = ""
+        self.trace = []
+
+
+def _run_loop(ai_client, question, build_context):
+    """Run the Plan -> Act -> Observe -> Adapt loop, or a single ACT if the shared
+    module isn't importable (bare image)."""
+    if ai_loop is None:
+        grounding, _ = build_context()
+        return _SingleShot(ai_client.draft(question, grounding, None))
+    loop = ai_loop.AgenticLoop(
+        service="vgarden",
+        drafter=lambda q, grounding, feedback: ai_client.draft(q, grounding, feedback),
+        reviewer=current_app.extensions.get("ai_loop_reviewer"),
+        log_dir=current_app.config["AI_LOOP_LOG_DIR"],
+        max_iterations=current_app.config["AI_LOOP_MAX_ITERATIONS"],
+    )
+    return loop.run(question, build_context)
 
 
 def _get_owned_garden(garden_id: int) -> Garden:
@@ -116,30 +156,67 @@ def ask(garden_id):
         return _render_chat(garden, f"Keep your question under {MAX_QUESTION_LENGTH} characters."), 400
 
     history = [{"role": m.role, "content": m.content} for m in _history(garden_id)]
+
+    def build_context() -> tuple[dict, dict]:
+        snapshot = _garden_snapshot(garden)
+        grounding = {"garden": snapshot, "conversation": history}
+        plan_summary = {
+            "areas": len(snapshot["areas"]),
+            "containers": len(snapshot["containers"]),
+            "plantings": len(snapshot["plantings"]),
+            "has_weather": snapshot["weather"] is not None,
+            "history_messages": len(history),
+        }
+        return grounding, plan_summary
+
+    ai_client = current_app.extensions["garden_ai"]
     try:
-        result = current_app.extensions["garden_ai"].ask(
-            question, _garden_snapshot(garden), history
-        )
+        result = _run_loop(ai_client, question, build_context)
     except AIUnavailableError:
         return _render_chat(
             garden,
             "The local AI model is unavailable. Check that Ollama is running and try again.",
         ), 503
 
-    db.session.add_all(
-        [
-            GardenChatMessage(garden_id=garden_id, role="user", content=question),
-            GardenChatMessage(garden_id=garden_id, role="assistant", content=result["answer"]),
-        ]
+    user_msg = GardenChatMessage(garden_id=garden_id, role="user", content=question)
+    assistant_msg = GardenChatMessage(
+        garden_id=garden_id, role="assistant", content=result.answer
     )
+    db.session.add_all([user_msg, assistant_msg])
+    db.session.flush()  # assign assistant_msg.id
+    if result.run_id:
+        db.session.add(
+            GardenAILoopRun(
+                garden_id=garden_id,
+                message_id=assistant_msg.id,
+                run_id=result.run_id,
+                question=question,
+                final_answer=result.answer,
+                iterations=result.iterations,
+                verdict=result.verdict,
+                transcript_path=result.transcript_path,
+                trace=result.trace,
+            )
+        )
     db.session.commit()
     return _render_chat(garden)
+
+
+@bp.route("/gardens/<int:garden_id>/ai/loop/<int:run_id>")
+@require_login
+def loop_trace(garden_id, run_id):
+    garden = _get_owned_garden(garden_id)
+    run = db.session.get(GardenAILoopRun, run_id)
+    if run is None or run.garden_id != garden.id:
+        abort(404)
+    return render_template("loop_trace.html", garden=garden, run=run)
 
 
 @bp.route("/gardens/<int:garden_id>/ai/clear", methods=["POST"])
 @require_login
 def clear(garden_id):
     garden = _get_owned_garden(garden_id)
+    GardenAILoopRun.query.filter_by(garden_id=garden_id).delete()
     GardenChatMessage.query.filter_by(garden_id=garden_id).delete()
     db.session.commit()
     return _render_chat(garden)

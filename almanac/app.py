@@ -1,19 +1,44 @@
 import os
+import sys
+from datetime import datetime
 
-from flask import Flask, current_app, g, jsonify, render_template, request
+from flask import Flask, abort, current_app, g, jsonify, render_template, request
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import text
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from ai import AIUnavailableError, OllamaAlmanacAI
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+# The shared agentic-loop module (shared/ai_loop.py): mounted at /app/ai_loop.py
+# in the container, ../shared/ai_loop.py for local/test runs.
+_SHARED = os.path.join(BASE_DIR, "..", "shared")
+if os.path.isdir(_SHARED) and _SHARED not in sys.path:
+    sys.path.insert(0, _SHARED)
+
+from ai import AIUnavailableError, OllamaAlmanacAI, sources_for_text
 from auth_client import AuthClient
 from extensions import db
-from models import AIChatMessage, PlantReference
+from models import AIChatMessage, AILoopRun, PlantReference
 from seed_data import seed_reference_data
 
+try:
+    import ai_loop
+except ImportError:  # bare image without shared/ai_loop.py mounted -> single-shot
+    ai_loop = None
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 CHAT_HISTORY_LIMIT = 20
+
+
+class _SingleShot:
+    """Minimal LoopResult-alike for the bare-image path."""
+
+    def __init__(self, answer):
+        self.answer = answer
+        self.iterations = 1
+        self.verdict = "fallback"
+        self.run_id = None
+        self.transcript_path = ""
+        self.trace = []
 
 
 def _records_for_question(question: str, records: list[PlantReference]) -> list[PlantReference]:
@@ -98,6 +123,12 @@ def create_app(test_config: dict | None = None) -> Flask:
         OLLAMA_MODEL=os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
         OLLAMA_TIMEOUT=int(os.environ.get("OLLAMA_TIMEOUT", "120")),
         OLLAMA_AUTO_PULL=os.environ.get("OLLAMA_AUTO_PULL", "false").lower() == "true",
+        # Agentic loop (Plan -> Act -> Observe -> Adapt); see docs/agentic-ai-workflow.md.
+        OLLAMA_REVIEW_MODEL=os.environ.get("OLLAMA_REVIEW_MODEL", "llama3.1:8b"),
+        AI_LOOP_MAX_ITERATIONS=int(os.environ.get("AI_LOOP_MAX_ITERATIONS", "2")),
+        AI_LOOP_LOG_DIR=os.environ.get(
+            "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
+        ),
     )
     if test_config:
         app.config.update(test_config)
@@ -115,6 +146,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         model=app.config["OLLAMA_MODEL"],
         timeout=app.config["OLLAMA_TIMEOUT"],
         auto_pull=app.config.get("OLLAMA_AUTO_PULL", False),
+    )
+    app.extensions["ai_loop_reviewer"] = (
+        ai_loop.build_reviewer(app.config) if ai_loop is not None else None
     )
 
     @app.context_processor
@@ -171,33 +205,81 @@ def create_app(test_config: dict | None = None) -> Flask:
         all_records = PlantReference.query.order_by(PlantReference.common_name).all()
         records = _records_for_question(question, all_records)
         plants = [record.to_dict() for record in records]
+        history = [{"role": m.role, "content": m.content} for m in _chat_history(owner_key)]
+
+        def build_context():
+            grounding = {
+                "current_month": datetime.now().strftime("%B"),
+                "plant_records": plants,
+                "conversation": history,
+            }
+            plan_summary = {
+                "plant_records": len(plants),
+                "of_total": len(all_records),
+                "history_messages": len(history),
+            }
+            return grounding, plan_summary
+
+        ai_client = app.extensions["almanac_ai"]
         try:
-            result = app.extensions["almanac_ai"].ask(question, plants)
+            if ai_loop is None:
+                grounding, _ = build_context()
+                result = _SingleShot(ai_client.draft(question, grounding, None))
+            else:
+                loop = ai_loop.AgenticLoop(
+                    service="almanac",
+                    drafter=lambda q, g, fb: ai_client.draft(q, g, fb),
+                    reviewer=app.extensions.get("ai_loop_reviewer"),
+                    log_dir=app.config["AI_LOOP_LOG_DIR"],
+                    max_iterations=app.config["AI_LOOP_MAX_ITERATIONS"],
+                )
+                result = loop.run(question, build_context)
         except AIUnavailableError:
             return _render_chat(
                 owner_key,
                 "The local AI model is unavailable. Check that Ollama is running and try again.",
             ), 503
 
-        db.session.add_all(
-            [
-                AIChatMessage(owner_key=owner_key, role="user", content=question),
-                AIChatMessage(
-                    owner_key=owner_key,
-                    role="assistant",
-                    content=result["answer"],
-                    source_slugs=result["sources"],
-                ),
-            ]
+        user_msg = AIChatMessage(owner_key=owner_key, role="user", content=question)
+        assistant_msg = AIChatMessage(
+            owner_key=owner_key,
+            role="assistant",
+            content=result.answer,
+            source_slugs=sources_for_text(result.answer, plants),
         )
+        db.session.add_all([user_msg, assistant_msg])
+        db.session.flush()
+        if result.run_id:
+            db.session.add(
+                AILoopRun(
+                    owner_key=owner_key,
+                    message_id=assistant_msg.id,
+                    run_id=result.run_id,
+                    question=question,
+                    final_answer=result.answer,
+                    iterations=result.iterations,
+                    verdict=result.verdict,
+                    transcript_path=result.transcript_path,
+                    trace=result.trace,
+                )
+            )
         db.session.commit()
         return _render_chat(owner_key)
+
+    @app.get("/ai/loop/<int:run_id>")
+    def ai_loop_trace(run_id: int):
+        owner_key = _chat_owner_key()
+        run = db.session.get(AILoopRun, run_id)
+        if owner_key is None or run is None or run.owner_key != owner_key:
+            abort(404)
+        return render_template("loop_trace.html", run=run)
 
     @app.post("/ai/clear")
     def clear_ai_chat():
         owner_key = _chat_owner_key()
         if owner_key is None:
             return _render_chat(None, "Your session has expired. Log in again to use the chat."), 401
+        AILoopRun.query.filter_by(owner_key=owner_key).delete()
         AIChatMessage.query.filter_by(owner_key=owner_key).delete()
         db.session.commit()
         return _render_chat(owner_key)

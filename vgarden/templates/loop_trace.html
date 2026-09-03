@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Agentic loop trace — {{ garden.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <a href="{{ url_for('gardens.view_garden', garden_id=garden.id) }}"
+       class="text-sm text-muted-foreground hover:text-primary">← {{ garden.name }}</a>
+
+    <h1 class="text-2xl font-bold mt-2 mb-1">Agentic loop trace</h1>
+    <p class="text-sm text-muted-foreground mb-1"><code>{{ run.run_id }}</code></p>
+    <p class="text-sm text-muted-foreground mb-6">
+        Workflow: <strong>Plan → Act → Observe → Adapt</strong> ·
+        {{ run.iterations }} iteration{{ 's' if run.iterations != 1 }} ·
+        result: <strong>{{ run.verdict }}</strong>
+    </p>
+
+    <div class="uk-card uk-card-default uk-card-body mb-6">
+        <p class="text-xs text-muted-foreground uk-text-uppercase mb-1">Question</p>
+        <p class="mb-4">{{ run.question }}</p>
+        <p class="text-xs text-muted-foreground uk-text-uppercase mb-1">Final answer</p>
+        <p style="white-space:pre-wrap;">{{ run.final_answer }}</p>
+    </div>
+
+    <div class="flex flex-col gap-3">
+        {% for ev in run.trace %}
+        <div class="uk-card uk-card-default uk-card-body" style="border-left:3px solid hsl(var(--primary));">
+            <p class="text-sm font-semibold mb-1">
+                {{ ev.phase|upper }}{% if ev.iteration %} #{{ ev.iteration }}{% endif %}
+                <span class="text-xs text-muted-foreground">· +{{ ev.elapsed_ms }} ms</span>
+            </p>
+            <dl style="margin:0; font-size:0.8rem;">
+                {% for k, v in ev.items() if k not in ('phase','iteration','elapsed_ms','ts','run_id','service') %}
+                <div style="display:flex; gap:0.5rem; padding:0.1rem 0;">
+                    <dt class="text-muted-foreground" style="min-width:9rem;">{{ k }}</dt>
+                    <dd style="margin:0; white-space:pre-wrap;">{{ v }}</dd>
+                </div>
+                {% endfor %}
+            </dl>
+        </div>
+        {% endfor %}
+    </div>
+
+    <p class="text-xs text-muted-foreground mt-6">
+        Also logged to <code>{{ run.transcript_path }}</code> and the service stdout
+        (<code>docker compose logs -f vgarden</code>). Replay any run with
+        <code>python tools/ai-loop/view.py {{ run.run_id }}</code>.
+    </p>
+</div>
+{% endblock %}

@@ -32,6 +32,9 @@ class Garden(db.Model):
     chat_messages = db.relationship(
         "GardenChatMessage", backref="garden", cascade="all, delete-orphan"
     )
+    loop_runs = db.relationship(
+        "GardenAILoopRun", backref="garden", cascade="all, delete-orphan"
+    )
 
     def to_dict(self) -> dict:
         return {
@@ -211,3 +214,28 @@ class GardenChatMessage(db.Model):
     role = db.Column(db.String(16), nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=_now, nullable=False)
+
+
+class GardenAILoopRun(db.Model):
+    """Evidence of one Plan -> Act -> Observe -> Adapt run behind an assistant answer.
+
+    New table (no ALTER on garden_chat_messages) so db.create_all() is enough.
+    """
+
+    __tablename__ = "garden_ai_loop_runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    garden_id = db.Column(db.Integer, db.ForeignKey("gardens.id"), nullable=False, index=True)
+    message_id = db.Column(
+        db.Integer, db.ForeignKey("garden_chat_messages.id"), nullable=True, index=True
+    )
+    run_id = db.Column(db.String(64), nullable=False, unique=True)
+    question = db.Column(db.Text, nullable=False)
+    final_answer = db.Column(db.Text, nullable=False)
+    iterations = db.Column(db.Integer, nullable=False)
+    verdict = db.Column(db.String(24), nullable=False)  # approved | revised_capped | fallback
+    transcript_path = db.Column(db.String(255), nullable=False)
+    trace = db.Column(db.JSON, nullable=False)  # list of phase events
+    created_at = db.Column(db.DateTime, default=_now, nullable=False)
+
+    message = db.relationship("GardenChatMessage", backref=db.backref("loop_run", uselist=False))

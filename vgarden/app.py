@@ -1,4 +1,5 @@
 import os
+import sys
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -6,6 +7,12 @@ from jinja2 import ChoiceLoader, FileSystemLoader
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
+
+# The shared agentic-loop module (shared/ai_loop.py) is mounted at /app/ai_loop.py
+# in the container and lives at ../shared/ai_loop.py for local/test runs.
+_SHARED = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "shared")
+if os.path.isdir(_SHARED) and _SHARED not in sys.path:
+    sys.path.insert(0, _SHARED)
 
 from config import Config
 from extensions import csrf, db
@@ -54,6 +61,15 @@ def create_app(config_class: type = Config) -> Flask:
         timeout=app.config.get("OLLAMA_TIMEOUT", 120),
         auto_pull=app.config.get("OLLAMA_AUTO_PULL", False),
     )
+
+    # Reviewer for the Plan -> Act -> Observe -> Adapt loop. None (single-shot)
+    # if ai_loop can't be imported (bare image) or no review model is configured.
+    try:
+        import ai_loop
+
+        app.extensions["ai_loop_reviewer"] = ai_loop.build_reviewer(app.config)
+    except ImportError:
+        app.extensions["ai_loop_reviewer"] = None
     app.extensions["weather"] = OpenMeteoClient(
         geocoding_url=app.config.get(
             "OPEN_METEO_GEOCODING_URL", "https://geocoding-api.open-meteo.com/v1/search"
