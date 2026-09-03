@@ -104,6 +104,13 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"January and September to December", response.data)
         self.assertIn(b"Plan \xe2\x86\x92 Act \xe2\x86\x92 Observe \xe2\x86\x92 Adapt", response.data)
+        self.assertIn(b"How this answer was checked", response.data)
+        self.assertIn(b"Plan \xc2\xb7 Evidence selected", response.data)
+        self.assertIn(b"1 plant record", response.data)
+        self.assertIn(b"Observe 1 \xc2\xb7 Independent review", response.data)
+        self.assertIn(b"Reviewer approved this draft", response.data)
+        self.assertIn(b"Answer accepted after validation", response.data)
+        self.assertIn(b"Open detailed validation report", response.data)
 
         call = fake.calls[0]
         self.assertEqual(call["question"], "When should I plant tomatoes?")
@@ -201,7 +208,10 @@ class AlmanacAIModeTests(unittest.TestCase):
         with self.app.app_context():
             run_id = AILoopRun.query.one().id
 
-        self.assertEqual(self.client.get(f"/ai/loop/{run_id}").status_code, 200)
+        response = self.client.get(f"/ai/loop/{run_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Answer validation report", response.data)
+        self.assertIn(b"process summary, not private model reasoning", response.data)
         self.auth.user = {"id": 2, "email": "other@example.com"}
         self.assertEqual(self.client.get(f"/ai/loop/{run_id}").status_code, 404)
 
