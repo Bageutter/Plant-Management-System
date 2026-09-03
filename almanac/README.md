@@ -6,7 +6,8 @@ general plant reference data. It runs on <http://localhost:5004> through Docker 
 ## What it currently does
 
 * Displays seeded plant references and planting months.
-* Provides public JSON APIs for other services.
+* Full CRUD on plant references (browser forms + JSON API), gated by Auth login.
+* Provides public read JSON APIs for other services.
 * Provides a floating **Ask the Almanac** chat powered by local Ollama.
 * Grounds AI answers in Almanac records and displays the records used as sources.
 * Saves chat history under the authenticated Auth user ID.
@@ -52,13 +53,22 @@ to Ollama as conversational context.
 
 | Endpoint | Purpose | Login required |
 | --- | --- | --- |
-| `/` | Plant cards and floating chat launcher | Chat only |
+| `/` | Plant cards and floating chat launcher | Chat / add only |
 | `/plants/<slug>` | Plant reference detail | No |
-| `/api/plants` | All plant records as JSON | No |
-| `/api/plants/<slug>` | One plant record as JSON | No |
-| `/ai/ask` | Ask the grounded AI assistant | Yes |
+| `/plants/new`, `POST /plants` | Add a plant reference (form) | Yes |
+| `/plants/<slug>/edit`, `POST /plants/<slug>/edit` | Edit a plant reference (form) | Yes |
+| `POST /plants/<slug>/delete` | Delete a plant reference | Yes |
+| `/api/plants` | All plant records as JSON (`GET`); create (`POST`) | Write only |
+| `/api/plants/<slug>` | One plant record (`GET`); update (`PUT`/`PATCH`); delete (`DELETE`) | Write only |
+| `/ai/ask` | Ask the grounded AI assistant (Plan → Act → Observe → Adapt loop) | Yes |
 | `/ai/clear` | Clear the current user's chat | Yes |
+| `/ai/loop/<id>` | Trace of one agentic-loop run | Yes |
 | `/health` | Database and service health check | No |
+
+Plant pages are public to read. Any logged-in user can add, edit, or delete plant
+references (there is no admin role in Release 0). Browser mutations are CSRF-protected;
+the JSON write API is CSRF-exempt and authenticates by forwarding the login cookie to
+Auth's `/me`.
 
 ## Configuration
 

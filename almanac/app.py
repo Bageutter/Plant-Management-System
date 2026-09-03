@@ -1,8 +1,20 @@
 import os
+import re
 import sys
 from datetime import datetime
 
-from flask import Flask, abort, current_app, g, jsonify, render_template, request
+from flask import (
+    Flask,
+    abort,
+    current_app,
+    flash,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import text
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -17,8 +29,8 @@ if os.path.isdir(_SHARED) and _SHARED not in sys.path:
 
 from ai import AIUnavailableError, OllamaAlmanacAI, sources_for_text
 from auth_client import AuthClient
-from extensions import db
-from models import AIChatMessage, AILoopRun, PlantReference
+from extensions import csrf, db
+from models import AIChatMessage, AILoopRun, PlantingMonth, PlantReference
 from seed_data import seed_reference_data
 
 try:
@@ -51,6 +63,60 @@ def _records_for_question(question: str, records: list[PlantReference]) -> list[
         or record.scientific_name.lower() in question_lower
     ]
     return matches or records
+
+
+def _slugify(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+
+def _unique_slug(base: str) -> str:
+    base = base or "plant"
+    slug, n = base, 2
+    while PlantReference.query.filter_by(slug=slug).first() is not None:
+        slug = f"{base}-{n}"
+        n += 1
+    return slug
+
+
+def _parse_plant_form(form) -> tuple[dict, list[int], str | None]:
+    """Return (fields, month_numbers, error) from a create/edit form."""
+    fields = {
+        key: (form.get(key) or "").strip()
+        for key in ("common_name", "scientific_name", "family", "summary")
+    }
+    if not fields["common_name"]:
+        return fields, [], "Common name is required."
+    if not fields["scientific_name"]:
+        return fields, [], "Scientific name is required."
+
+    months = []
+    for raw in form.getlist("months"):
+        try:
+            month = int(raw)
+        except (TypeError, ValueError):
+            return fields, [], "Planting months must be numbers 1-12."
+        if not 1 <= month <= 12:
+            return fields, [], "Planting months must be between 1 and 12."
+        months.append(month)
+    return fields, sorted(set(months)), None
+
+
+def _apply_plant(plant: PlantReference, fields: dict, months: list[int]) -> None:
+    plant.common_name = fields["common_name"]
+    plant.scientific_name = fields["scientific_name"]
+    plant.family = fields["family"]
+    plant.summary = fields["summary"]
+
+    # Diff rather than replace: assigning a fresh list would try to INSERT a
+    # month row before deleting the old one with the same (plant, month) and
+    # trip the unique constraint mid-flush.
+    wanted = set(months)
+    existing = {m.month_number: m for m in plant.planting_months}
+    for number, row in existing.items():
+        if number not in wanted:
+            plant.planting_months.remove(row)
+    for number in sorted(wanted - existing.keys()):
+        plant.planting_months.append(PlantingMonth(month_number=number))
 
 
 def _current_auth_user() -> dict | None:
@@ -109,6 +175,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         ]
     )
     app.config.from_mapping(
+        SECRET_KEY=os.environ.get("SECRET_KEY", "dev-almanac-secret-key-change-me"),
         SQLALCHEMY_DATABASE_URI=os.environ.get(
             "DATABASE_URL",
             "sqlite:///" + os.path.join(BASE_DIR, "instance", "almanac.db"),
@@ -140,6 +207,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             os.makedirs(database_directory, exist_ok=True)
 
     db.init_app(app)
+    csrf.init_app(app)
     app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])
     app.extensions["almanac_ai"] = OllamaAlmanacAI(
         base_url=app.config["OLLAMA_URL"],
@@ -179,6 +247,90 @@ def create_app(test_config: dict | None = None) -> Flask:
             return render_template("404.html"), 404
         return render_template("plant_detail.html", plant=plant.to_dict())
 
+    # --- Plant reference CRUD (browser, login-gated) ---
+
+    def _login_or_redirect():
+        """Return the auth user, or a redirect response to the login page."""
+        user = _current_auth_user()
+        if user is None:
+            return None, redirect(f"{app.config['AUTH_PUBLIC_URL']}/login")
+        return user, None
+
+    @app.get("/plants/new")
+    def new_plant():
+        _, bounce = _login_or_redirect()
+        if bounce:
+            return bounce
+        return render_template("plant_form.html", plant=None, months=[], mode="new")
+
+    @app.post("/plants")
+    def create_plant():
+        _, bounce = _login_or_redirect()
+        if bounce:
+            return bounce
+
+        fields, months, error = _parse_plant_form(request.form)
+        if error:
+            flash(error, "error")
+            return render_template(
+                "plant_form.html", plant=None, months=months, mode="new", fields=fields
+            ), 400
+
+        plant = PlantReference(slug=_unique_slug(_slugify(fields["common_name"])))
+        _apply_plant(plant, fields, months)
+        db.session.add(plant)
+        db.session.commit()
+        flash(f'Added "{plant.common_name}".', "success")
+        return redirect(url_for("plant_detail", slug=plant.slug))
+
+    @app.get("/plants/<slug>/edit")
+    def edit_plant(slug: str):
+        _, bounce = _login_or_redirect()
+        if bounce:
+            return bounce
+        plant = PlantReference.query.filter_by(slug=slug).first()
+        if plant is None:
+            return render_template("404.html"), 404
+        months = [m.month_number for m in plant.planting_months]
+        return render_template("plant_form.html", plant=plant, months=months, mode="edit")
+
+    @app.post("/plants/<slug>/edit")
+    def update_plant(slug: str):
+        _, bounce = _login_or_redirect()
+        if bounce:
+            return bounce
+        plant = PlantReference.query.filter_by(slug=slug).first()
+        if plant is None:
+            return render_template("404.html"), 404
+
+        fields, months, error = _parse_plant_form(request.form)
+        if error:
+            flash(error, "error")
+            return render_template(
+                "plant_form.html", plant=plant, months=months, mode="edit", fields=fields
+            ), 400
+
+        _apply_plant(plant, fields, months)
+        db.session.commit()
+        flash("Saved.", "success")
+        return redirect(url_for("plant_detail", slug=plant.slug))
+
+    @app.post("/plants/<slug>/delete")
+    def delete_plant(slug: str):
+        _, bounce = _login_or_redirect()
+        if bounce:
+            return bounce
+        plant = PlantReference.query.filter_by(slug=slug).first()
+        if plant is None:
+            return render_template("404.html"), 404
+        name = plant.common_name
+        db.session.delete(plant)
+        db.session.commit()
+        flash(f'Deleted "{name}".', "success")
+        return redirect(url_for("index"))
+
+    # --- Plant reference API ---
+
     @app.get("/api/plants")
     def api_plants():
         records = PlantReference.query.order_by(PlantReference.common_name).all()
@@ -190,6 +342,61 @@ def create_app(test_config: dict | None = None) -> Flask:
         if record is None:
             return jsonify({"error": "plant reference not found"}), 404
         return jsonify(record.to_dict())
+
+    def _api_user_or_401():
+        return _current_auth_user()
+
+    def _api_parse(payload: dict):
+        class _Form:
+            def get(self, key):
+                return payload.get(key)
+
+            def getlist(self, key):
+                value = payload.get(key, [])
+                return value if isinstance(value, list) else [value]
+
+        return _parse_plant_form(_Form())
+
+    @app.post("/api/plants")
+    @csrf.exempt
+    def api_create_plant():
+        if _api_user_or_401() is None:
+            return jsonify({"error": "login required"}), 401
+        fields, months, error = _api_parse(request.get_json(silent=True) or {})
+        if error:
+            return jsonify({"error": error}), 400
+        plant = PlantReference(slug=_unique_slug(_slugify(fields["common_name"])))
+        _apply_plant(plant, fields, months)
+        db.session.add(plant)
+        db.session.commit()
+        return jsonify(plant.to_dict()), 201
+
+    @app.route("/api/plants/<slug>", methods=["PUT", "PATCH"])
+    @csrf.exempt
+    def api_update_plant(slug: str):
+        if _api_user_or_401() is None:
+            return jsonify({"error": "login required"}), 401
+        plant = PlantReference.query.filter_by(slug=slug).first()
+        if plant is None:
+            return jsonify({"error": "plant reference not found"}), 404
+        fields, months, error = _api_parse(request.get_json(silent=True) or {})
+        if error:
+            return jsonify({"error": error}), 400
+        _apply_plant(plant, fields, months)
+        db.session.commit()
+        return jsonify(plant.to_dict())
+
+    @app.delete("/api/plants/<slug>")
+    @csrf.exempt
+    def api_delete_plant(slug: str):
+        if _api_user_or_401() is None:
+            return jsonify({"error": "login required"}), 401
+        plant = PlantReference.query.filter_by(slug=slug).first()
+        if plant is None:
+            return jsonify({"error": "plant reference not found"}), 404
+        db.session.delete(plant)
+        db.session.commit()
+        return "", 204
 
     @app.post("/ai/ask")
     def ask_almanac():

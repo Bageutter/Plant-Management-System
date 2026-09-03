@@ -52,6 +52,7 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.app = create_app(
             {
                 "TESTING": True,
+                "WTF_CSRF_ENABLED": False,
                 "SQLALCHEMY_DATABASE_URI": f"sqlite:///{os.path.join(self.temp_dir.name, 'a.db')}",
                 "AI_LOOP_LOG_DIR": os.path.join(self.temp_dir.name, "ai-loop-logs"),
                 "AI_LOOP_MAX_ITERATIONS": 2,

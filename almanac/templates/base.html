@@ -140,6 +140,19 @@
     ) }}
 
     <main class="uk-container" style="padding-top:3rem; padding-bottom:4rem;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div style="max-width:44rem; margin:0 auto 1.5rem; display:grid; gap:0.5rem;" aria-live="polite">
+            {% for category, message in messages %}
+            <div style="padding:0.75rem 1rem; border-radius:var(--uk-global-radius-s); font-size:0.9rem;
+                        background:{{ 'hsl(0 70% 96%)' if category == 'error' else 'hsl(var(--accent))' }};
+                        color:{{ 'hsl(0 55% 32%)' if category == 'error' else 'hsl(var(--accent-foreground))' }};">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
         {% block content %}{% endblock %}
     </main>
 
