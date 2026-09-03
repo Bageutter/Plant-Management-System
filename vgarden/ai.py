@@ -85,14 +85,22 @@ class OllamaGardenAI:
             raise AIUnavailableError(f"Could not pull model '{self.model}'") from exc
         self._model_ready = True
 
-    def ask(self, question: str, garden_context: dict, history: list[dict]) -> dict:
+    def draft(self, question: str, grounding: dict, feedback: str | None = None) -> str:
+        """One ACT step of the agentic loop: draft an answer from `grounding`
+        ({"garden": snapshot, "conversation": history}), optionally correcting a
+        previous draft the reviewer rejected."""
         self._ensure_model()
         context = {
             "current_date": date.today().isoformat(),
-            "garden": garden_context,
-            "conversation": history,
+            "garden": grounding.get("garden"),
+            "conversation": grounding.get("conversation", []),
             "user_question": question,
         }
+        if feedback:
+            context["reviewer_feedback"] = (
+                f"A reviewer rejected your previous draft: {feedback}. "
+                "Produce a corrected answer that fixes this, still using only the snapshot."
+            )
         payload = {
             "model": self.model,
             "stream": False,
@@ -120,5 +128,12 @@ class OllamaGardenAI:
         answer = result.get("answer")
         if not isinstance(answer, str) or not answer.strip():
             raise AIUnavailableError("Ollama returned an unexpected answer shape")
+        return answer.strip()[:2000]
 
-        return {"answer": answer.strip()[:2000]}
+    def ask(self, question: str, garden_context: dict, history: list[dict]) -> dict:
+        """Back-compat single-shot entry (no reviewer loop)."""
+        return {
+            "answer": self.draft(
+                question, {"garden": garden_context, "conversation": history}
+            )
+        }

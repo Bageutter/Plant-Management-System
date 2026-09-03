@@ -3,7 +3,15 @@ letting tests import app/routes/models/etc. as top-level modules, and so
 fixtures here are shared by every test module.
 """
 
+import os
+import sys
+
 import pytest
+
+# The shared agentic-loop module (../shared/ai_loop.py), as app.py does at runtime.
+_SHARED = os.path.join(os.path.dirname(__file__), "..", "shared")
+if os.path.isdir(_SHARED) and _SHARED not in sys.path:
+    sys.path.insert(0, _SHARED)
 
 
 class TestConfig:
@@ -13,6 +21,9 @@ class TestConfig:
     AUTH_PUBLIC_URL = "http://auth.test"
     WTF_CSRF_ENABLED = False
     TESTING = True
+    AI_LOOP_MAX_ITERATIONS = 2
+    # OLLAMA_REVIEW_MODEL is deliberately unset -> build_reviewer() returns None;
+    # the `ai_loop_reviewer` fixture below injects a fake instead.
 
 
 @pytest.fixture
@@ -24,6 +35,7 @@ def app(tmp_path):
 
     class _Config(TestConfig):
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
+        AI_LOOP_LOG_DIR = str(tmp_path / "ai-loop-logs")
 
     return app_module.create_app(_Config)
 
@@ -83,4 +95,33 @@ def weather(app):
     geocoding/forecast set `weather.raise_error = False` and the *_result fields."""
     fake = FakeWeather()
     app.extensions["weather"] = fake
+    return fake
+
+
+class FakeReviewer:
+    """Stand-in for ai_loop.Reviewer. Emits verdicts from `script` (repeating the
+    last one), so tests drive the Plan->Act->Observe->Adapt loop deterministically."""
+
+    def __init__(self, script=None):
+        self.script = list(script or ["approved"])
+        self.calls = []
+
+    def review(self, question, grounding, draft):
+        self.calls.append({"question": question, "grounding": grounding, "draft": draft})
+        verdict = self.script[min(len(self.calls) - 1, len(self.script) - 1)]
+        if verdict == "approved":
+            return {"verdict": "approved", "issues": [], "guidance": ""}
+        return {
+            "verdict": "revise",
+            "issues": ["draft not grounded"],
+            "guidance": f"fix iteration {len(self.calls)}",
+        }
+
+
+@pytest.fixture(autouse=True)
+def ai_loop_reviewer(app):
+    """Autouse: every test gets a reviewer that approves on the first pass
+    (1 iteration, verdict 'approved'). Override `.script` for revision tests."""
+    fake = FakeReviewer()
+    app.extensions["ai_loop_reviewer"] = fake
     return fake

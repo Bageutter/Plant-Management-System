@@ -13,6 +13,31 @@
             {{ "You" if message.role == "user" else "Garden AI" }}
         </p>
         <p style="margin:0; line-height:1.6; white-space:pre-wrap;">{{ message.content }}</p>
+        {% if message.role == 'assistant' and message.loop_run %}
+        {% set run = message.loop_run %}
+        <details style="margin-top:0.5rem; font-size:0.68rem; color:hsl(var(--muted-foreground));">
+            <summary style="cursor:pointer;">
+                🔄 Plan → Act → Observe → Adapt · {{ run.iterations }} iteration{{ 's' if run.iterations != 1 }}
+                {%- if run.verdict == 'approved' %} · reviewed ✓
+                {%- elif run.verdict == 'revised_capped' %} · revised, capped ⚠
+                {%- else %} · single-shot (reviewer offline)
+                {%- endif -%}
+            </summary>
+            <ol style="margin:0.4rem 0 0; padding-left:1.1rem;">
+                {% for ev in run.trace if ev.phase in ('act', 'observe') %}
+                <li>
+                    {%- if ev.phase == 'act' %}<strong>Act #{{ ev.iteration }}</strong>: drafted {{ ev.draft_chars }} chars
+                        {%- if ev.carried_feedback and ev.carried_feedback != '(none)' %} (after feedback){% endif %}
+                    {%- else %}<strong>Observe #{{ ev.iteration }}</strong>: {{ ev.verdict }}
+                        {%- if ev.issues and ev.issues != '(none)' %} — {{ ev.issues }}{% endif %}
+                    {%- endif -%}
+                </li>
+                {% endfor %}
+            </ol>
+            <a href="{{ url_for('garden_ai.loop_trace', garden_id=garden.id, run_id=run.id) }}"
+               style="color:hsl(var(--primary));">Full trace →</a>
+        </details>
+        {% endif %}
     </article>
     </div>
     {% endfor %}

@@ -55,6 +55,8 @@ services:
     volumes:
       - ./vgarden:/app
       - ./shared/templates:/app/shared_templates
+      - ./shared/ai_loop.py:/app/ai_loop.py:ro
+      - ./tools/ai-loop/logs:/app/ai_loop_logs
       - vgarden_data:/app/instance
     environment:
       - SECRET_KEY=dev-vgarden-secret-key-change-me
@@ -65,11 +67,15 @@ services:
       - ALMANAC_PUBLIC_URL=http://localhost:3000/almanac/
       # Must match auth's INTER_SERVICE_SECRET exactly.
       - INTER_SERVICE_SECRET=${INTER_SERVICE_SECRET:-dev-inter-service-secret-change-me}
-      # "Ask about this garden" AI. Uses the shared ollama service; the text model
-      # is pulled on first use and cached in the ollama-models volume.
+      # "Ask about this garden" AI. Uses the shared ollama service; models are
+      # pulled on first use and cached in the ollama-models volume.
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=qwen3:4b-instruct
       - OLLAMA_AUTO_PULL=true
+      # Plan -> Act -> Observe -> Adapt loop; see docs/agentic-ai-workflow.md.
+      - OLLAMA_REVIEW_MODEL=llama3.1:8b
+      - AI_LOOP_MAX_ITERATIONS=2
+      - AI_LOOP_LOG_DIR=/app/ai_loop_logs
     depends_on:
       - ollama
 
@@ -88,9 +94,15 @@ services:
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=qwen3:4b-instruct
       - OLLAMA_AUTO_PULL=true
+      # Plan -> Act -> Observe -> Adapt loop; see docs/agentic-ai-workflow.md.
+      - OLLAMA_REVIEW_MODEL=llama3.1:8b
+      - AI_LOOP_MAX_ITERATIONS=2
+      - AI_LOOP_LOG_DIR=/app/ai_loop_logs
     volumes:
       - ./almanac:/app
       - ./shared/templates:/app/shared_templates
+      - ./shared/ai_loop.py:/app/ai_loop.py:ro
+      - ./tools/ai-loop/logs:/app/ai_loop_logs
       - almanac_data:/app/instance
     depends_on:
       - auth

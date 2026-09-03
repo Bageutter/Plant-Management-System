@@ -33,6 +33,15 @@ class Config:
     OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
     OLLAMA_AUTO_PULL = os.environ.get("OLLAMA_AUTO_PULL", "false").lower() == "true"
 
+    # Agentic loop (Plan -> Act -> Observe -> Adapt). The reviewer is a second,
+    # independent Ollama model that checks each draft answer. Empty -> loop runs
+    # single-shot. See docs/agentic-ai-workflow.md.
+    OLLAMA_REVIEW_MODEL = os.environ.get("OLLAMA_REVIEW_MODEL", "llama3.1:8b")
+    AI_LOOP_MAX_ITERATIONS = int(os.environ.get("AI_LOOP_MAX_ITERATIONS", "2"))
+    AI_LOOP_LOG_DIR = os.environ.get(
+        "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
+    )
+
     # Open-Meteo (no API key): geocodes a garden's location and feeds current
     # conditions + a short forecast to the AI assistant.
     OPEN_METEO_GEOCODING_URL = os.environ.get(

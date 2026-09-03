@@ -83,3 +83,30 @@ class AIChatMessage(db.Model):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+
+class AILoopRun(db.Model):
+    """Evidence of one Plan -> Act -> Observe -> Adapt run behind an assistant answer.
+
+    New table (no ALTER on ai_chat_messages) so db.create_all() is enough.
+    """
+
+    __tablename__ = "ai_loop_runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    owner_key = db.Column(db.String(64), nullable=False, index=True)
+    message_id = db.Column(
+        db.Integer, db.ForeignKey("ai_chat_messages.id"), nullable=True, index=True
+    )
+    run_id = db.Column(db.String(64), nullable=False, unique=True)
+    question = db.Column(db.Text, nullable=False)
+    final_answer = db.Column(db.Text, nullable=False)
+    iterations = db.Column(db.Integer, nullable=False)
+    verdict = db.Column(db.String(24), nullable=False)  # approved | revised_capped | fallback
+    transcript_path = db.Column(db.String(255), nullable=False)
+    trace = db.Column(db.JSON, nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+    message = db.relationship("AIChatMessage", backref=db.backref("loop_run", uselist=False))

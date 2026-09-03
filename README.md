@@ -66,6 +66,14 @@ docker compose logs -f almanac  # one service
 docker compose down             # stop (keeps data)
 ```
 
+## Agentic AI workflow
+
+The almanac and virtual-garden chat answers run through an explicit
+**Plan → Act → Observe → Adapt** loop (a second model reviews each draft; the loop
+revises until approved). Every phase is logged for evidence — stdout, JSONL, and a
+per-run transcript. See **[docs/agentic-ai-workflow.md](docs/agentic-ai-workflow.md)**
+and `python tools/ai-loop/view.py`.
+
 ## Overview
 
 Users can describe and update their garden through several input methods:

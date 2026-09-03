@@ -4,3 +4,5 @@ __pycache__/
 .venv/
 instance/
 tests/
+conftest.py
+requirements-dev.txt
