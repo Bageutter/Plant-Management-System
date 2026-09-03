@@ -41,6 +41,15 @@ If `OLLAMA_REVIEW_MODEL` is unset, or the review model can't be reached/pulled,
 the loop runs **single-shot** (one ACT, no OBSERVE) and logs a `fallback` phase.
 A reviewer outage never breaks the chat.
 
+### Reviewer model matters
+
+The reviewer's usefulness depends heavily on `OLLAMA_REVIEW_MODEL`. An
+instruction-tuned model that reads the JSON grounding carefully
+(`qwen3:4b-instruct`, the compose default) approves well-grounded drafts on the
+first pass. A more general model (`llama3.1:8b`) is noticeably stricter and
+over-flags — good for stress-testing the loop, worse for latency. Tune the model
+and `PROMPT_REVIEW` (in `shared/ai_loop.py`) together.
+
 ## Evidence — three sinks, every phase
 
 `LoopLogger.phase()` writes each phase to all three:
