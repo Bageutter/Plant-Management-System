@@ -104,8 +104,10 @@
             bottom: 1.25rem;
             z-index: 55;
             display: flex;
-            width: min(26rem, calc(100vw - 2rem));
-            height: min(38rem, calc(100vh - 2.5rem));
+            width: min(var(--chat-width, 26rem), calc(100vw - 2rem));
+            min-width: min(22.5rem, calc(100vw - 2rem));
+            height: min(var(--chat-height, 38rem), calc(100vh - 2.5rem));
+            min-height: min(25rem, calc(100vh - 2.5rem));
             flex-direction: column;
             overflow: hidden;
             border: 1px solid hsl(var(--border));
@@ -113,13 +115,105 @@
             background: hsl(var(--card));
             box-shadow: 0 24px 60px hsl(150 20% 10% / 0.2);
         }
+        .ai-chat-resizer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            display: grid;
+            width: 2.75rem;
+            height: 2.75rem;
+            padding: 0;
+            place-items: center;
+            border: 0;
+            background: transparent;
+            color: hsl(var(--muted-foreground));
+            cursor: nwse-resize;
+            font: inherit;
+            font-size: 0.9rem;
+            touch-action: none;
+        }
+        .ai-chat-resizer:hover { color: hsl(var(--primary)); }
+        .ai-chat-resizer:active { transform: scale(0.96); }
+        .ai-validation {
+            margin-top: 0.75rem;
+            overflow: hidden;
+            border: 1px solid hsl(var(--border));
+            border-radius: 0.75rem;
+            background: hsl(var(--background));
+        }
+        .ai-validation summary {
+            display: flex;
+            min-height: 2.75rem;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.65rem 0.75rem;
+            cursor: pointer;
+            list-style: none;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-wrap: pretty;
+        }
+        .ai-validation summary::-webkit-details-marker { display: none; }
+        .ai-validation summary::after {
+            content: "⌄";
+            flex: none;
+            color: hsl(var(--muted-foreground));
+            transition: transform 150ms ease-out;
+        }
+        .ai-validation[open] summary::after { transform: rotate(180deg); }
+        .ai-validation__status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            color: hsl(var(--primary));
+        }
+        .ai-validation__workflow {
+            display: block;
+            margin-top: 0.12rem;
+            color: hsl(var(--muted-foreground));
+            font-size: 0.66rem;
+            font-weight: 500;
+        }
+        .ai-validation__steps {
+            display: grid;
+            gap: 0.55rem;
+            margin: 0;
+            padding: 0.7rem 0.75rem 0.8rem 2rem;
+            border-top: 1px solid hsl(var(--border));
+            font-size: 0.72rem;
+        }
+        .ai-validation__steps li { padding-left: 0.15rem; }
+        .ai-validation__steps strong {
+            display: block;
+            margin-bottom: 0.08rem;
+            color: hsl(var(--foreground));
+        }
+        .ai-validation__steps span {
+            color: hsl(var(--muted-foreground));
+            text-wrap: pretty;
+        }
+        .ai-validation__report {
+            display: inline-flex;
+            min-height: 2.5rem;
+            align-items: center;
+            margin: 0 0.75rem 0.65rem;
+            color: hsl(var(--primary));
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
         @media (max-width: 40rem) {
             .ai-chat-launcher { right: 0.75rem; bottom: 0.75rem; }
+            .ai-chat-resizer { display: none; }
             .ai-chat-panel {
                 right: 0.75rem;
                 bottom: 0.75rem;
                 width: calc(100vw - 1.5rem);
+                min-width: 0;
                 height: calc(100vh - 1.5rem);
+                min-height: 0;
             }
         }
     </style>

@@ -15,26 +15,42 @@
         <p style="margin:0; line-height:1.6; white-space:pre-wrap;">{{ message.content }}</p>
         {% if message.role == 'assistant' and message.loop_run %}
         {% set run = message.loop_run %}
-        <details style="margin-top:0.5rem; font-size:0.68rem; color:hsl(var(--muted-foreground));">
-            <summary style="cursor:pointer;">
-                🔄 Plan → Act → Observe → Adapt · {{ run.iterations }} iteration{{ 's' if run.iterations != 1 }}
-                {%- if run.verdict == 'approved' %} · reviewed ✓
-                {%- elif run.verdict == 'revised_capped' %} · revised, capped ⚠
-                {%- else %} · single-shot (reviewer offline)
-                {%- endif -%}
-            </summary>
-            <ol style="margin:0.4rem 0 0; padding-left:1.1rem;">
-                {% for ev in run.trace if ev.phase in ('act', 'observe') %}
-                <li>
-                    {%- if ev.phase == 'act' %}<strong>Act #{{ ev.iteration }}</strong>: drafted {{ ev.draft_chars }} chars
-                        {%- if ev.carried_feedback and ev.carried_feedback != '(none)' %} (after feedback){% endif %}
-                    {%- else %}<strong>Observe #{{ ev.iteration }}</strong>: {{ ev.verdict }}
-                        {%- if ev.issues and ev.issues != '(none)' %} — {{ ev.issues }}{% endif %}
+        <details class="ai-validation" open>
+            <summary>
+                <span>
+                    How this answer was checked
+                    <span class="ai-validation__workflow">Plan → Act → Observe → Adapt</span>
+                </span>
+                <span class="ai-validation__status">
+                    {%- if run.verdict == 'approved' %}✓ Approved
+                    {%- elif run.verdict == 'revised_capped' %}⚠ Review limit reached
+                    {%- else %}⚠ Reviewer unavailable
                     {%- endif -%}
+                </span>
+            </summary>
+            <ol class="ai-validation__steps" aria-label="Plan, Act, Observe and Adapt validation stages">
+                {% for ev in run.trace %}
+                <li>
+                    {% if ev.phase == 'plan' %}
+                    <strong>Plan · Evidence selected</strong>
+                    <span>{{ ev.plant_records }} plant record{{ 's' if ev.plant_records != 1 }} and {{ ev.history_messages }} previous message{{ 's' if ev.history_messages != 1 }} used as context.</span>
+                    {% elif ev.phase == 'act' %}
+                    <strong>Act {{ ev.iteration }} · Draft created</strong>
+                    <span>{{ ev.draft_chars }} characters drafted{% if ev.carried_feedback and ev.carried_feedback != '(none)' %} after reviewer feedback{% endif %}.</span>
+                    {% elif ev.phase == 'observe' %}
+                    <strong>Observe {{ ev.iteration }} · Independent review</strong>
+                    <span>{% if ev.verdict == 'approved' %}Reviewer approved this draft.{% else %}Reviewer requested a revision{% if ev.issues and ev.issues != '(none)' %}: {{ ev.issues }}{% else %}.{% endif %}{% endif %}</span>
+                    {% elif ev.phase == 'adapt' %}
+                    <strong>Adapt {{ ev.iteration }} · Final decision</strong>
+                    <span>{% if ev.decision == 'accept' %}Answer accepted after validation.{% elif ev.decision == 'revise' %}Answer sent back for revision{% if ev.guidance %}: {{ ev.guidance }}{% else %}.{% endif %}{% else %}Latest answer shown after reaching the review limit.{% endif %}</span>
+                    {% else %}
+                    <strong>Validation fallback</strong>
+                    <span>The answer was generated, but independent review was unavailable.</span>
+                    {% endif %}
                 </li>
                 {% endfor %}
             </ol>
-            <a href="{{ url_for('ai_loop_trace', run_id=run.id) }}" style="color:hsl(var(--primary));">Full trace →</a>
+            <a class="ai-validation__report" href="{{ url_for('ai_loop_trace', run_id=run.id) }}">Open detailed validation report →</a>
         </details>
         {% endif %}
         {% if message.source_slugs %}

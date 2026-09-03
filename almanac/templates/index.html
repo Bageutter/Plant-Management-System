@@ -12,7 +12,40 @@
     </div>
 
     {% if auth_user %}
-    <div x-data="{ chatOpen: false, question: '', pendingQuestion: '' }" @keydown.escape.window="chatOpen = false">
+    <div x-data="{
+             chatOpen: false,
+             question: '',
+             pendingQuestion: '',
+             chatWidth: Number(localStorage.getItem('almanac-chat-width')) || 416,
+             chatHeight: Number(localStorage.getItem('almanac-chat-height')) || 608,
+             setChatSize(width, height) {
+                 this.chatWidth = Math.min(window.innerWidth - 32, Math.max(360, width));
+                 this.chatHeight = Math.min(window.innerHeight - 40, Math.max(400, height));
+                 localStorage.setItem('almanac-chat-width', this.chatWidth);
+                 localStorage.setItem('almanac-chat-height', this.chatHeight);
+             },
+             startResize(event) {
+                 if (window.matchMedia('(max-width: 40rem)').matches) return;
+                 const startX = event.clientX;
+                 const startY = event.clientY;
+                 const startWidth = this.chatWidth;
+                 const startHeight = this.chatHeight;
+                 const move = (moveEvent) => this.setChatSize(
+                     startWidth + startX - moveEvent.clientX,
+                     startHeight + startY - moveEvent.clientY
+                 );
+                 const stop = () => {
+                     window.removeEventListener('pointermove', move);
+                     window.removeEventListener('pointerup', stop);
+                     window.removeEventListener('pointercancel', stop);
+                 };
+                 window.addEventListener('pointermove', move);
+                 window.addEventListener('pointerup', stop, { once: true });
+                 window.addEventListener('pointercancel', stop, { once: true });
+             }
+         }"
+         @keydown.escape.window="chatOpen = false"
+         @resize.window="setChatSize(chatWidth, chatHeight)">
         <button type="button"
                 class="ai-chat-launcher"
                 aria-controls="ai-chat-panel"
@@ -30,8 +63,20 @@
                aria-label="Plant Almanac chat"
                x-cloak
                x-show="chatOpen"
+               :style="'--chat-width:' + chatWidth + 'px; --chat-height:' + chatHeight + 'px'"
                x-transition.origin.bottom.right>
-            <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem; border-bottom:1px solid hsl(var(--border));">
+            <button type="button"
+                    class="ai-chat-resizer"
+                    aria-label="Resize Almanac chat. Use arrow keys or drag."
+                    title="Drag to resize"
+                    @pointerdown.prevent="startResize($event)"
+                    @keydown.left.prevent="setChatSize(chatWidth + 24, chatHeight)"
+                    @keydown.right.prevent="setChatSize(chatWidth - 24, chatHeight)"
+                    @keydown.up.prevent="setChatSize(chatWidth, chatHeight + 24)"
+                    @keydown.down.prevent="setChatSize(chatWidth, chatHeight - 24)">
+                <span aria-hidden="true">↖</span>
+            </button>
+            <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem 0.9rem 3.25rem; border-bottom:1px solid hsl(var(--border));">
                 <div>
                     <h2 style="font-size:1.15rem; margin:0;">Ask the Almanac</h2>
                 </div>
@@ -93,7 +138,7 @@
                               style="min-height:2.6rem; flex:1; box-sizing:border-box; padding:0.65rem 0.75rem; resize:none; border:1px solid hsl(var(--border)); border-radius:0.75rem; background:hsl(var(--background)); color:hsl(var(--foreground));"></textarea>
                     <button type="submit" class="uk-btn uk-btn-primary uk-btn-sm" style="height:2.6rem;">Send</button>
                 </form>
-                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="display:block; font-size:0.7rem; margin-top:0.35rem;">Planning · drafting · reviewing locally… (may take a minute)</span>
+                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="display:block; font-size:0.7rem; margin-top:0.35rem;">Planning · drafting · reviewing locally… The first answer may take several minutes while the models load.</span>
             </footer>
         </aside>
     </div>

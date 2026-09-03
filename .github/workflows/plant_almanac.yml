@@ -1,13 +1,81 @@
 name: Plant Almanac
+
 on:
   push:
     branches: ["amy/**"]
-    paths: ["almanac/**"]
+    paths:
+      - "almanac/**"
+      - "shared/**"
+      - "pyproject.toml"
+      - ".github/workflows/plant_almanac.yml"
   pull_request:
     branches: ["**"]
-    paths: ["almanac/**"]
+    paths:
+      - "almanac/**"
+      - "shared/**"
+      - "pyproject.toml"
+      - ".github/workflows/plant_almanac.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plant-almanac-amy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  placeholder:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - run: echo "placeholder"
+      - name: Check out the proposed commit
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run Ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.16.4"
+          args: check --output-format=github almanac shared/ai_loop.py
+
+      - name: Compile-check Python files
+        run: python -m compileall -q almanac shared
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the proposed commit
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: almanac/requirements-dev.txt
+
+      - name: Install Almanac dependencies
+        run: python -m pip install -r almanac/requirements-dev.txt
+
+      - name: Run Almanac tests
+        working-directory: almanac
+        run: python -m pytest -q
+
+  docker-build:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the proposed commit
+        uses: actions/checkout@v7
+
+      - name: Build the Almanac image
+        run: docker build --tag plant-almanac:ci ./almanac
