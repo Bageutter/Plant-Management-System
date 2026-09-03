@@ -219,3 +219,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# shared/ai_loop.py is bind-mounted into the service dirs at runtime;
+# a stray local copy (e.g. from a tool run) must not shadow it under pytest.
+/vgarden/ai_loop.py
+/almanac/ai_loop.py
