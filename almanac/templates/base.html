@@ -104,8 +104,10 @@
             bottom: 1.25rem;
             z-index: 55;
             display: flex;
-            width: min(26rem, calc(100vw - 2rem));
-            height: min(38rem, calc(100vh - 2.5rem));
+            width: min(var(--chat-width, 26rem), calc(100vw - 2rem));
+            min-width: min(22.5rem, calc(100vw - 2rem));
+            height: min(var(--chat-height, 38rem), calc(100vh - 2.5rem));
+            min-height: min(25rem, calc(100vh - 2.5rem));
             flex-direction: column;
             overflow: hidden;
             border: 1px solid hsl(var(--border));
@@ -113,6 +115,26 @@
             background: hsl(var(--card));
             box-shadow: 0 24px 60px hsl(150 20% 10% / 0.2);
         }
+        .ai-chat-resizer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            display: grid;
+            width: 2.75rem;
+            height: 2.75rem;
+            padding: 0;
+            place-items: center;
+            border: 0;
+            background: transparent;
+            color: hsl(var(--muted-foreground));
+            cursor: nwse-resize;
+            font: inherit;
+            font-size: 0.9rem;
+            touch-action: none;
+        }
+        .ai-chat-resizer:hover { color: hsl(var(--primary)); }
+        .ai-chat-resizer:active { transform: scale(0.96); }
         .ai-validation {
             margin-top: 0.75rem;
             overflow: hidden;
@@ -184,11 +206,14 @@
         }
         @media (max-width: 40rem) {
             .ai-chat-launcher { right: 0.75rem; bottom: 0.75rem; }
+            .ai-chat-resizer { display: none; }
             .ai-chat-panel {
                 right: 0.75rem;
                 bottom: 0.75rem;
                 width: calc(100vw - 1.5rem);
+                min-width: 0;
                 height: calc(100vh - 1.5rem);
+                min-height: 0;
             }
         }
     </style>

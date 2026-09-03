@@ -78,6 +78,9 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.assertIn(b"Ask the Almanac", response.data)
         self.assertIn(b"ai-chat-launcher", response.data)
         self.assertIn(b"ai-chat-panel", response.data)
+        self.assertIn(b"ai-chat-resizer", response.data)
+        self.assertIn(b"Resize Almanac chat", response.data)
+        self.assertIn(b"almanac-chat-width", response.data)
         self.assertIn(b"pendingQuestion", response.data)
 
     def test_existing_plant_api_still_lists_every_record(self):
