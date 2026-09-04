@@ -1,0 +1,42 @@
+{# Premium, expandable "this answer ran the Plan -> Act -> Observe -> Adapt loop"
+   card. Shared by all three chat features.
+   Args:
+     run       - an *AILoopRun row (iterations, verdict, trace list)
+     trace_url - link to the full per-run trace page #}
+{% macro loop_badge(run, trace_url) -%}
+<details class="ai-loop-badge">
+    <summary>
+        <span aria-hidden="true">&#128260;</span>
+        Plan → Act → Observe → Adapt
+        · {{ run.iterations }} iteration{{ 's' if run.iterations != 1 }}
+        {%- if run.verdict == 'approved' %} · reviewed ✓
+        {%- elif run.verdict == 'revised_capped' %} · revised, capped ⚠
+        {%- else %} · single-shot (reviewer offline)
+        {%- endif %}
+    </summary>
+    <div class="ai-loop-badge__body">
+        {% for ev in run.trace if ev.phase in ('act', 'observe', 'fallback') %}
+        <div class="ai-loop-step">
+            {% if ev.phase == 'act' %}
+            <span class="ai-loop-step__head">Act #{{ ev.iteration }}</span>
+            <span>drafted {{ ev.draft_chars }} characters
+                {%- if ev.carried_feedback and ev.carried_feedback != '(none)' %},
+                after the reviewer asked to revise{% endif %}</span>
+            {% elif ev.phase == 'observe' %}
+            <span class="ai-loop-step__head">Observe #{{ ev.iteration }}</span>
+            <span class="ai-loop-verdict-{{ 'approved' if ev.verdict == 'approved' else 'revise' }}">
+                {{ 'approved by the reviewer model' if ev.verdict == 'approved' else 'reviewer asked for a revision' }}
+            </span>
+            {%- if ev.issues and ev.issues != '(none)' %}
+            <span>— {{ ev.issues }}</span>
+            {%- endif %}
+            {% else %}
+            <span class="ai-loop-step__head">Single-shot</span>
+            <span>{{ ev.reason or 'no reviewer configured' }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+        <a class="ai-loop-badge__link" href="{{ trace_url }}">Open the full trace →</a>
+    </div>
+</details>
+{%- endmacro %}

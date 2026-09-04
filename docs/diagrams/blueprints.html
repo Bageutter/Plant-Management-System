@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plant System Blueprints</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Plant System Blueprints — animated architecture diagrams
+   Palette: greenhouse — warm paper, forest green, clay, leaf
+   ============================================================ */
+:root {
+  --paper:      #f5f6f0;
+  --surface:    #ffffff;
+  --ink:        #17231c;
+  --ink-soft:   #4a5850;
+  --line:       #d3dac9;
+  --line-soft:  #e4e8dc;
+  --green:      #2b6b45;   /* the app's forest green */
+  --green-lift: #ecf3ec;
+  --leaf:       #6f9e56;   /* flows, success */
+  --clay:       #bd7b39;   /* build / deploy / revise */
+  --clay-lift:  #f6ece0;
+  --node-fill:  #ffffff;
+  --node-stroke:#c7cfba;
+  --shadow:     0 1px 2px rgba(20,30,22,.06), 0 6px 20px rgba(20,30,22,.06);
+  --stage-bg:   #fbfcf8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #10160f;
+    --surface:    #182018;
+    --ink:        #e7ede1;
+    --ink-soft:   #9aa895;
+    --line:       #2c3a2c;
+    --line-soft:  #232f22;
+    --green:      #6bbd85;
+    --green-lift: #16241a;
+    --leaf:       #8cc06d;
+    --clay:       #e0a163;
+    --clay-lift:  #2a2015;
+    --node-fill:  #1d271d;
+    --node-stroke:#33422f;
+    --shadow:     0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.32);
+    --stage-bg:   #131a12;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #10160f;
+  --surface:    #182018;
+  --ink:        #e7ede1;
+  --ink-soft:   #9aa895;
+  --line:       #2c3a2c;
+  --line-soft:  #232f22;
+  --green:      #6bbd85;
+  --green-lift: #16241a;
+  --leaf:       #8cc06d;
+  --clay:       #e0a163;
+  --clay-lift:  #2a2015;
+  --node-fill:  #1d271d;
+  --node-stroke:#33422f;
+  --shadow:     0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.32);
+  --stage-bg:   #131a12;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: clamp(1.25rem, 4vw, 3rem) clamp(1rem, 4vw, 2.5rem) 3rem; }
+
+/* --- header ------------------------------------------------- */
+.eyebrow {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--green); margin: 0 0 .6rem;
+}
+h1 {
+  font-family: 'Fraunces', ui-serif, Georgia, serif;
+  font-weight: 600; font-size: clamp(1.9rem, 5vw, 3rem);
+  line-height: 1.05; margin: 0; text-wrap: balance;
+  letter-spacing: -0.01em;
+}
+.lede { margin: .9rem 0 0; max-width: 60ch; color: var(--ink-soft); font-size: 1.02rem; }
+
+/* --- switcher --------------------------------------------- */
+.switch {
+  display: flex; flex-wrap: wrap; gap: .4rem;
+  margin: 1.8rem 0 1.1rem; padding: .35rem;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; box-shadow: var(--shadow);
+}
+.switch button {
+  flex: 1 1 190px; display: flex; flex-direction: column; gap: .1rem;
+  padding: .6rem .85rem; border: 0; border-radius: 10px;
+  background: transparent; color: var(--ink-soft); cursor: pointer;
+  font: inherit; text-align: left; transition: background .16s, color .16s;
+}
+.switch button .k {
+  font-family: 'JetBrains Mono', monospace; font-size: .7rem;
+  letter-spacing: .1em; text-transform: uppercase;
+}
+.switch button .t { font-weight: 600; font-size: .96rem; color: var(--ink); }
+.switch button:hover { background: var(--green-lift); }
+.switch button[aria-selected="true"] { background: var(--green); }
+.switch button[aria-selected="true"] .t,
+.switch button[aria-selected="true"] .k { color: #fff; }
+.switch button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+/* --- stage ----------------------------------------------- */
+.stage-shell {
+  background: var(--stage-bg); border: 1px solid var(--line);
+  border-radius: 18px; box-shadow: var(--shadow); overflow: hidden;
+}
+.stage-scroll { overflow-x: auto; }
+.stage { display: none; }
+.stage.active { display: block; }
+.stage svg { display: block; width: 100%; height: auto; min-width: 720px; }
+
+.caption {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1.2rem;
+  padding: 1rem 1.25rem 1.15rem; border-top: 1px solid var(--line-soft);
+}
+.caption h2 {
+  font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.05rem;
+  margin: 0; flex: 0 0 auto;
+}
+.caption p { margin: 0; color: var(--ink-soft); font-size: .92rem; flex: 1 1 260px; }
+.legend { display: flex; flex-wrap: wrap; gap: .35rem .8rem; width: 100%; margin-top: .2rem; }
+.legend span {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-size: .78rem; color: var(--ink-soft);
+  font-family: 'JetBrains Mono', monospace;
+}
+.legend i { width: 22px; height: 0; border-top: 2px solid var(--leaf); display: inline-block; }
+.legend i.dash { border-top-style: dashed; border-color: var(--clay); }
+.legend i.box { width: 13px; height: 13px; border: 1.5px solid var(--node-stroke); border-radius: 3px; background: var(--node-fill); }
+.legend i.chip { width: 13px; height: 13px; border-radius: 3px; background: var(--green); }
+.legend i.vol { width: 13px; height: 11px; border: 1.5px solid var(--clay); border-radius: 6px/4px; }
+
+.foot {
+  margin-top: 1.5rem; font-family: 'JetBrains Mono', monospace;
+  font-size: .74rem; color: var(--ink-soft);
+}
+.foot kbd {
+  font: inherit; background: var(--surface); border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 5px; padding: .05rem .35rem;
+}
+
+/* --- shared SVG node vocabulary --------------------------- */
+.n-box { fill: var(--node-fill); stroke: var(--node-stroke); stroke-width: 1.5; }
+.n-box.accent { stroke: var(--green); }
+.n-box.clay   { stroke: var(--clay); }
+.n-title { fill: var(--ink); font: 600 15px 'Inter', sans-serif; }
+.n-sub   { fill: var(--ink-soft); font: 400 11.5px 'JetBrains Mono', monospace; }
+.n-tag   { fill: var(--ink-soft); font: 500 10.5px 'JetBrains Mono', monospace; letter-spacing: .04em; }
+.ic { fill: none; stroke: var(--green); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.wire { fill: none; stroke: var(--line); stroke-width: 2; }
+.flow { fill: none; stroke: var(--leaf); stroke-width: 2.4; stroke-dasharray: 7 7; animation: march 900ms linear infinite; }
+.flow.rev { stroke: var(--clay); }
+@keyframes march { to { stroke-dashoffset: -14; } }
+.tok { fill: var(--leaf); }
+.tok.clay { fill: var(--clay); }
+.pulse { transform-box: fill-box; transform-origin: center; animation: breathe 3.2s ease-in-out infinite; }
+@keyframes breathe { 0%,100% { opacity: .25; } 50% { opacity: .7; } }
+.phase-label { fill: #fff; font: 600 15px 'Inter', sans-serif; letter-spacing: .02em; }
+.phase-sub { fill: rgba(255,255,255,.82); font: 400 11px 'Inter', sans-serif; }
+
+/* one-shot "containers booting" stagger for D3 — rests at the normal state */
+.boot rect { animation: bootpulse 3.4s ease-out 1 both; animation-delay: calc(var(--i) * .22s); }
+@keyframes bootpulse {
+  0%   { stroke: var(--node-stroke); }
+  22%  { stroke: var(--green); stroke-width: 2.6; }
+  100% { stroke: var(--node-stroke); }
+}
+.boot .n-box.accent { animation: none; }
+
+.rm .flow, .rm .pulse, .rm .boot rect { animation: none; }
+.rm .flow { stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .flow, .pulse, .boot rect { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Plant Management System &middot; Release 0</p>
+  <h1>Architecture Blueprints</h1>
+  <p class="lede">Four animated diagrams of how the system fits together &mdash; the request path,
+  the AI loop every assistant runs, the container stack, and the CI pipeline. Made to be shown
+  on screen during the demonstration video.</p>
+
+  <div class="switch" role="tablist" aria-label="Diagram">
+    <button role="tab" aria-selected="true"  data-d="d1"><span class="k">D1</span><span class="t">Integrated request flow</span></button>
+    <button role="tab" aria-selected="false" data-d="d2"><span class="k">D2</span><span class="t">Plan &rarr; Act &rarr; Observe &rarr; Adapt</span></button>
+    <button role="tab" aria-selected="false" data-d="d3"><span class="k">D3</span><span class="t">Docker Compose stack</span></button>
+    <button role="tab" aria-selected="false" data-d="d4"><span class="k">D4</span><span class="t">DevOps / CI pipeline</span></button>
+  </div>
+
+  <div class="stage-shell">
+    <div class="stage-scroll">
+
+      <!-- ============ D1 — INTEGRATED REQUEST FLOW ============ -->
+      <div class="stage active" id="panel-d1" role="tabpanel" aria-label="Integrated request flow">
+        <svg viewBox="0 0 1000 560">
+          <!-- draw order: wires, then animated flows, then nodes on top so the
+               boxes cleanly occlude the lines that pass "through" them -->
+
+          <!-- grey wires -->
+          <path class="wire" d="M184 300 H252"/>
+          <path class="wire" d="M432 300 C 486 300 486 74  532 74"/>
+          <path class="wire" d="M432 300 C 486 300 486 150 532 150"/>
+          <path class="wire" d="M432 300 C 486 300 486 226 532 226"/>
+          <path class="wire" d="M432 300 C 486 300 486 302 532 302"/>
+          <path class="wire" d="M432 300 C 486 300 486 378 532 378"/>
+          <path class="wire" d="M756 226 C 838 226 850 380 850 430"/>
+          <path class="wire" d="M756 302 C 830 302 848 400 850 432"/>
+          <path class="wire" d="M756 378 C 812 400 842 414 850 434"/>
+
+          <!-- SSO token: auth -> vgarden (dashed, on the left of the stack) -->
+          <path class="flow rev" id="d1-sso" d="M532 150 C 498 162 498 214 532 226"/>
+          <text class="n-tag" x="516" y="196" text-anchor="end" fill="var(--clay)">signed SSO token</text>
+
+          <!-- animated request: browser -> proxy -> vgarden -> ollama -->
+          <path class="flow" id="d1-req" d="M186 300 H452 C 490 300 486 226 560 226 H756 C 846 226 852 384 852 428"/>
+          <circle r="6.5" class="tok"><animateMotion dur="4.8s" repeatCount="indefinite"><mpath href="#d1-req"/></animateMotion></circle>
+          <circle r="5" class="tok clay"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#d1-sso"/></animateMotion></circle>
+
+          <!-- nodes -->
+          <g transform="translate(36,254)">
+            <rect class="n-box accent" width="148" height="92" rx="12"/>
+            <text class="n-title" x="18" y="40">Browser</text>
+            <text class="n-sub"   x="18" y="62">one origin</text>
+          </g>
+
+          <g transform="translate(252,248)">
+            <rect class="n-box accent" width="180" height="104" rx="12"/>
+            <text class="n-title" x="18" y="36">nginx proxy</text>
+            <text class="n-sub"   x="18" y="60">:3000 &middot; path routing</text>
+            <text class="n-tag"   x="18" y="82">the only exposed port</text>
+          </g>
+
+          <g transform="translate(532,44)">
+            <g transform="translate(0,0)">  <rect class="n-box" width="224" height="60" rx="10"/><text class="n-title" x="16" y="28">frontend</text><text class="n-sub" x="16" y="47">/</text></g>
+            <g transform="translate(0,76)"> <rect class="n-box" width="224" height="60" rx="10"/><text class="n-title" x="16" y="28">auth</text><text class="n-sub" x="16" y="47">/auth &middot; /me &middot; mints the SSO token</text></g>
+            <g transform="translate(0,152)"><rect class="n-box accent" width="224" height="60" rx="10"/><text class="n-title" x="16" y="28">vgarden</text><text class="n-sub" x="16" y="47">/vgarden</text></g>
+            <g transform="translate(0,228)"><rect class="n-box" width="224" height="60" rx="10"/><text class="n-title" x="16" y="28">almanac</text><text class="n-sub" x="16" y="47">/almanac</text></g>
+            <g transform="translate(0,304)"><rect class="n-box" width="224" height="60" rx="10"/><text class="n-title" x="16" y="28">health</text><text class="n-sub" x="16" y="47">/plant-health-records</text></g>
+          </g>
+
+          <g transform="translate(800,430)">
+            <rect class="n-box accent" width="168" height="104" rx="12"/>
+            <text class="n-title" x="18" y="38">ollama</text>
+            <text class="n-sub"   x="18" y="60">local models</text>
+            <text class="n-tag"   x="18" y="82">chat &middot; review &middot; vision</text>
+          </g>
+
+          <!-- per-service SQLite note -->
+          <g transform="translate(40,402)">
+            <ellipse cx="12" cy="6" rx="12" ry="4.5" fill="var(--node-fill)" stroke="var(--node-stroke)" stroke-width="1.4"/>
+            <path d="M0 6 v14 a12 4.5 0 0 0 24 0 v-14" fill="var(--node-fill)" stroke="var(--node-stroke)" stroke-width="1.4"/>
+            <text class="n-tag" x="34" y="18">each service keeps its own SQLite database</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- ============ D2 — PLAN / ACT / OBSERVE / ADAPT ============ -->
+      <div class="stage" id="panel-d2" role="tabpanel" aria-label="Plan Act Observe Adapt loop">
+        <svg viewBox="0 118 1000 398">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--ink-soft)"/>
+            </marker>
+            <marker id="ah-clay" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--clay)"/>
+            </marker>
+            <marker id="ah-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--green)"/>
+            </marker>
+          </defs>
+
+          <!-- wires + flows first, nodes on top -->
+          <path class="wire" marker-end="url(#ah)" d="M262 336 H290"/>
+          <path class="wire" marker-end="url(#ah)" d="M488 336 H516"/>
+          <path class="wire" marker-end="url(#ah)" d="M714 336 H742"/>
+          <path class="wire" marker-end="url(#ah)" d="M174 194 C 236 208 150 250 152 284"/>
+
+          <!-- approve: ADAPT -> answer -->
+          <path class="flow" marker-end="url(#ah-green)" d="M872 286 C 872 250 886 244 886 224"/>
+          <text class="n-tag" x="900" y="262" fill="var(--green)">approve</text>
+
+          <!-- revise arc: ADAPT -> ACT, below the row -->
+          <path class="flow rev" id="d2-revise" marker-end="url(#ah-clay)" d="M842 388 C 842 452 420 452 392 390"/>
+          <text class="n-tag" x="612" y="446" text-anchor="middle" fill="var(--clay)">revise &mdash; the reviewer's feedback is carried into the next draft</text>
+
+          <!-- travelling token: question -> PLAN -> ACT -> OBSERVE -> ADAPT -> answer -->
+          <path id="d2-flow" fill="none" d="M110 200 C 150 250 152 300 162 336 H872 C 890 336 886 258 886 226"/>
+          <circle r="7" class="tok"><animateMotion dur="6.5s" repeatCount="indefinite"><mpath href="#d2-flow"/></animateMotion></circle>
+          <circle r="5" class="tok clay"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#d2-revise"/></animateMotion></circle>
+
+          <!-- nodes -->
+          <g transform="translate(24,168)">
+            <rect class="n-box" width="150" height="52" rx="10"/>
+            <text class="n-title" x="16" y="32">question</text>
+          </g>
+          <g transform="translate(812,168)">
+            <rect class="n-box accent" width="150" height="52" rx="10"/>
+            <text class="n-title" x="16" y="32" fill="var(--green)">answer</text>
+          </g>
+
+          <g transform="translate(66,286)">
+            <rect width="196" height="100" rx="14" fill="var(--green)"/>
+            <text class="phase-label" x="20" y="38">PLAN</text>
+            <text class="phase-sub"  x="20" y="60">gather the grounding:</text>
+            <text class="phase-sub"  x="20" y="77">records, weather, history</text>
+          </g>
+          <g transform="translate(292,286)">
+            <rect width="196" height="100" rx="14" fill="var(--green)"/>
+            <text class="phase-label" x="20" y="38">ACT</text>
+            <text class="phase-sub"  x="20" y="60">a local model drafts</text>
+            <text class="phase-sub"  x="20" y="77">from only those facts</text>
+          </g>
+          <g transform="translate(518,286)">
+            <rect width="196" height="100" rx="14" fill="var(--green)"/>
+            <text class="phase-label" x="20" y="38">OBSERVE</text>
+            <text class="phase-sub"  x="20" y="60">a 2nd model reviews it</text>
+            <text class="phase-sub"  x="20" y="77">against the same facts</text>
+          </g>
+          <g transform="translate(744,286)">
+            <rect width="196" height="100" rx="14" fill="var(--green)"/>
+            <text class="phase-label" x="20" y="38">ADAPT</text>
+            <text class="phase-sub"  x="20" y="60">approve &rarr; return it</text>
+            <text class="phase-sub"  x="20" y="77">revise &rarr; loop back</text>
+          </g>
+
+          <text class="n-tag" x="500" y="496" text-anchor="middle">every phase is logged 3 ways: service stdout &middot; JSONL &middot; markdown transcript</text>
+        </svg>
+      </div>
+
+      <!-- ============ D3 — DOCKER COMPOSE STACK ============ -->
+      <div class="stage" id="panel-d3" role="tabpanel" aria-label="Docker Compose stack">
+        <svg viewBox="0 0 1000 640">
+          <!-- host port -->
+          <g transform="translate(40,286)">
+            <rect class="n-box" width="128" height="64" rx="10"/>
+            <text class="n-title" x="16" y="30">host</text>
+            <text class="n-sub"   x="16" y="50">:3000</text>
+          </g>
+          <path class="wire" d="M168 318 H214"/>
+
+          <!-- compose network boundary -->
+          <rect x="214" y="46" width="740" height="548" rx="20" fill="none" stroke="var(--green)" stroke-width="1.6" stroke-dasharray="3 6"/>
+          <text class="n-tag" x="232" y="34" fill="var(--green)">docker compose &middot; network: pms_default</text>
+
+          <!-- proxy straddling the boundary -->
+          <g transform="translate(198,286)" class="boot" style="--i:0">
+            <rect class="n-box accent" width="150" height="64" rx="10"/>
+            <text class="n-title" x="16" y="28">proxy</text>
+            <text class="n-sub"   x="16" y="48">nginx:alpine</text>
+          </g>
+
+          <!-- service containers -->
+          <g transform="translate(410,70)"  class="boot" style="--i:1"><rect class="n-box" width="220" height="72" rx="10"/><text class="n-title" x="16" y="30">frontend</text><text class="n-sub" x="16" y="52">expose 5000</text></g>
+          <g transform="translate(410,166)" class="boot" style="--i:2"><rect class="n-box" width="220" height="72" rx="10"/><text class="n-title" x="16" y="30">auth</text><text class="n-sub" x="16" y="52">expose 5000 &middot; users, gardens</text></g>
+          <g transform="translate(410,262)" class="boot" style="--i:3"><rect class="n-box accent" width="220" height="72" rx="10"/><text class="n-title" x="16" y="30">vgarden</text><text class="n-sub" x="16" y="52">expose 5000 &middot; 7 tables</text></g>
+          <g transform="translate(410,358)" class="boot" style="--i:4"><rect class="n-box" width="220" height="72" rx="10"/><text class="n-title" x="16" y="30">almanac</text><text class="n-sub" x="16" y="52">expose 5000 &middot; 4 tables</text></g>
+          <g transform="translate(410,454)" class="boot" style="--i:5"><rect class="n-box" width="220" height="72" rx="10"/><text class="n-title" x="16" y="30">health</text><text class="n-sub" x="16" y="52">expose 5000 &middot; 3 tables</text></g>
+
+          <!-- ollama -->
+          <g transform="translate(700,262)" class="boot" style="--i:6">
+            <rect class="n-box accent" width="200" height="140" rx="12"/>
+            <path class="ic" d="M40 40 h34 v34 h-34 z M50 30 v10 M62 30 v10 M50 74 v10 M62 74 v10 M74 50 h10 M74 62 h10 M30 50 h10 M30 62 h10"/>
+            <text class="n-title" x="20" y="118">ollama</text>
+            <text class="n-sub"   x="96" y="56">chat</text>
+            <text class="n-sub"   x="96" y="72">review</text>
+            <text class="n-sub"   x="96" y="88">vision</text>
+          </g>
+
+          <!-- proxy -> services -->
+          <path class="wire" d="M348 306 C 384 300 388 106 408 106"/>
+          <path class="wire" d="M348 312 C 384 305 388 202 408 202"/>
+          <path class="wire" d="M348 318 C 386 316 388 298 408 298"/>
+          <path class="wire" d="M348 326 C 384 340 388 394 408 394"/>
+          <path class="wire" d="M348 332 C 384 360 388 490 408 490"/>
+          <!-- features -> ollama -->
+          <path class="wire" d="M630 298 C 670 300 680 320 700 326"/>
+          <path class="wire" d="M630 394 C 680 392 686 360 700 350"/>
+          <path class="wire" d="M630 490 C 690 470 692 410 702 396"/>
+
+          <!-- named volumes -->
+          <g transform="translate(410,556)">
+            <g transform="translate(0,0)">   <path d="M0 8 a20 8 0 0 1 40 0 v14 a20 8 0 0 1 -40 0 z" fill="var(--clay-lift)" stroke="var(--clay)" stroke-width="1.4"/><text class="n-tag" x="48" y="20">vgarden_data</text></g>
+            <g transform="translate(150,0)"> <path d="M0 8 a20 8 0 0 1 40 0 v14 a20 8 0 0 1 -40 0 z" fill="var(--clay-lift)" stroke="var(--clay)" stroke-width="1.4"/><text class="n-tag" x="48" y="20">almanac_data</text></g>
+            <g transform="translate(300,0)"> <path d="M0 8 a20 8 0 0 1 40 0 v14 a20 8 0 0 1 -40 0 z" fill="var(--clay-lift)" stroke="var(--clay)" stroke-width="1.4"/><text class="n-tag" x="48" y="20">health_data</text></g>
+          </g>
+          <g transform="translate(700,420)">
+            <path d="M0 8 a20 8 0 0 1 40 0 v14 a20 8 0 0 1 -40 0 z" fill="var(--clay-lift)" stroke="var(--clay)" stroke-width="1.4"/><text class="n-tag" x="48" y="20">ollama-models</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- ============ D4 — DEVOPS / CI PIPELINE ============ -->
+      <div class="stage" id="panel-d4" role="tabpanel" aria-label="DevOps and CI pipeline">
+        <svg viewBox="0 0 1000 540">
+          <defs>
+            <marker id="ah-green2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--green)"/>
+            </marker>
+            <marker id="ah-d4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--ink-soft)"/>
+            </marker>
+          </defs>
+
+          <!-- connectors first, nodes on top -->
+          <!-- branch -> lanes -->
+          <path class="wire" d="M176 264 C 198 264 194 96  212 96"/>
+          <path class="wire" d="M176 264 C 198 264 194 190 212 190"/>
+          <path class="wire" d="M176 264 C 198 264 194 284 212 284"/>
+          <!-- in-lane steps -->
+          <path class="wire" d="M330 96  H360  M478 96  H508"/>
+          <path class="wire" d="M330 190 H360  M478 190 H508"/>
+          <path class="wire" d="M330 284 H360  M478 284 H508"/>
+          <!-- lanes -> merge gate -->
+          <path class="wire" marker-end="url(#ah-d4)" d="M626 96  C 656 96  652 258 674 262"/>
+          <path class="wire" marker-end="url(#ah-d4)" d="M626 190 C 652 190 652 268 674 268"/>
+          <path class="wire" marker-end="url(#ah-d4)" d="M626 284 C 650 284 652 276 674 274"/>
+          <!-- merge gate -> integration-ci and back up to main -->
+          <path class="wire" marker-end="url(#ah-d4)" d="M749 316 C 749 356 726 366 722 392"/>
+          <path class="flow" marker-end="url(#ah-green2)" d="M880 434 C 928 420 940 330 940 300"/>
+          <!-- merge gate -> main -->
+          <path class="flow" marker-end="url(#ah-green2)" d="M824 268 H852"/>
+
+          <!-- travelling commit dot: branch -> middle lane -> merge -> integ -> main -->
+          <path id="d4-path" fill="none" d="M176 264 C 198 264 194 190 260 190 H600 C 650 190 652 268 720 268 H760 C 776 268 749 300 749 340 V392 H749 V470 C 749 486 900 470 940 300 V296"/>
+          <circle r="7" class="tok clay"><animateMotion dur="7s" repeatCount="indefinite"><mpath href="#d4-path"/></animateMotion></circle>
+
+          <!-- nodes -->
+          <g transform="translate(28,228)">
+            <rect class="n-box accent" width="148" height="72" rx="10"/>
+            <text class="n-title" x="18" y="32">feature branch</text>
+            <text class="n-sub"   x="18" y="52">push</text>
+          </g>
+
+          <text class="n-tag" x="212" y="46">vgarden.yml &middot; almanac.yml &middot; health.yml &mdash; one workflow per service</text>
+          <g class="lane" style="--i:0"><rect x="212" y="68" width="118" height="56" rx="9" class="n-box"/><text class="n-title" x="228" y="93">ruff</text><text class="n-sub" x="228" y="111">lint</text>
+            <rect x="360" y="68" width="118" height="56" rx="9" class="n-box"/><text class="n-title" x="376" y="93">pytest</text><text class="n-sub" x="376" y="111">test suite</text>
+            <rect x="508" y="68" width="118" height="56" rx="9" class="n-box"/><text class="n-title" x="524" y="93">docker</text><text class="n-sub" x="524" y="111">build image</text></g>
+          <g class="lane" style="--i:1"><rect x="212" y="162" width="118" height="56" rx="9" class="n-box"/><text class="n-title" x="228" y="187">ruff</text><text class="n-sub" x="228" y="205">lint</text>
+            <rect x="360" y="162" width="118" height="56" rx="9" class="n-box"/><text class="n-title" x="376" y="187">pytest</text><text class="n-sub" x="376" y="205">test suite</text>
+            <rect x="508" y="162" width="118" height="56" rx="9" class="n-box"/><text class="n-title" x="524" y="187">docker</text><text class="n-sub" x="524" y="205">build image</text></g>
+          <g class="lane" style="--i:2"><rect x="212" y="256" width="118" height="56" rx="9" class="n-box"/><text class="n-title" x="228" y="281">ruff</text><text class="n-sub" x="228" y="299">lint</text>
+            <rect x="360" y="256" width="118" height="56" rx="9" class="n-box"/><text class="n-title" x="376" y="281">pytest</text><text class="n-sub" x="376" y="299">test suite</text>
+            <rect x="508" y="256" width="118" height="56" rx="9" class="n-box"/><text class="n-title" x="524" y="281">docker</text><text class="n-sub" x="524" y="299">build image</text></g>
+
+          <g transform="translate(674,232)">
+            <rect class="n-box clay" width="150" height="72" rx="10"/>
+            <text class="n-title" x="18" y="30">merge gate</text>
+            <text class="n-sub"   x="18" y="52">PR to main &mdash; all green</text>
+          </g>
+
+          <g transform="translate(568,392)">
+            <rect class="n-box accent" width="320" height="84" rx="11"/>
+            <text class="n-title" x="18" y="30">integration-ci.yml</text>
+            <text class="n-sub"   x="18" y="52">docker compose up &middot; curl every service</text>
+            <text class="n-sub"   x="18" y="70">upload compose.log artifact</text>
+          </g>
+
+          <g transform="translate(852,232)">
+            <rect class="n-box accent" width="120" height="72" rx="10"/>
+            <text class="n-title" x="18" y="32" fill="var(--green)">main</text>
+            <text class="n-sub"   x="18" y="52">green only</text>
+          </g>
+          <text class="n-tag" x="838" y="212" text-anchor="middle" fill="var(--green)">promote when both are green</text>
+        </svg>
+      </div>
+
+    </div><!-- /stage-scroll -->
+
+    <div class="caption" id="cap">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <p class="foot">Switch with <kbd>&larr;</kbd> <kbd>&rarr;</kbd> or the tabs above &middot; deep-link <span id="hashhint">#d1</span> &middot; companion to <span>docs/showcase-script.md</span></p>
+</div>
+
+<script>
+(function () {
+  var CAPS = {
+    d1: {
+      h: "One origin, five services, models on-box",
+      p: "A browser request enters on :3000; nginx path-routes it to a service; the service answers using its own SQLite and, for the AI features, the local Ollama container. Auth issues a short-lived signed token that the other services trust.",
+      legend: '<span><i></i>HTTP via the proxy</span><span><i class="dash"></i>signed SSO token</span><span><i class="box"></i>service (no published port)</span><span><i class="chip"></i>local model server</span>'
+    },
+    d2: {
+      h: "The loop every AI assistant runs",
+      p: "Plan gathers the only facts the model may use. Act drafts from them. Observe is a second, independent model checking the draft against those same facts. Adapt returns an approved answer, or carries the reviewer's feedback into a fresh draft — up to a capped number of rounds.",
+      legend: '<span><i></i>approved &rarr; answer</span><span><i class="dash"></i>revise &rarr; feedback carried back</span><span><i class="chip"></i>a phase, logged 3 ways</span>'
+    },
+    d3: {
+      h: "Seven containers from one command",
+      p: "docker compose up builds and starts every service on a private network. Only the proxy publishes a port to the host. Each stateful service has a named volume so its database survives a restart; one Ollama volume caches the models.",
+      legend: '<span><i class="box"></i>container</span><span><i class="chip"></i>published port</span><span><i class="vol"></i>named volume</span>'
+    },
+    d4: {
+      h: "Nothing merges until it is green",
+      p: "Every feature branch runs the same three steps per service — ruff, pytest, a Docker build. A pull request to main is gated on all of them. integration-ci then brings the whole stack up and curls each service through the proxy.",
+      legend: '<span><i></i>promotes to main</span><span><i class="dash"></i>a commit moving through the pipeline</span><span><i class="box"></i>CI job</span>'
+    }
+  };
+  var order = ["d1", "d2", "d3", "d4"];
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.switch button'));
+  var stages = {};
+  order.forEach(function (id) { stages[id] = document.getElementById("panel-" + id); });
+  var cap = document.getElementById('cap');
+  var hashhint = document.getElementById('hashhint');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) document.documentElement.classList.add('rm');
+
+  function show(id, push) {
+    if (order.indexOf(id) === -1) id = 'd1';
+    order.forEach(function (o) {
+      var on = o === id;
+      stages[o].classList.toggle('active', on);
+      var t = tabs[order.indexOf(o)];
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    var c = CAPS[id];
+    cap.innerHTML = '<h2>' + c.h + '</h2><p>' + c.p + '</p><div class="legend">' + c.legend + '</div>';
+    hashhint.textContent = '#' + id;
+    if (push) history.replaceState(null, '', '#' + id);
+    // restart SMIL so the diagram plays cleanly from the top on camera
+    var svg = stages[id].querySelector('svg');
+    if (svg && !reduce && svg.setCurrentTime) { try { svg.setCurrentTime(0); } catch (e) {} }
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { show(order[i], true); });
+  });
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    var cur = order.findIndex(function (o) { return stages[o].classList.contains('active'); });
+    var next = e.key === 'ArrowRight' ? (cur + 1) % order.length : (cur + order.length - 1) % order.length;
+    show(order[next], true);
+  });
+  window.addEventListener('hashchange', function () { show(location.hash.replace('#', ''), false); });
+
+  show(location.hash.replace('#', '') || 'd1', false);
+  // a deep-link like #d2 makes the browser jump-scroll past the header — undo that
+  requestAnimationFrame(function () { window.scrollTo(0, 0); });
+})();
+</script>
+</body>
+</html>

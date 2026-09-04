@@ -138,6 +138,11 @@ def create_garden():
         return redirect(url_for("auth.account"))
 
     garden_id = resp.json()["id"]
+    # The garden service is authoritative and has just created this garden.
+    # SQLite recycles row ids after deletes, and a stale or out-of-step database
+    # can leave an ownership row pointing at an id the garden service has since
+    # reused — so clear any existing row for this id before recording the owner.
+    Garden.query.filter_by(garden_id=garden_id).delete()
     db.session.add(Garden(garden_id=garden_id, user_id=current_user.id))
     db.session.commit()
     flash(f'Added "{name}".', "success")

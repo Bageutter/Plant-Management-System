@@ -358,41 +358,36 @@
            x-cloak
            x-show="chatOpen"
            x-transition.origin.bottom.right>
-        <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem; border-bottom:1px solid hsl(var(--border));">
-            <h2 style="font-size:1.15rem; margin:0;">Ask about {{ garden.name }}</h2>
-            <button type="button"
-                    aria-label="Close chat"
-                    @click="chatOpen = false"
-                    style="width:2rem; height:2rem; border:0; border-radius:9999px; background:hsl(var(--muted)); color:hsl(var(--foreground)); font-size:1.1rem;">
-                <span aria-hidden="true">×</span>
+        <header class="ai-chat-panel__header">
+            <div>
+                <h2>Ask about {{ garden.name }}</h2>
+                <p class="sub">Grounded in this garden + live weather &middot; reviewed by a 2nd local model</p>
+            </div>
+            <button type="button" class="ai-chat-close" aria-label="Close chat" @click="chatOpen = false">
+                <span aria-hidden="true">&times;</span>
             </button>
         </header>
 
-        <div id="ai-conversation"
-             x-ref="conversation"
-             aria-live="polite"
-             style="min-height:0; flex:1; overflow-y:auto; padding:1rem; background:hsl(var(--background));">
+        <div id="ai-conversation" class="ai-chat-body" x-ref="conversation" aria-live="polite">
             <div id="ai-messages"
                  hx-on::after-swap="this.parentElement.scrollTop = this.parentElement.scrollHeight">
                 {% include "_ai_history.html" %}
             </div>
             <template x-if="pendingQuestion">
-                <div style="display:flex; justify-content:flex-end; margin-top:0.75rem;">
-                    <article style="max-width:82%; padding:0.8rem 0.95rem; border-radius:1rem 1rem 0.3rem 1rem; background:hsl(var(--primary)); color:hsl(var(--primary-foreground));">
-                        <p style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin:0 0 0.3rem; opacity:0.75;">You</p>
-                        <p x-text="pendingQuestion" style="margin:0; line-height:1.6; white-space:pre-wrap;"></p>
-                        <p style="font-size:0.68rem; margin:0.35rem 0 0; opacity:0.7;">Sending…</p>
+                <div class="ai-row ai-row--user" style="margin-top:0.7rem;">
+                    <article class="ai-msg ai-msg--user">
+                        <p class="ai-msg__who">You</p>
+                        <p class="ai-msg__text" x-text="pendingQuestion"></p>
                     </article>
                 </div>
             </template>
         </div>
 
-        <footer style="padding:0.8rem 0.9rem; border-top:1px solid hsl(var(--border));">
-            <div style="display:flex; gap:0.35rem; margin-bottom:0.6rem; overflow-x:auto; padding-bottom:0.1rem;">
-                {% for example in ["What's planted here?", "Do I need to water today?", "Any frost risk this week?", "What's ready to harvest?"] %}
-                <button type="button"
-                        @click='question = {{ example|tojson }}; $refs.question.focus()'
-                        style="flex:none; padding:0.3rem 0.5rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--muted-foreground)); font-size:0.68rem;">
+        <footer class="ai-chat-foot">
+            <div class="ai-suggestions">
+                {% for example in ["What's planted here?", "Do I need to water today?", "What should I plant next month?", "What's ready to harvest?"] %}
+                <button type="button" class="ai-suggestion"
+                        @click='question = {{ example|tojson }}; $refs.question.focus()'>
                     {{ example }}
                 </button>
                 {% endfor %}
@@ -404,7 +399,7 @@
                   hx-indicator="#ai-loading"
                   x-on:htmx:before-request="pendingQuestion = question.trim(); question = ''; $nextTick(() => { $refs.conversation.scrollTop = $refs.conversation.scrollHeight; })"
                   x-on:htmx:after-request="pendingQuestion = ''"
-                  style="display:flex; align-items:flex-end; gap:0.5rem;">
+                  class="ai-composer">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <label class="uk-hidden" for="ai-question">Your question</label>
                 <textarea id="ai-question"
@@ -414,11 +409,10 @@
                           maxlength="500"
                           required
                           rows="2"
-                          placeholder="Ask about this garden…"
-                          style="min-height:2.6rem; flex:1; box-sizing:border-box; padding:0.65rem 0.75rem; resize:none; border:1px solid hsl(var(--border)); border-radius:0.75rem; background:hsl(var(--background)); color:hsl(var(--foreground));"></textarea>
-                <button type="submit" class="uk-btn uk-btn-primary uk-btn-sm" style="height:2.6rem;">Send</button>
+                          placeholder="Ask about this garden…"></textarea>
+                <button type="submit" class="ai-send">Send</button>
             </form>
-            <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="display:block; font-size:0.7rem; margin-top:0.35rem;">Planning · drafting · reviewing locally… (may take a minute)</span>
+            {% include "_ai_stepper.html" %}
         </footer>
     </aside>
 </div>

@@ -1,0 +1,14 @@
+{# In-flight "the loop is running" indicator. Shown only while the HTMX request
+   is in flight (hx-indicator="#ai-loading"). Shared by all three chat panels. #}
+<div id="ai-loading" class="htmx-indicator aol-stepper" aria-live="polite">
+    <div class="aol-stepper__track">
+        <span class="aol-node"><span class="aol-dot"></span>Plan</span>
+        <span class="aol-line"></span>
+        <span class="aol-node"><span class="aol-dot"></span>Act</span>
+        <span class="aol-line"></span>
+        <span class="aol-node"><span class="aol-dot"></span>Observe</span>
+        <span class="aol-line"></span>
+        <span class="aol-node"><span class="aol-dot"></span>Adapt</span>
+    </div>
+    <p class="aol-caption">Running the <b>Plan → Act → Observe → Adapt</b> loop locally…</p>
+</div>

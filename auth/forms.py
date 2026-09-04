@@ -16,6 +16,9 @@ class RegisterForm(FlaskForm):
 
 
 class LoginForm(FlaskForm):
-    email = StringField("Email", validators=[DataRequired(), Email()])
+    # No Email() here: login is a credential lookup, and email_validator rejects
+    # reserved domains (e.g. the seeded demo account at *.test). A wrong address
+    # simply fails to match a user.
+    email = StringField("Email", validators=[DataRequired()])
     password = PasswordField("Password", validators=[DataRequired()])
     submit = SubmitField("Log in")

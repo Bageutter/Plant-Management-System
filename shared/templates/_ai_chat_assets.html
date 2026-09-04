@@ -1,0 +1,190 @@
+/* Shared premium styling for the "Ask the AI" chat panels across all three
+   features (vgarden, almanac, health). Included inside each base.html <style>.
+   Depends only on the theme HSL custom properties defined in each base.html. */
+
+.ai-chat-launcher {
+    position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 60;
+    display: inline-flex; align-items: center; gap: 0.55rem;
+    padding: 0.8rem 1.1rem; border: 0; border-radius: 9999px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.82));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 12px 30px hsl(150 30% 12% / 0.28);
+    font: inherit; font-weight: 600; letter-spacing: 0.01em;
+    transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.ai-chat-launcher:hover {
+    transform: translateY(-2px); color: hsl(var(--primary-foreground));
+    box-shadow: 0 18px 40px hsl(150 30% 12% / 0.34);
+}
+.ai-chat-launcher:active { transform: translateY(0); }
+.ai-chat-launcher > span:first-child { font-size: 1.05rem; line-height: 1; }
+
+.ai-chat-panel {
+    position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 55;
+    display: flex; flex-direction: column; overflow: hidden;
+    width: min(27rem, calc(100vw - 2rem)); height: min(40rem, calc(100vh - 2.5rem));
+    border: 1px solid hsl(var(--border)); border-radius: 1.15rem;
+    background: hsl(var(--card));
+    box-shadow: 0 32px 70px hsl(150 25% 10% / 0.26), 0 0 0 1px hsl(var(--border) / 0.4);
+}
+.ai-chat-panel__header {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.9rem 1rem; border-bottom: 1px solid hsl(var(--border));
+    background: linear-gradient(180deg, hsl(var(--accent) / 0.5), transparent);
+}
+.ai-chat-panel__header h2 { font-size: 1.1rem; margin: 0; }
+.ai-chat-panel__header .sub { font-size: 0.68rem; color: hsl(var(--muted-foreground)); margin: 0.1rem 0 0; }
+.ai-chat-close {
+    width: 2rem; height: 2rem; flex: none; border: 0; border-radius: 9999px;
+    background: hsl(var(--muted)); color: hsl(var(--foreground)); font-size: 1.05rem;
+    transition: background 120ms ease;
+}
+.ai-chat-close:hover { background: hsl(var(--border)); }
+
+.ai-chat-body {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 1rem;
+    background:
+        radial-gradient(120% 60% at 50% 0%, hsl(var(--accent) / 0.28), transparent 70%),
+        hsl(var(--background));
+    scroll-behavior: smooth;
+}
+
+/* --- message bubbles ---------------------------------------------------- */
+.ai-thread { display: grid; gap: 0.7rem; }
+.ai-row { display: flex; }
+.ai-row--user { justify-content: flex-end; }
+.ai-row--bot { justify-content: flex-start; }
+.ai-msg {
+    max-width: 84%; padding: 0.75rem 0.95rem; border-radius: 1.1rem;
+    line-height: 1.6; font-size: 0.9rem;
+    animation: ai-msg-in 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.ai-row:last-child .ai-msg { animation-duration: 0.42s; }
+.ai-msg__who {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; margin: 0 0 0.3rem; opacity: 0.72;
+}
+.ai-msg__text { margin: 0; white-space: pre-wrap; }
+.ai-msg--user {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.88));
+    color: hsl(var(--primary-foreground)); border-bottom-right-radius: 0.35rem;
+}
+.ai-msg--bot {
+    background: hsl(var(--card)); color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--border)); border-bottom-left-radius: 0.35rem;
+    box-shadow: 0 2px 8px hsl(150 20% 10% / 0.05);
+}
+@keyframes ai-msg-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* --- the Plan -> Act -> Observe -> Adapt "thinking" stepper ------------- */
+.aol-stepper { display: none; padding: 0.5rem 0.15rem 0.1rem; }
+.htmx-request .aol-stepper,
+.htmx-request.aol-stepper { display: block; }
+.aol-stepper__track { display: flex; align-items: center; gap: 0.35rem; }
+.aol-node {
+    display: flex; align-items: center; gap: 0.4rem; flex: none;
+    font-size: 0.66rem; font-weight: 600; color: hsl(var(--muted-foreground));
+}
+.aol-dot {
+    width: 0.62rem; height: 0.62rem; border-radius: 9999px;
+    background: hsl(var(--border)); flex: none;
+}
+.aol-line { flex: 1; height: 2px; border-radius: 2px; background: hsl(var(--border)); min-width: 0.6rem; }
+.aol-caption {
+    margin: 0.45rem 0 0; font-size: 0.68rem; color: hsl(var(--muted-foreground));
+}
+.aol-caption b { color: hsl(var(--primary)); font-weight: 600; }
+/* 4-beat cycle: each phase lights in turn, ~2.4s loop */
+.aol-node:nth-child(1) .aol-dot { animation: aol-pulse 2.4s infinite; animation-delay: 0s; }
+.aol-node:nth-child(3) .aol-dot { animation: aol-pulse 2.4s infinite; animation-delay: 0.6s; }
+.aol-node:nth-child(5) .aol-dot { animation: aol-pulse 2.4s infinite; animation-delay: 1.2s; }
+.aol-node:nth-child(7) .aol-dot { animation: aol-pulse 2.4s infinite; animation-delay: 1.8s; }
+.aol-node:nth-child(2) { animation: aol-fill 2.4s infinite; animation-delay: 0.3s; }
+.aol-node:nth-child(4) { animation: aol-fill 2.4s infinite; animation-delay: 0.9s; }
+.aol-node:nth-child(6) { animation: aol-fill 2.4s infinite; animation-delay: 1.5s; }
+@keyframes aol-pulse {
+    0%, 40%, 100% { background: hsl(var(--border)); transform: scale(1); }
+    12%, 28% { background: hsl(var(--primary)); transform: scale(1.5);
+               box-shadow: 0 0 0 4px hsl(var(--primary) / 0.16); }
+}
+@keyframes aol-fill {
+    0%, 100% { color: hsl(var(--muted-foreground)); }
+    15%, 30% { color: hsl(var(--primary)); }
+}
+
+/* --- the "reviewed by a 2nd model" trace card ------------------------- */
+.ai-loop-badge { margin-top: 0.55rem; font-size: 0.7rem; }
+.ai-loop-badge > summary {
+    cursor: pointer; list-style: none; display: inline-flex; align-items: center;
+    gap: 0.4rem; padding: 0.28rem 0.6rem; border-radius: 9999px;
+    background: hsl(var(--accent) / 0.6); color: hsl(var(--accent-foreground));
+    font-weight: 600; user-select: none;
+}
+.ai-loop-badge > summary::-webkit-details-marker { display: none; }
+.ai-loop-badge > summary:hover { background: hsl(var(--accent)); }
+.ai-loop-badge[open] > summary { margin-bottom: 0.5rem; }
+.ai-loop-badge__body {
+    border-left: 2px solid hsl(var(--border)); padding-left: 0.7rem; margin-left: 0.3rem;
+    display: grid; gap: 0.45rem; color: hsl(var(--muted-foreground));
+}
+.ai-loop-step { display: grid; gap: 0.1rem; }
+.ai-loop-step__head { font-weight: 600; color: hsl(var(--foreground)); }
+.ai-loop-verdict-approved { color: hsl(var(--primary)); font-weight: 600; }
+.ai-loop-verdict-revise { color: hsl(38 80% 34%); font-weight: 600; }
+.ai-loop-badge__link { color: hsl(var(--primary)); font-weight: 600; }
+
+.ai-chat-empty {
+    display: grid; min-height: 10rem; place-content: center; text-align: center;
+    color: hsl(var(--muted-foreground)); gap: 0.5rem;
+}
+.ai-chat-empty__icon {
+    font-size: 1.9rem;
+    filter: drop-shadow(0 4px 10px hsl(var(--primary) / 0.2));
+}
+
+/* --- composer -------------------------------------------------------- */
+.ai-chat-foot { padding: 0.8rem 0.9rem; border-top: 1px solid hsl(var(--border)); background: hsl(var(--card)); }
+.ai-suggestions { display: flex; gap: 0.35rem; margin-bottom: 0.6rem; overflow-x: auto; padding-bottom: 0.15rem; }
+.ai-suggestion {
+    flex: none; padding: 0.32rem 0.6rem; border: 1px solid hsl(var(--border));
+    border-radius: 9999px; background: hsl(var(--background));
+    color: hsl(var(--muted-foreground)); font-size: 0.68rem;
+    transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.ai-suggestion:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); background: hsl(var(--accent) / 0.5); }
+.ai-composer { display: flex; align-items: flex-end; gap: 0.5rem; }
+.ai-composer textarea {
+    flex: 1; min-height: 2.6rem; box-sizing: border-box; padding: 0.65rem 0.8rem;
+    resize: none; border: 1px solid hsl(var(--border)); border-radius: 0.85rem;
+    background: hsl(var(--background)); color: hsl(var(--foreground));
+    font: inherit; font-size: 0.88rem; transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.ai-composer textarea:focus {
+    outline: none; border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.14);
+}
+.ai-send {
+    height: 2.6rem; padding: 0 1rem; flex: none; border: 0; border-radius: 0.85rem;
+    background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+    font: inherit; font-weight: 600; transition: filter 120ms ease, transform 120ms ease;
+}
+.ai-send:hover { filter: brightness(1.06); }
+.ai-send:active { transform: scale(0.97); }
+
+.htmx-indicator { display: none; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: block; }
+
+@media (max-width: 40rem) {
+    .ai-chat-launcher { right: 0.75rem; bottom: 0.75rem; }
+    .ai-chat-panel {
+        right: 0.75rem; bottom: 0.75rem;
+        width: calc(100vw - 1.5rem); height: calc(100vh - 1.5rem);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ai-msg { animation: none; }
+    .aol-node .aol-dot, .aol-node { animation-duration: 6s; }
+}
