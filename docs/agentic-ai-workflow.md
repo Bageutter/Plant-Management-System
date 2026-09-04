@@ -83,12 +83,22 @@ and linking to `GET /…/ai/loop/<run_id>`, which renders the full trace.
 ### Viewing it
 
 ```bash
-python tools/ai-loop/view.py                     # recent runs (both services)
+python tools/ai-loop/view.py                     # recent runs (almanac, vgarden, health)
 python tools/ai-loop/view.py <run_id>            # full Plan/Act/Observe/Adapt trace
+python tools/ai-loop/view.py check               # validate EVERY run against the workflow
 python tools/ai-loop/view.py --service almanac --last 20
 python tools/ai-loop/view.py --follow            # live pretty tail
 docker compose logs -f vgarden                   # the same phases, live from the service
 ```
+
+`view.py check` is the quick "is the loop as the criteria want it?" answer — it
+reports PASS/FAIL per run, where a run passes only when it **starts with PLAN**,
+**alternates ACT → OBSERVE → ADAPT**, every OBSERVE carries a reviewer **verdict**,
+and a `revise` verdict is **carried into the next ACT** (`carried_feedback`). A
+clean single-shot `fallback` (no reviewer configured / reviewer unreachable) also
+passes. The seeded demo conversations are replayed into the log sinks on a fresh
+`docker compose up`, so `view.py` and `view.py check` are populated before any
+live question is asked.
 
 Runs are also persisted in the database — `ai_loop_runs` (almanac),
 `garden_ai_loop_runs` (vgarden), `assessment_ai_loop_runs` (health) — linked to

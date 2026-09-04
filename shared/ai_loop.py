@@ -357,6 +357,50 @@ class AgenticLoop:
         )
 
 
+def replay_trace_to_logs(
+    log_dir: str, service: str, run_id: str, question: str, trace: list[dict]
+) -> str:
+    """Write an already-computed phase trace (seeded demo data) to the JSONL +
+    markdown transcript sinks, so `tools/ai-loop/view.py` shows it on a fresh
+    boot without a live model call. Returns the transcript path. Skips work if
+    this run_id is already in the JSONL.
+    """
+    report_dir = os.path.join(log_dir, "reports", service)
+    os.makedirs(report_dir, exist_ok=True)
+    jsonl_path = os.path.join(log_dir, f"{service}.jsonl")
+    transcript_path = os.path.join(report_dir, f"{run_id}.md")
+
+    if os.path.exists(jsonl_path):
+        with open(jsonl_path, encoding="utf-8") as fh:
+            if f'"{run_id}"' in fh.read():
+                return transcript_path
+
+    with open(transcript_path, "w", encoding="utf-8") as fh:
+        fh.write(
+            f"# Agentic loop run `{run_id}`\n\n"
+            f"- **service:** {service}\n"
+            f"- **question:** {question}\n\n"
+            "Workflow: **Plan → Act → Observe → Adapt**  ·  _seeded demo run_\n"
+        )
+    with open(jsonl_path, "a", encoding="utf-8") as jf, \
+            open(transcript_path, "a", encoding="utf-8") as tf:
+        for event in trace:
+            row = {"service": service, "run_id": run_id, **event}
+            jf.write(json.dumps(row, ensure_ascii=False) + "\n")
+            head = event["phase"].upper()
+            if event.get("iteration"):
+                head += f"  ·  #{event['iteration']}"
+            tf.write(f"\n## {head}\n\n")
+            for key, value in event.items():
+                if key in ("phase", "iteration", "run_id", "service", "ts"):
+                    continue
+                if key in LoopLogger._BLOCK_KEYS:
+                    tf.write(f"\n**{key}:**\n\n```\n{value}\n```\n\n")
+                else:
+                    tf.write(f"- **{key}:** {value}\n")
+    return transcript_path
+
+
 def build_reviewer(config: dict) -> Reviewer | None:
     """Construct a Reviewer from app config, or None when `OLLAMA_REVIEW_MODEL`
     is unset (reviewing disabled -> the loop runs single-shot).

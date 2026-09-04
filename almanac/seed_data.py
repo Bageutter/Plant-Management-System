@@ -226,6 +226,21 @@ def _fake_trace(question: str, answer: str, run_id: str) -> list[dict]:
     ]
 
 
+def _replay_seed_logs(run_id: str, question: str, trace: list[dict]) -> None:
+    """Best-effort: also drop the seeded trace into the JSONL + transcript sinks
+    so `tools/ai-loop/view.py` is populated on a fresh boot."""
+    try:
+        from flask import current_app
+
+        import ai_loop
+
+        ai_loop.replay_trace_to_logs(
+            current_app.config["AI_LOOP_LOG_DIR"], "almanac", run_id, question, trace
+        )
+    except Exception:  # noqa: BLE001 - logging convenience only, never fatal
+        pass
+
+
 def seed_demo_chat() -> None:
     if AIChatMessage.query.filter_by(owner_key=DEMO_OWNER_KEY).first() is not None:
         return
@@ -237,6 +252,7 @@ def seed_demo_chat() -> None:
         db.session.add_all([user, assistant])
         db.session.flush()
         run_id = f"almanac-seed-{i + 1:02d}"
+        trace = _fake_trace(question, answer, run_id)
         db.session.add(
             AILoopRun(
                 owner_key=DEMO_OWNER_KEY,
@@ -247,7 +263,8 @@ def seed_demo_chat() -> None:
                 iterations=1,
                 verdict="approved",
                 transcript_path=f"tools/ai-loop/logs/reports/almanac/{run_id}.md",
-                trace=_fake_trace(question, answer, run_id),
+                trace=trace,
             )
         )
+        _replay_seed_logs(run_id, question, trace)
     db.session.commit()

@@ -142,6 +142,21 @@ def _fake_trace(question: str, answer: str, run_id: str) -> list[dict]:
     ]
 
 
+def _replay_seed_logs(run_id: str, question: str, trace: list[dict]) -> None:
+    """Best-effort: also drop the seeded trace into the JSONL + transcript sinks
+    so `tools/ai-loop/view.py` is populated on a fresh boot."""
+    try:
+        from flask import current_app
+
+        import ai_loop
+
+        ai_loop.replay_trace_to_logs(
+            current_app.config["AI_LOOP_LOG_DIR"], "health", run_id, question, trace
+        )
+    except Exception:  # noqa: BLE001 - logging convenience only, never fatal
+        pass
+
+
 def _seed_chat(assessment_id: int) -> None:
     for i, (question, answer) in enumerate(DEMO_CHAT):
         user = AssessmentChatMessage(assessment_id=assessment_id, role="user", content=question)
@@ -151,6 +166,7 @@ def _seed_chat(assessment_id: int) -> None:
         db.session.add_all([user, assistant])
         db.session.flush()
         run_id = f"health-seed-{i + 1:02d}"
+        trace = _fake_trace(question, answer, run_id)
         db.session.add(
             AssessmentAILoopRun(
                 assessment_id=assessment_id,
@@ -161,9 +177,10 @@ def _seed_chat(assessment_id: int) -> None:
                 iterations=1,
                 verdict="approved",
                 transcript_path=f"tools/ai-loop/logs/reports/health/{run_id}.md",
-                trace=_fake_trace(question, answer, run_id),
+                trace=trace,
             )
         )
+        _replay_seed_logs(run_id, question, trace)
 
 
 def seed_demo_data() -> None:

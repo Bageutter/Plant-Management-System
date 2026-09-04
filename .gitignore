@@ -224,3 +224,15 @@ __marimo__/
 # a stray local copy (e.g. from a tool run) must not shadow it under pytest.
 /vgarden/ai_loop.py
 /almanac/ai_loop.py
+/health/ai_loop.py
+
+# Runtime agentic-loop evidence: the JSONL sinks + per-run transcripts fill up on
+# every AI answer and on a fresh seeded `docker compose up`. The two committed
+# sample transcripts under logs/reports/vgarden/ stay tracked as report evidence.
+/tools/ai-loop/logs/*.jsonl
+/tools/ai-loop/logs/reports/almanac/
+/tools/ai-loop/logs/reports/health/
+/tools/ai-loop/logs/reports/vgarden/
+# ...but keep the two committed sample transcripts tracked as evidence:
+!/tools/ai-loop/logs/reports/vgarden/vgarden-20260903-034358-aef199.md
+!/tools/ai-loop/logs/reports/vgarden/vgarden-20260903-034433-5daa64.md

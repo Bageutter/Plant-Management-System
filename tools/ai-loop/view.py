@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Terminal viewer for the runtime agentic loop (Plan -> Act -> Observe -> Adapt).
 
-The chat features in `almanac/` and `vgarden/` log every phase of every answer to
-`tools/ai-loop/logs/<service>.jsonl` (+ a markdown transcript per run). This
-replays them.
+The chat features in `almanac/`, `vgarden/` and `health/` log every phase of every
+answer to `tools/ai-loop/logs/<service>.jsonl` (+ a markdown transcript per run).
+This replays them and can check that each run follows the four-phase workflow.
 
-    python tools/ai-loop/view.py                 # recent runs, both services
+    python tools/ai-loop/view.py                 # recent runs, all services
     python tools/ai-loop/view.py <run_id>        # full trace of one run
+    python tools/ai-loop/view.py check           # validate every run vs the workflow
     python tools/ai-loop/view.py --service vgarden --last 20
     python tools/ai-loop/view.py --follow        # live tail, pretty-printed
 
@@ -23,9 +24,10 @@ from collections import OrderedDict
 from pathlib import Path
 
 LOG_DIR = Path(__file__).resolve().parent / "logs"
-SERVICES = ("almanac", "vgarden")
+SERVICES = ("almanac", "vgarden", "health")
 
 BOLD, DIM, RESET = "\033[1m", "\033[2m", "\033[0m"
+GREEN, RED, YELLOW = "\033[32m", "\033[31m", "\033[33m"
 PHASE_COLOR = {
     "plan": "\033[36m",      # cyan
     "act": "\033[33m",       # yellow
@@ -66,29 +68,34 @@ def _runs(service: str | None) -> "OrderedDict[str, list[dict]]":
     return runs
 
 
+def _c(phase: str, text: str) -> str:
+    return f"{PHASE_COLOR.get(phase, '')}{text}{RESET}"
+
+
+def _verdict(events: list[dict]) -> str:
+    tail = [e for e in events if e["phase"] in ("adapt", "fallback")]
+    if not tail:
+        return "?"
+    return tail[-1].get("decision") or tail[-1].get("reason", "fallback")
+
+
 def cmd_list(service: str | None, last: int) -> int:
     runs = _runs(service)
     if not runs:
         print(f"No loop runs logged yet under {LOG_DIR}/")
+        print(f"{DIM}(runs appear here once the AI chat is used, or after a seeded `docker compose up`){RESET}")
         return 0
     rows = list(runs.items())[-last:]
     print(f"{BOLD}{'run_id':<34}{'phases':<22}{'result':<16}iters{RESET}")
     for run_id, events in rows:
         phases = [e["phase"] for e in events]
-        adapt = [e for e in events if e["phase"] in ("adapt", "fallback")]
-        verdict = "?"
-        if adapt:
-            verdict = adapt[-1].get("decision") or adapt[-1].get("reason", "fallback")
         iters = max((e.get("iteration", 0) for e in events), default=0) or 1
-        plain = " ".join(p[0].upper() for p in phases)          # for width
-        seq = " ".join(_c(p, p[0].upper()) for p in phases)     # colored
-        print(f"{run_id:<34}{seq}{' ' * max(1, 22 - len(plain))}{verdict:<16}{iters}")
-    print(f"\n{DIM}view one:  python tools/ai-loop/view.py <run_id>{RESET}")
+        plain = " ".join(p[0].upper() for p in phases)
+        seq = " ".join(_c(p, p[0].upper()) for p in phases)
+        print(f"{run_id:<34}{seq}{' ' * max(1, 22 - len(plain))}{_verdict(events):<16}{iters}")
+    print(f"\n{DIM}one run:   python tools/ai-loop/view.py <run_id>{RESET}")
+    print(f"{DIM}validate:  python tools/ai-loop/view.py check{RESET}")
     return 0
-
-
-def _c(phase: str, text: str) -> str:
-    return f"{PHASE_COLOR.get(phase, '')}{text}{RESET}"
 
 
 def cmd_show(run_id: str) -> int:
@@ -124,6 +131,80 @@ def cmd_show(run_id: str) -> int:
     return 0
 
 
+def _check_run(run_id: str, events: list[dict]) -> list[str]:
+    """Return a list of problems; empty means the run follows the workflow."""
+    problems: list[str] = []
+    phases = [e["phase"] for e in events]
+
+    if not phases or phases[0] != "plan":
+        problems.append("does not start with PLAN")
+
+    if phases == ["plan", "fallback"]:
+        return problems  # a clean single-shot fallback is allowed
+
+    # After PLAN, expect one or more (act, observe, adapt) triples.
+    body = phases[1:]
+    if len(body) % 3 != 0 or set(body[0::3]) - {"act"} or set(body[1::3]) - {"observe"} \
+            or set(body[2::3]) - {"adapt"}:
+        problems.append(f"phase sequence is not plan + (act,observe,adapt)*: {phases}")
+
+    acts = [e for e in events if e["phase"] == "act"]
+    observes = [e for e in events if e["phase"] == "observe"]
+    adapts = [e for e in events if e["phase"] == "adapt"]
+
+    for ev in observes:
+        if ev.get("verdict") not in ("approved", "revise"):
+            problems.append(f"OBSERVE #{ev.get('iteration')} has no verdict")
+
+    # On a 'revise', the following ACT must carry the reviewer's feedback.
+    for i, ev in enumerate(adapts):
+        if ev.get("decision") == "revise":
+            nxt = next((a for a in acts if a.get("iteration") == ev.get("iteration", 0) + 1), None)
+            if nxt is None:
+                problems.append(f"ADAPT #{ev.get('iteration')} said 'revise' but no next ACT")
+            elif not nxt.get("carried_feedback") or nxt["carried_feedback"] == "(none)":
+                problems.append(
+                    f"ACT #{nxt.get('iteration')} did not carry the reviewer's feedback"
+                )
+
+    terminal = _verdict(events)
+    if terminal not in ("accept", "stop_capped", "fallback",
+                        "no review model configured", "reviewer unreachable"):
+        problems.append(f"unexpected terminal state: {terminal}")
+
+    return problems
+
+
+def cmd_check(service: str | None) -> int:
+    runs = _runs(service)
+    if not runs:
+        print("No loop runs to check yet.")
+        return 0
+
+    ok = bad = 0
+    print(f"{BOLD}Checking every run against Plan -> Act -> Observe -> Adapt{RESET}\n")
+    for run_id, events in runs.items():
+        problems = _check_run(run_id, events)
+        iters = max((e.get("iteration", 0) for e in events), default=0) or 1
+        if problems:
+            bad += 1
+            print(f"  {RED}FAIL{RESET}  {run_id}  ({iters} iter)")
+            for p in problems:
+                print(f"        {RED}- {p}{RESET}")
+        else:
+            ok += 1
+            revised = any(e.get("decision") == "revise" for e in events)
+            note = f"{YELLOW}revised then approved{RESET}" if revised else "approved"
+            if _verdict(events) == "fallback":
+                note = f"{DIM}single-shot fallback{RESET}"
+            print(f"  {GREEN}PASS{RESET}  {run_id}  ({iters} iter, {note})")
+
+    print(f"\n{BOLD}{ok} passed, {bad} failed{RESET}")
+    print(f"{DIM}A run passes when: it starts with PLAN, alternates ACT/OBSERVE/ADAPT,{RESET}")
+    print(f"{DIM}every OBSERVE has a verdict, and a 'revise' verdict is carried into the next ACT.{RESET}")
+    return 1 if bad else 0
+
+
 def cmd_follow(service: str | None) -> int:
     paths = {name: LOG_DIR / f"{name}.jsonl" for name in ([service] if service else SERVICES)}
     sizes = {name: (p.stat().st_size if p.is_file() else 0) for name, p in paths.items()}
@@ -135,7 +216,7 @@ def cmd_follow(service: str | None) -> int:
                     continue
                 size = path.stat().st_size
                 if size < sizes[name]:
-                    sizes[name] = 0  # file truncated/rotated
+                    sizes[name] = 0
                 if size > sizes[name]:
                     with path.open("r", encoding="utf-8") as fh:
                         fh.seek(sizes[name])
@@ -166,8 +247,10 @@ def cmd_follow(service: str | None) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("run_id", nargs="?", help="show the full trace of this run")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("run_id", nargs="?", help="a run_id to show, or 'check' to validate all runs")
     parser.add_argument("--service", choices=SERVICES, help="limit to one service")
     parser.add_argument("--last", type=int, default=15, help="how many recent runs to list")
     parser.add_argument("--follow", action="store_true", help="live tail the logs")
@@ -175,6 +258,8 @@ def main() -> int:
 
     if args.follow:
         return cmd_follow(args.service)
+    if args.run_id == "check":
+        return cmd_check(args.service)
     if args.run_id:
         return cmd_show(args.run_id)
     return cmd_list(args.service, args.last)

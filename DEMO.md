@@ -77,9 +77,19 @@ curl -fs http://127.0.0.1:3000/                           # frontend
 curl -fs http://127.0.0.1:3000/auth/login
 curl -fs http://127.0.0.1:3000/vgarden/healthz            # {"status":"ok",...}
 curl -fs http://127.0.0.1:3000/almanac/health
-python tools/ai-loop/view.py                              # recent loop runs
+python tools/ai-loop/view.py                              # recent loop runs (all 3 features)
 python tools/ai-loop/view.py <run_id>                     # one full trace
+python tools/ai-loop/view.py check                        # PASS/FAIL every run vs Plan->Act->Observe->Adapt
 ```
+
+### Four ways to inspect the agentic loop
+
+| Where | Command / location | Shows |
+|---|---|---|
+| Terminal viewer | `python tools/ai-loop/view.py [check\|<run_id>\|--follow]` | list, per-run trace, workflow validation, live tail |
+| Service stdout | `docker compose logs -f vgarden` (or `almanac` / `health`) | each phase as it happens, `carried_feedback` on revises |
+| Markdown transcript | `tools/ai-loop/logs/reports/<service>/<run_id>.md` | one readable file per run: question, drafts, reviews, decision |
+| In the app | the `🔄 Plan → Act → Observe → Adapt` badge under any answer → **full trace** (`/…/ai/loop/<run_id>`) | per-iteration draft → verdict, rendered from the DB `trace` column |
 
 Plus: the GitHub Actions runs for `vgarden.yml`, `auth.yml`, `almanac.yml`,
 `health.yml`, and `integration-ci.yml` after pushing the branch.
