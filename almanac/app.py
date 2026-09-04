@@ -196,6 +196,8 @@ def create_app(test_config: dict | None = None) -> Flask:
         AI_LOOP_LOG_DIR=os.environ.get(
             "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
         ),
+        # Showcase fast-mode: canned proposer + reviewer, real loop/logging/UI.
+        AI_STUB=os.environ.get("AI_STUB", "false").lower() == "true",
     )
     if test_config:
         app.config.update(test_config)
@@ -218,6 +220,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.extensions["ai_loop_reviewer"] = (
         ai_loop.build_reviewer(app.config) if ai_loop is not None else None
     )
+    if ai_loop is not None:
+        ai_loop.install_showcase_stub(app, "almanac", "almanac_ai")
 
     @app.context_processor
     def inject_service_urls():

@@ -41,6 +41,8 @@ class Config:
     AI_LOOP_LOG_DIR = os.environ.get(
         "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
     )
+    # Showcase fast-mode: canned proposer + reviewer, real loop/logging/UI.
+    AI_STUB = os.environ.get("AI_STUB", "false").lower() == "true"
 
     # Open-Meteo (no API key): geocodes a garden's location and feeds current
     # conditions + a short forecast to the AI assistant.

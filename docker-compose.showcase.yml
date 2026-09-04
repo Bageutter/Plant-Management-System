@@ -1,0 +1,24 @@
+# Showcase / demo-video override — Release 0.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.showcase.yml up --build -d
+#
+# Every AI feature runs in fast-mode: the proposer and reviewer models are
+# replaced with deterministic canned responses (small delay), and the Plant
+# Health assessment returns a canned verdict instead of calling the vision model.
+# The Plan -> Act -> Observe -> Adapt loop, all three log sinks, the database
+# rows and the in-app trace views are unchanged and fully real — one scripted
+# question per feature still triggers a genuine revise -> approve round.
+#
+# This exists because CPU inference is too slow to show the intended experience
+# on camera. Do NOT ship it to a real deployment.
+
+services:
+  vgarden:
+    environment:
+      - AI_STUB=true
+  almanac:
+    environment:
+      - AI_STUB=true
+  health:
+    environment:
+      - AI_STUB=true

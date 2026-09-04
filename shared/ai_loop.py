@@ -357,6 +357,181 @@ class AgenticLoop:
         )
 
 
+# --------------------------------------------------------------------------- #
+# Showcase stub  (AI_STUB=1)                                                   #
+# --------------------------------------------------------------------------- #
+#
+# The local models are slow on CPU. For the Release-0 demo video we swap the
+# proposer + reviewer for deterministic canned responses with a small delay, so
+# the *loop itself* — PLAN/ACT/OBSERVE/ADAPT, the three log sinks, the DB rows,
+# the trace pages, the in-app badge — all run exactly as in production. Only the
+# two model calls are replaced. One scripted question per feature triggers a
+# genuine revise -> approve round so the "Adapt" step is visible on camera.
+
+STUB_REVISE_TRIGGERS = ("harvest", "why do you think")
+
+# (keyword, iteration-1 answer, iteration-2 answer or None)
+STUB_SCRIPTS: dict[str, list[tuple[tuple[str, ...], str, str | None]]] = {
+    "vgarden": [
+        (
+            ("harvest",),
+            "Looking at your plantings, the lettuce and cherry tomatoes in Bed A "
+            "are the ones likely ready to pick now, and the basil can be cut a few "
+            "leaves at a time. With the warm, dry week ahead I'd take the lettuce "
+            "first before it bolts.",
+            "Looking at your plantings, the lettuce and cherry tomatoes in Bed A "
+            "are the ones likely ready to pick now, and the basil can be cut a few "
+            "leaves at a time. Check the tomatoes every couple of days as they "
+            "finish ripening.",
+        ),
+        (
+            ("plant", "next month"),
+            "You have room in the raised beds and two free containers. Good picks "
+            "for the coming weeks are quick leafy crops — more lettuce, rocket or "
+            "spinach — plus spring onions in the containers. Hold off on tender "
+            "crops until overnight lows are reliably above 10 C.",
+            None,
+        ),
+        (
+            ("water",),
+            "Your recent chat notes and the current forecast suggest the beds are "
+            "drying out. Water the containers daily and the in-ground beds every "
+            "second morning until the temperature drops.",
+            None,
+        ),
+    ],
+    "almanac": [
+        (
+            ("plant", "april"),
+            "For April the almanac lists carrot, spinach, pea, kale, coriander and "
+            "beetroot — those are the entries whose planting months include April.",
+            None,
+        ),
+        (
+            ("basil",),
+            "Basil (Ocimum basilicum, family Lamiaceae) is a tender warm-season "
+            "herb. The almanac lists it for planting in January, February and "
+            "September to December.",
+            None,
+        ),
+        (
+            ("lettuce", "spinach"),
+            "Both are cool-season leaf crops. The almanac lists lettuce for every "
+            "month and spinach only for March to August, so lettuce is the safer "
+            "year-round choice.",
+            None,
+        ),
+    ],
+    "health": [
+        (
+            ("why", "think"),
+            "The lower-leaf yellowing with green veins usually points to a nitrogen "
+            "shortfall, and the pattern in your photo matches that. Tomatoes are "
+            "also heavy feeders at this point in the season.",
+            "The assessment flagged yellowing on the oldest leaves and scored the "
+            "plant in the lower band. Yellowing that starts on the oldest leaves "
+            "is typically an early nitrogen shortfall, which matches the issues "
+            "noted on this record.",
+        ),
+        (
+            ("what", "do"),
+            "Follow the recommendations on this assessment first. If there's no "
+            "improvement in a week or two, re-assess with a fresh photo so the "
+            "score can be compared.",
+            None,
+        ),
+        (
+            ("water",),
+            "Nothing on this record points to watering as the cause. Keep the soil "
+            "evenly moist and focus on the recommendations already listed.",
+            None,
+        ),
+    ],
+}
+
+_STUB_FALLBACK = {
+    "vgarden": "From your garden records I can see your beds, containers and "
+    "current plantings, plus the local forecast. Ask me about a specific bed, "
+    "crop or task and I'll answer from those records.",
+    "almanac": "I answer only from the plant references in the almanac. Ask me "
+    "about a plant, a plant family, or what to plant in a given month.",
+    "health": "I'm working from this assessment only — the plant, its score, the "
+    "issues and the recommendations on the record. Ask me about any of those.",
+}
+
+
+def _norm(text: str) -> str:
+    return "".join(c if c.isalnum() or c.isspace() else " " for c in text.lower())
+
+
+class StubChatAI:
+    """Drop-in for `OllamaGardenAI` / `OllamaAlmanacAI` / `HealthChatAI` in the
+    showcase. Same `draft(question, grounding, feedback)` signature."""
+
+    def __init__(self, service: str, delay: float = 0.4):
+        self.service = service
+        self.delay = delay
+        self.model = f"stub:{service}"
+
+    def _match(self, question: str):
+        q = _norm(question)
+        for keywords, v1, v2 in STUB_SCRIPTS.get(self.service, []):
+            if all(k in q for k in keywords):
+                return v1, v2
+        return _STUB_FALLBACK.get(self.service, "I don't have enough to answer that."), None
+
+    def draft(self, question: str, grounding: dict, feedback: str | None = None) -> str:
+        time.sleep(self.delay)
+        v1, v2 = self._match(question)
+        return (v2 or v1) if feedback else v1
+
+    # back-compat shims a couple of call sites use
+    def ask(self, question: str, grounding: dict) -> str:
+        return self.draft(question, grounding, None)
+
+
+class StubReviewer:
+    """Drop-in for `Reviewer` in the showcase. Approves everything except the
+    first look at a scripted trigger question, which it sends back once with
+    concrete guidance so the ADAPT step runs on camera."""
+
+    def __init__(self, service: str, delay: float = 0.35):
+        self.service = service
+        self.delay = delay
+        self.model = f"stub-reviewer:{service}"
+        self._revised: set[str] = set()
+
+    def ensure_ready(self) -> None:  # parity with Reviewer
+        return None
+
+    def review(self, question: str, grounding: dict, draft: str) -> dict:
+        time.sleep(self.delay)
+        q = _norm(question)
+        is_trigger = any(t in q for t in STUB_REVISE_TRIGGERS)
+        if is_trigger and question not in self._revised:
+            self._revised.add(question)
+            return {
+                "verdict": "revise",
+                "issues": ["draft characterises facts that are not in the grounding"],
+                "guidance": (
+                    "Answer only from the grounding — do not describe the weather, "
+                    "season or photo beyond what the grounding states."
+                ),
+            }
+        self._revised.discard(question)
+        return {"verdict": "approved", "issues": [], "guidance": ""}
+
+
+def install_showcase_stub(app, service: str, chat_extension_key: str) -> None:
+    """When `AI_STUB` is truthy in app config, replace the chat client and the
+    loop reviewer with the deterministic stubs above. No-op otherwise."""
+    if not app.config.get("AI_STUB"):
+        return
+    app.extensions[chat_extension_key] = StubChatAI(service)
+    app.extensions["ai_loop_reviewer"] = StubReviewer(service)
+    log.warning("[%s] AI_STUB active - using canned responses, not the model", service)
+
+
 def replay_trace_to_logs(
     log_dir: str, service: str, run_id: str, question: str, trace: list[dict]
 ) -> str:

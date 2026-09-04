@@ -67,6 +67,7 @@ def create_app(config_class: type | None = None) -> Flask:
         keep_alive=app.config["OLLAMA_KEEP_ALIVE"],
         num_predict=app.config["OLLAMA_NUM_PREDICT"],
         num_ctx=app.config["OLLAMA_NUM_CTX"],
+        stub=app.config.get("AI_STUB", False),
     )
     app.extensions["health_chat_ai"] = HealthChatAI(
         base_url=app.config["OLLAMA_URL"],
@@ -77,6 +78,8 @@ def create_app(config_class: type | None = None) -> Flask:
     app.extensions["ai_loop_reviewer"] = (
         ai_loop.build_reviewer(app.config) if ai_loop is not None else None
     )
+    if ai_loop is not None:
+        ai_loop.install_showcase_stub(app, "health", "health_chat_ai")
 
     from chat import bp as chat_bp
     from routes import bp as health_bp

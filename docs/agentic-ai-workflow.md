@@ -113,6 +113,20 @@ the assistant chat message they produced.
 | `AI_LOOP_MAX_ITERATIONS` | `2` | max ACT/OBSERVE rounds |
 | `AI_LOOP_LOG_DIR` | `tools/ai-loop/logs` (`/app/ai_loop_logs` in compose) | JSONL + transcripts |
 | `OLLAMA_AUTO_PULL` | `true` (compose) | pull both models on first use |
+| `AI_STUB` | `false` | showcase fast-mode: canned proposer + reviewer (and canned Health vision assessment), **loop / logging / DB / UI unchanged** |
+
+### Showcase fast-mode (`AI_STUB=1`)
+
+CPU inference is too slow for a live demo video. With `AI_STUB=1` (the
+`docker-compose.showcase.yml` override sets it for all three services) the
+proposer and reviewer are replaced by `StubChatAI` / `StubReviewer` in
+`shared/ai_loop.py` — deterministic canned answers with a ~0.4 s delay — and
+Plant Health's vision assessment returns a canned verdict. Everything else is
+real: `AgenticLoop` still drives PLAN → ACT → OBSERVE → ADAPT, all three log
+sinks are written, the `*AILoopRun` rows are persisted, and the trace pages
+render from them. One scripted question per feature (`"…harvest…"`,
+`"why do you think…"`) makes the reviewer send the first draft back once so the
+ADAPT step is visible on camera. Not for production.
 
 `docker-compose.yml` mounts `./shared/ai_loop.py` and `./tools/ai-loop/logs` into
 the `almanac`, `vgarden` and `health` services and sets the env above. Health also

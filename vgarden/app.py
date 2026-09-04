@@ -68,6 +68,7 @@ def create_app(config_class: type = Config) -> Flask:
         import ai_loop
 
         app.extensions["ai_loop_reviewer"] = ai_loop.build_reviewer(app.config)
+        ai_loop.install_showcase_stub(app, "vgarden", "garden_ai")
     except ImportError:
         app.extensions["ai_loop_reviewer"] = None
     app.extensions["weather"] = OpenMeteoClient(

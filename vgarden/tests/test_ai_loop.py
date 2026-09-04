@@ -115,3 +115,42 @@ def test_review_prompt_is_versioned_alongside_ai_dev():
     # The reviewer instruction is the runtime cousin of tools/ai-dev/prompts/observe.txt.
     assert "verdict" in ai_loop.PROMPT_REVIEW
     assert "approved" in ai_loop.PROMPT_REVIEW and "revise" in ai_loop.PROMPT_REVIEW
+
+
+# --- showcase stub (AI_STUB) --------------------------------------------------
+
+def _stub_loop(tmp_path, service="vgarden"):
+    drafter = ai_loop.StubChatAI(service, delay=0)
+    reviewer = ai_loop.StubReviewer(service, delay=0)
+    return ai_loop.AgenticLoop(
+        service=service,
+        drafter=lambda q, g, fb: drafter.draft(q, g, fb),
+        reviewer=reviewer,
+        log_dir=str(tmp_path),
+        max_iterations=2,
+    )
+
+
+def test_stub_trigger_question_runs_a_full_revise_then_approve(tmp_path):
+    result = _stub_loop(tmp_path).run("What's ready to harvest?", _context)
+    assert result.verdict == "approved"
+    assert result.iterations == 2
+    phases = [e["phase"] for e in result.trace]
+    assert phases == ["plan", "act", "observe", "adapt", "act", "observe", "adapt"]
+    # the reviewer's guidance was carried into the second ACT
+    second_act = [e for e in result.trace if e["phase"] == "act"][1]
+    assert second_act["carried_feedback"] != "(none)"
+
+
+def test_stub_ordinary_question_approves_first_pass(tmp_path):
+    result = _stub_loop(tmp_path).run("What should I plant next month?", _context)
+    assert result.verdict == "approved"
+    assert result.iterations == 1
+    assert "lettuce" in result.answer.lower()
+
+
+def test_stub_reviewer_repeats_the_loop_on_each_fresh_ask(tmp_path):
+    loop = _stub_loop(tmp_path)
+    first = loop.run("What's ready to harvest?", _context)
+    second = loop.run("What's ready to harvest?", _context)
+    assert first.iterations == second.iterations == 2

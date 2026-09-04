@@ -45,6 +45,9 @@ class Config:
     AI_LOOP_LOG_DIR = os.environ.get(
         "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
     )
+    # Showcase fast-mode: canned vision assessment + canned proposer/reviewer,
+    # with the real loop, logging, DB rows and UI. See docs/agentic-ai-workflow.md.
+    AI_STUB = _as_bool(os.environ.get("AI_STUB"), False)
 
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_BYTES", str(12 * 1024 * 1024)))
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}

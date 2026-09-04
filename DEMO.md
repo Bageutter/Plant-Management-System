@@ -19,6 +19,24 @@ docker compose down -v
 docker compose up --build -d          # add: -f docker-compose.yml -f docker-compose.gpu.yml   for GPU
 ```
 
+### Fast-mode for the video (recommended)
+
+CPU inference is too slow to show the intended experience on camera. The
+`docker-compose.showcase.yml` override swaps the proposer + reviewer models and
+the Plant Health vision assessment for **deterministic canned responses** (with a
+small, realistic delay). The Plan → Act → Observe → Adapt loop, all three log
+sinks, the database rows and the in-app trace views stay **completely real** —
+one scripted question per feature still runs a genuine revise → approve round.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.showcase.yml up --build -d
+```
+
+With fast-mode you can **skip steps 3 and 4** (no models to pull or pre-warm).
+Record in fast-mode; mention on camera that answers are stubbed for Release 0 and
+the same loop runs against the live model (show `docker compose logs` / a live
+run in rehearsal for proof). The scripted questions are in §6.
+
 Wait for all 7 containers:
 
 ```bash
@@ -64,9 +82,9 @@ populated, and every feature has seed data.
 | Time | Presenter | Steps |
 |---|---|---|
 | 0:00 | any | `http://localhost:3000` — the home page links to all three features. `docker compose ps` (7 up). Show one green GitHub Actions run. |
-| ~3 min | **Yunz — Virtual Garden** (`/vgarden/`) | Open garden 1. **CRUD**: add an area → add a container in it → add a planting → edit the planting → delete it. Open **"Ask about this garden"**, ask *"What's ready to harvest?"*. Expand the `🔄 Plan → Act → Observe → Adapt` badge → open the full trace. In another terminal: `docker compose logs -f vgarden` shows the loop phases live. |
-| ~3 min | **Amy — Plant Almanac** (`/almanac/`) | Browse the 16 seeded plants. **CRUD**: *+ Add a plant* (name + planting-month toggles) → open it → *Edit* → *Delete this plant*. Show `GET /almanac/api/plants` JSON. Open **"Ask the Almanac"**, ask *"What can I plant in April?"* → grounded answer + source links + loop badge. |
-| ~3 min | **Guhan — Plant Health** (`/health/plant-health-records/`) | New assessment: type a description (and/or upload a photo) → watch it **stream in**. Open a seeded record → **"Discuss this assessment"**, ask *"Why do you think that?"* → loop badge + trace. **CRUD**: *Edit details* (plant name / notes) → Save; *Delete this record*. Show `GET .../assessments` JSON. |
+| ~3 min | **Yunz — Virtual Garden** (`/vgarden/`) | Open garden 1. **CRUD**: add an area → add a container in it → add a planting → edit the planting → delete it. Open **"Ask about this garden"**, ask *"What's ready to harvest?"* — the badge shows it **revised once, then approved**. Expand the `🔄 Plan → Act → Observe → Adapt` badge → open the full trace. In another terminal: `docker compose logs -f vgarden` shows the loop phases live. |
+| ~3 min | **Amy — Plant Almanac** (`/almanac/`) | Browse the 16 seeded plants. **CRUD**: *+ Add a plant* (name + planting-month toggles) → open it → *Edit* → *Delete this plant*. Show `GET /almanac/api/plants` JSON. Open **"Ask the Almanac"**, ask *"What can I plant in April?"* → grounded answer + source links + loop badge (approved first pass). |
+| ~3 min | **Guhan — Plant Health** (`/health/plant-health-records/`) | New assessment: type a description that mentions a symptom (e.g. *"lower leaves yellowing and curling"*) → watch it **stream in**. Open that record → **"Discuss this assessment"**, ask *"Why do you think that?"* — badge shows **revised once, then approved** + trace. **CRUD**: *Edit details* (plant name / notes) → Save; *Delete this record*. Show `GET .../assessments` JSON. |
 | 9:30 | any | Recap: one origin on `:3000`, three LLM-backed features each running Plan → Act → Observe → Adapt, CI green, evidence in `tools/ai-loop/logs/`. |
 
 ## 7. Evidence to capture for the report (§11 / §12)

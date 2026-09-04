@@ -157,9 +157,11 @@ class OllamaClient:
         keep_alive: str = "30m",
         num_predict: int = 700,
         num_ctx: int = 4096,
+        stub: bool = False,
     ) -> None:
         self.base_url = base_url.rstrip("/")
-        self.model = model
+        self.model = "stub:vision" if stub else model
+        self.stub = stub
         self.timeout = timeout
         self.auto_pull = auto_pull
         self.pull_timeout = pull_timeout
@@ -257,6 +259,11 @@ class OllamaClient:
         if not description and not image_b64:
             raise ValueError("An image or a text description is required.")
 
+        if self.stub:
+            result = parse_content(_stub_content(description or ""))
+            result["duration_ms"] = 900
+            return result
+
         self.ensure_model()
         payload = self._payload(description, image_b64, plant_ref, stream=False)
 
@@ -301,6 +308,10 @@ class OllamaClient:
 
         if not description and not image_b64:
             yield {"type": "error", "message": "An image or a text description is required."}
+            return
+
+        if self.stub:
+            yield from _stub_assess_stream(description or "")
             return
 
         try:
@@ -356,6 +367,96 @@ class OllamaClient:
 
         result["duration_ms"] = duration_ms
         yield {"type": "result", "result": result}
+
+
+# --------------------------------------------------------------------------- #
+# Showcase stub (AI_STUB=1) - canned assessments, no vision model call         #
+# --------------------------------------------------------------------------- #
+
+_STUB_AT_RISK = {
+    "status": "at_risk",
+    "health_score": 58,
+    "confidence": "medium",
+    "confidence_reason": "The description is clear but a close-up photo would confirm the cause.",
+    "plant_identification": "Tomato (Solanum lycopersicum), based on the description.",
+    "summary": "Lower leaves are yellowing while the newer growth stays green - an early "
+    "sign of a nitrogen shortfall rather than disease.",
+    "issues": [
+        {
+            "name": "Lower-leaf chlorosis",
+            "severity": "medium",
+            "evidence": "Yellowing described on the oldest leaves first, veins still green.",
+        }
+    ],
+    "recommendations": [
+        {
+            "action": "Feed with a balanced liquid fertiliser",
+            "priority": "high",
+            "details": "Apply at half strength now and again in two weeks.",
+        },
+        {
+            "action": "Mulch and keep watering even",
+            "priority": "medium",
+            "details": "Uneven moisture makes nutrient uptake worse.",
+        },
+    ],
+    "missing_information": ["A close-up photo of an affected leaf", "Recent feeding history"],
+}
+
+_STUB_HEALTHY = {
+    "status": "healthy",
+    "health_score": 88,
+    "confidence": "medium",
+    "confidence_reason": "Nothing in the description points to a problem.",
+    "plant_identification": "Leafy vegetable, based on the description.",
+    "summary": "The plant sounds healthy - good colour and steady growth, no issues described.",
+    "issues": [],
+    "recommendations": [
+        {
+            "action": "Keep the current routine",
+            "priority": "low",
+            "details": "Consistent watering and a fortnightly feed are enough.",
+        }
+    ],
+    "missing_information": ["A photo would let the model check leaf colour directly"],
+}
+
+_STUB_PROBLEM_WORDS = (
+    "yellow", "spot", "wilt", "brown", "curl", "pest", "mold", "mould",
+    "hole", "droop", "dying", "black", "rot",
+)
+
+
+def _stub_content(description: str) -> str:
+    low = description.lower()
+    result = _STUB_HEALTHY if not any(w in low for w in _STUB_PROBLEM_WORDS) else _STUB_AT_RISK
+    return json.dumps(result)
+
+
+def _stub_assess_stream(description: str):
+    """Mimic `assess_stream` fast: a few progress ticks, then the result."""
+    result = _STUB_HEALTHY if not any(
+        w in description.lower() for w in _STUB_PROBLEM_WORDS
+    ) else _STUB_AT_RISK
+    steps = [
+        ("status", "Deciding overall status", 120),
+        ("health_score", "Scoring the plant's condition", 240),
+        ("summary", "Writing the summary", 380),
+        ("issues", "Listing observed issues", 520),
+        ("recommendations", "Working out recommendations", 660),
+    ]
+    for _key, label, chars in steps:
+        time.sleep(0.28)
+        yield {
+            "type": "progress",
+            "field": label,
+            "summary": result["summary"] if chars >= 380 else "",
+            "chars": chars,
+            "elapsed_ms": chars,
+        }
+    result = dict(result)
+    result["duration_ms"] = 900
+    yield {"type": "result", "result": normalise_result(result)}
 
 
 def parse_content(content: str) -> dict:
