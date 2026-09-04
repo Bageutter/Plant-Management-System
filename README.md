@@ -31,6 +31,10 @@ docker version
 docker ps
 ```
 
+> **Showcasing / demoing?** Follow **[DEMO.md](DEMO.md)** — it covers the clean
+> start (`docker compose down -v` first), pulling + pre-warming the models, the
+> demo login, and what each feature shows.
+
 ### 2. start stuff
 
 everything:

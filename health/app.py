@@ -1,14 +1,27 @@
 import os
+import sys
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify
 from jinja2 import ChoiceLoader, FileSystemLoader
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+# The shared agentic-loop module (shared/ai_loop.py): mounted at /app/ai_loop.py
+# in the container, ../shared/ai_loop.py for local/test runs.
+_SHARED = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "shared")
+if os.path.isdir(_SHARED) and _SHARED not in sys.path:
+    sys.path.insert(0, _SHARED)
+
 # Keep imports at module top; delay importing `Config` until after loading env vars
-from ai import OllamaClient
-from extensions import db
-from schema import sync_schema
+from ai import OllamaClient  # noqa: E402
+from chat_ai import HealthChatAI  # noqa: E402
+from extensions import db  # noqa: E402
+from schema import sync_schema  # noqa: E402
+
+try:
+    import ai_loop  # noqa: E402
+except ImportError:  # bare image without shared/ai_loop.py -> single-shot
+    ai_loop = None
 
 
 def create_app(config_class: type | None = None) -> Flask:
@@ -55,12 +68,23 @@ def create_app(config_class: type | None = None) -> Flask:
         num_predict=app.config["OLLAMA_NUM_PREDICT"],
         num_ctx=app.config["OLLAMA_NUM_CTX"],
     )
+    app.extensions["health_chat_ai"] = HealthChatAI(
+        base_url=app.config["OLLAMA_URL"],
+        model=app.config.get("OLLAMA_CHAT_MODEL", "qwen3:4b-instruct"),
+        timeout=app.config["OLLAMA_TIMEOUT"],
+        auto_pull=app.config["OLLAMA_AUTO_PULL"],
+    )
+    app.extensions["ai_loop_reviewer"] = (
+        ai_loop.build_reviewer(app.config) if ai_loop is not None else None
+    )
 
+    from chat import bp as chat_bp
     from routes import bp as health_bp
     from routes import root_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(root_bp)
+    app.register_blueprint(chat_bp)
 
     @app.errorhandler(413)
     def payload_too_large(_error):

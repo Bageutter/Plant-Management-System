@@ -10,3 +10,5 @@ select = ["E4", "E7", "E9", "F"]
 "vgarden/app.py" = ["E402"]
 "vgarden/garden_ai.py" = ["E402"]  # sys.path insert before `import ai_loop`
 "almanac/app.py" = ["E402"]
+"health/app.py" = ["E402"]
+"health/chat.py" = ["E402"]

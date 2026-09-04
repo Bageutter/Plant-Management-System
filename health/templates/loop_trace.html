@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Agentic loop trace — Plant Health{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <a href="{{ url_for('health.view_assessment', assessment_id=assessment.id) }}"
+       class="text-sm text-primary hover:underline">&larr; Back to the assessment</a>
+
+    <h1 class="text-2xl mt-3 mb-1">Agentic loop trace</h1>
+    <p class="text-sm text-muted-foreground mb-1"><code>{{ run.run_id }}</code></p>
+    <p class="text-sm text-muted-foreground mb-6">
+        Workflow: <strong>Plan → Act → Observe → Adapt</strong> ·
+        {{ run.iterations }} iteration{{ 's' if run.iterations != 1 }} ·
+        result: <strong>{{ run.verdict }}</strong>
+    </p>
+
+    <div class="border border-border rounded-lg p-6 mb-6">
+        <p class="uk-text-meta mb-1">Question</p>
+        <p class="mb-4">{{ run.question }}</p>
+        <p class="uk-text-meta mb-1">Final answer</p>
+        <p style="white-space:pre-wrap;">{{ run.final_answer }}</p>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+        {% for ev in run.trace %}
+        <div class="border border-border rounded-lg p-4" style="border-left:3px solid hsl(var(--primary));">
+            <p class="text-sm font-semibold mb-1">
+                {{ ev.phase|upper }}{% if ev.iteration %} #{{ ev.iteration }}{% endif %}
+                <span class="text-xs text-muted-foreground">· +{{ ev.elapsed_ms }} ms</span>
+            </p>
+            {% for k, v in ev.items() if k not in ('phase','iteration','elapsed_ms','ts','run_id','service') %}
+            <div style="display:flex; gap:0.5rem; font-size:0.8rem; padding:0.1rem 0;">
+                <span class="text-muted-foreground" style="min-width:9rem;">{{ k }}</span>
+                <span style="white-space:pre-wrap;">{{ v }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <p class="text-xs text-muted-foreground mt-6">
+        Also logged to <code>{{ run.transcript_path }}</code> and the service stdout
+        (<code>docker compose logs -f health</code>). Replay:
+        <code>python tools/ai-loop/view.py {{ run.run_id }}</code>.
+    </p>
+</div>
+{% endblock %}

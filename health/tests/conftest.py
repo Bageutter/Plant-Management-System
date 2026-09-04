@@ -1,10 +1,17 @@
 """`python -m pytest` from health/ puts the service dir on sys.path so tests can
 `import app`, `import routes`, etc. as top-level modules."""
 
+import os
+import sys
+
 import pytest
 
-from app import create_app
-from config import Config
+_SHARED = os.path.join(os.path.dirname(__file__), "..", "..", "shared")
+if os.path.isdir(_SHARED) and _SHARED not in sys.path:
+    sys.path.insert(0, _SHARED)
+
+from app import create_app  # noqa: E402
+from config import Config  # noqa: E402
 
 
 class FakeOllamaClient:
@@ -34,15 +41,43 @@ class FakeOllamaClient:
         return dict(self.result)
 
 
+class FakeChatAI:
+    """Stand-in drafter for the 'discuss this assessment' loop."""
+
+    def __init__(self):
+        self.calls = []
+
+    def draft(self, question, grounding, feedback=None):
+        self.calls.append({"question": question, "grounding": grounding, "feedback": feedback})
+        return f"About '{question}': based on the assessment, ease off watering first."
+
+
+class FakeReviewer:
+    def __init__(self, script=None):
+        self.script = list(script or ["approved"])
+        self.calls = []
+
+    def review(self, question, grounding, draft):
+        self.calls.append(draft)
+        verdict = self.script[min(len(self.calls) - 1, len(self.script) - 1)]
+        if verdict == "approved":
+            return {"verdict": "approved", "issues": [], "guidance": ""}
+        return {"verdict": "revise", "issues": ["ungrounded"], "guidance": f"fix {len(self.calls)}"}
+
+
 @pytest.fixture
 def app(tmp_path):
     class _Config(Config):
         TESTING = True
         SEED_DEMO_DATA = False
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{tmp_path / 'health.db'}"
+        AI_LOOP_LOG_DIR = str(tmp_path / "ai-loop-logs")
+        AI_LOOP_MAX_ITERATIONS = 2
 
     application = create_app(_Config)
     application.extensions["ollama"] = FakeOllamaClient()
+    application.extensions["health_chat_ai"] = FakeChatAI()
+    application.extensions["ai_loop_reviewer"] = FakeReviewer()
     return application
 
 

@@ -37,6 +37,15 @@ class Config:
     OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "700"))
     OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
 
+    # "Discuss this assessment" follow-up chat: a text model + the shared
+    # Plan -> Act -> Observe -> Adapt loop. See docs/agentic-ai-workflow.md.
+    OLLAMA_CHAT_MODEL = os.environ.get("OLLAMA_CHAT_MODEL", "qwen3:4b-instruct")
+    OLLAMA_REVIEW_MODEL = os.environ.get("OLLAMA_REVIEW_MODEL", "qwen3:4b-instruct")
+    AI_LOOP_MAX_ITERATIONS = int(os.environ.get("AI_LOOP_MAX_ITERATIONS", "2"))
+    AI_LOOP_LOG_DIR = os.environ.get(
+        "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
+    )
+
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_BYTES", str(12 * 1024 * 1024)))
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     # Longest edge, in pixels, that an uploaded photo is scaled down to before

@@ -36,7 +36,7 @@ class Config:
     # Agentic loop (Plan -> Act -> Observe -> Adapt). The reviewer is a second,
     # independent Ollama model that checks each draft answer. Empty -> loop runs
     # single-shot. See docs/agentic-ai-workflow.md.
-    OLLAMA_REVIEW_MODEL = os.environ.get("OLLAMA_REVIEW_MODEL", "llama3.1:8b")
+    OLLAMA_REVIEW_MODEL = os.environ.get("OLLAMA_REVIEW_MODEL", "qwen3:4b-instruct")
     AI_LOOP_MAX_ITERATIONS = int(os.environ.get("AI_LOOP_MAX_ITERATIONS", "2"))
     AI_LOOP_LOG_DIR = os.environ.get(
         "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")

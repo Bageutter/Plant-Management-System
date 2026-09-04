@@ -1,5 +1,23 @@
+from datetime import datetime, timezone
+
 from extensions import db
-from models import PlantingMonth, PlantReference
+from models import AIChatMessage, AILoopRun, PlantingMonth, PlantReference
+
+# Demo user id 1 (auth's demo@plant.test). A short seeded conversation so the
+# chat + loop-run tables are populated for the showcase.
+DEMO_OWNER_KEY = "user:1"
+DEMO_CHAT = [
+    ("When should I plant tomatoes?", "Tomatoes are listed for January and September to December."),
+    ("What can I plant in April?", "Carrot, spinach, pea, kale, coriander and beetroot are listed for April."),
+    ("Tell me about basil.", "Basil (Ocimum basilicum, Lamiaceae) is a tender warm-season herb; listed for Jan, Feb and Sep to Dec."),
+    ("Which herbs are perennial?", "Rosemary and mint are the perennial herbs in the almanac; basil and coriander are annuals."),
+    ("Compare lettuce and spinach.", "Both are cool-season leaf crops; lettuce is listed year-round, spinach only March to August."),
+    ("What's in the Cucurbitaceae family?", "Zucchini and cucumber are the two Cucurbitaceae entries."),
+    ("When do I sow peas?", "Peas are listed for March, April, May, August and September."),
+    ("Is strawberry an annual?", "No — strawberry is a compact perennial; it's listed for planting in June and July."),
+    ("What can I grow in winter here?", "Spinach, kale, peas and coriander cover the cooler months in the almanac."),
+    ("Give me a fast crop.", "Lettuce is the quickest — leafy, listed every month, cut-and-come-again."),
+]
 
 
 PLANT_REFERENCES = [
@@ -192,4 +210,44 @@ def seed_reference_data() -> None:
                 PlantingMonth(month_number=month_number)
             )
 
+    db.session.commit()
+
+
+def _fake_trace(question: str, answer: str, run_id: str) -> list[dict]:
+    ts = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    common = {"run_id": run_id, "service": "almanac"}
+    return [
+        {"ts": ts, "phase": "plan", "elapsed_ms": 0, "question": question, **common},
+        {"ts": ts, "phase": "act", "elapsed_ms": 800, "iteration": 1,
+         "carried_feedback": "(none)", "draft": answer, "draft_chars": len(answer), **common},
+        {"ts": ts, "phase": "observe", "elapsed_ms": 1200, "iteration": 1,
+         "verdict": "approved", "issues": "(none)", **common},
+        {"ts": ts, "phase": "adapt", "elapsed_ms": 1200, "iteration": 1, "decision": "accept", **common},
+    ]
+
+
+def seed_demo_chat() -> None:
+    if AIChatMessage.query.filter_by(owner_key=DEMO_OWNER_KEY).first() is not None:
+        return
+    for i, (question, answer) in enumerate(DEMO_CHAT):
+        user = AIChatMessage(owner_key=DEMO_OWNER_KEY, role="user", content=question)
+        assistant = AIChatMessage(
+            owner_key=DEMO_OWNER_KEY, role="assistant", content=answer, source_slugs=[]
+        )
+        db.session.add_all([user, assistant])
+        db.session.flush()
+        run_id = f"almanac-seed-{i + 1:02d}"
+        db.session.add(
+            AILoopRun(
+                owner_key=DEMO_OWNER_KEY,
+                message_id=assistant.id,
+                run_id=run_id,
+                question=question,
+                final_answer=answer,
+                iterations=1,
+                verdict="approved",
+                transcript_path=f"tools/ai-loop/logs/reports/almanac/{run_id}.md",
+                trace=_fake_trace(question, answer, run_id),
+            )
+        )
     db.session.commit()

@@ -74,7 +74,7 @@ services:
       - OLLAMA_MODEL=qwen3:4b-instruct
       - OLLAMA_AUTO_PULL=true
       # Plan -> Act -> Observe -> Adapt loop; see docs/agentic-ai-workflow.md.
-      - OLLAMA_REVIEW_MODEL=llama3.1:8b
+      - OLLAMA_REVIEW_MODEL=qwen3:4b-instruct
       - AI_LOOP_MAX_ITERATIONS=2
       - AI_LOOP_LOG_DIR=/app/ai_loop_logs
     depends_on:
@@ -97,7 +97,7 @@ services:
       - OLLAMA_MODEL=qwen3:4b-instruct
       - OLLAMA_AUTO_PULL=true
       # Plan -> Act -> Observe -> Adapt loop; see docs/agentic-ai-workflow.md.
-      - OLLAMA_REVIEW_MODEL=llama3.1:8b
+      - OLLAMA_REVIEW_MODEL=qwen3:4b-instruct
       - AI_LOOP_MAX_ITERATIONS=2
       - AI_LOOP_LOG_DIR=/app/ai_loop_logs
     volumes:
@@ -117,6 +117,9 @@ services:
     volumes:
       - ./health:/app
       - ./shared/templates:/app/shared_templates
+      - ./shared/ai_loop.py:/app/ai_loop.py:ro
+      - ./tools/ai-loop/logs:/app/ai_loop_logs
+      - health_data:/app/instance
     environment:
       - DATABASE_URL=sqlite:////app/instance/health.db
       # Browser-facing (via the proxy).
@@ -127,14 +130,18 @@ services:
       - OLLAMA_MODEL=qwen2.5vl:3b
       - OLLAMA_AUTO_PULL=true
       - OLLAMA_KEEP_ALIVE=30m
+      # "Discuss this assessment" chat + the Plan -> Act -> Observe -> Adapt loop.
+      - OLLAMA_CHAT_MODEL=qwen3:4b-instruct
+      - OLLAMA_REVIEW_MODEL=qwen3:4b-instruct
+      - AI_LOOP_MAX_ITERATIONS=2
+      - AI_LOOP_LOG_DIR=/app/ai_loop_logs
     depends_on:
       - ollama
 
-  # Locally hosted AI used by the health monitoring service. The model is pulled on
-  # first use and cached in the ollama-models volume. Reached only from inside the
-  # compose network (almanac and vgarden use the host's own Ollama via
-  # host.docker.internal instead).
-  # Runs on CPU by default; add docker-compose.gpu.yml for NVIDIA GPU acceleration.
+  # Locally hosted AI for every service. Models are pulled on first use and cached
+  # in the ollama-models volume: qwen3:4b-instruct (chat + reviewer) and
+  # qwen2.5vl:3b (the health vision model). Runs on CPU by default; add
+  # docker-compose.gpu.yml for NVIDIA GPU acceleration.
   ollama:
     image: ollama/ollama:latest
     expose:
@@ -142,11 +149,12 @@ services:
     volumes:
       - ollama-models:/root/.ollama
     environment:
-      # Keep one model resident so repeat requests skip the load cost.
       - OLLAMA_KEEP_ALIVE=30m
-      - OLLAMA_MAX_LOADED_MODELS=1
+      # Keep the chat model and the vision model both resident.
+      - OLLAMA_MAX_LOADED_MODELS=2
 
 volumes:
   ollama-models:
   almanac_data:
   vgarden_data:
+  health_data:

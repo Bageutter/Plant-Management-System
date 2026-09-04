@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Also swap the body on 4xx/5xx so the chat's error partials render
+         instead of failing silently (HTMX 2.x drops non-2xx bodies by default). -->
+    <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":true}]}'>
     <title>{% block title %}Plant Health — Plant Management System{% endblock %}</title>
 
     <!-- Franken UI (Tailwind/UIkit-based component styles) -->
@@ -182,6 +185,28 @@
         }
 
         [x-cloak] { display: none !important; }
+
+        .ai-chat-launcher {
+            position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 60;
+            display: inline-flex; align-items: center; gap: 0.55rem;
+            padding: 0.8rem 1rem; border: 0; border-radius: 9999px;
+            background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+            box-shadow: 0 12px 28px hsl(150 20% 10% / 0.22); font: inherit; font-weight: 600;
+        }
+        .ai-chat-launcher:hover { transform: translateY(-1px); color: hsl(var(--primary-foreground)); }
+        .ai-chat-panel {
+            position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 55;
+            display: flex; flex-direction: column; overflow: hidden;
+            width: min(26rem, calc(100vw - 2rem)); height: min(38rem, calc(100vh - 2.5rem));
+            border: 1px solid hsl(var(--border)); border-radius: 1rem;
+            background: hsl(var(--card)); box-shadow: 0 24px 60px hsl(150 20% 10% / 0.2);
+        }
+        .htmx-indicator { opacity: 0; }
+        .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+        @media (max-width: 40rem) {
+            .ai-chat-launcher { right: 0.75rem; bottom: 0.75rem; }
+            .ai-chat-panel { right: 0.75rem; bottom: 0.75rem; width: calc(100vw - 1.5rem); height: calc(100vh - 1.5rem); }
+        }
     </style>
 
     {% block extra_head %}{% endblock %}

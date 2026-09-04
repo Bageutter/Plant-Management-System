@@ -7,9 +7,36 @@ with a populated history and the assessments table holds >= 10 rows.
 These are illustrative records, not real model output.
 """
 
+from datetime import datetime, timezone
+
 from ai import describe_score
 from extensions import db
-from models import Assessment
+from models import Assessment, AssessmentAILoopRun, AssessmentChatMessage
+
+# A short seeded conversation on the first assessment so the chat + loop-run
+# tables are populated for the showcase.
+DEMO_CHAT = [
+    ("Why do you think it's overwatering and not a nutrient problem?",
+     "The yellowing is described as bottom-up and progressive, which fits overwatering; nothing in the notes points to a nutrient deficiency, so that stays a maybe."),
+    ("How often should I water instead?",
+     "The recommendation is twice a week — let the top 3 cm of soil dry between waterings."),
+    ("The upper leaves look fine — is that a good sign?",
+     "Yes. Healthy upper growth with only lower-leaf symptoms usually means the problem is recent and recoverable."),
+    ("Should I add fertiliser now?",
+     "Only after easing off the water for a week or two — feeding a waterlogged root zone won't help and can make it worse."),
+    ("What would help you be more sure?",
+     "A close-up photo of an affected leaf and the soil type / drainage, per the 'missing information' note."),
+    ("Can I still eat the fruit?",
+     "The assessment doesn't cover fruit safety — that's outside what was submitted. The plant issue described is cultural, not a contamination risk."),
+    ("How long until I see improvement?",
+     "With watering corrected, expect the plant to stop declining within a week; existing yellow leaves won't turn green again."),
+    ("Is it too late to save it?",
+     "No — the status is 'at risk', not 'unhealthy', and upper growth is fine, so acting now should turn it around."),
+    ("Should I remove the yellow leaves?",
+     "You can remove fully yellow lower leaves; they won't recover and removing them reduces stress on the plant."),
+    ("Anything else?",
+     "Mulch to keep soil moisture even, and check the pot or bed actually drains — standing water is the usual cause."),
+]
 
 _SEED = [
     ("Tomato (Roma) — north bed", "Lower leaves yellowing from the bottom up, some curling. Watered every second day.",
@@ -102,30 +129,72 @@ _SEED = [
 ]
 
 
+def _fake_trace(question: str, answer: str, run_id: str) -> list[dict]:
+    ts = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    common = {"run_id": run_id, "service": "health"}
+    return [
+        {"ts": ts, "phase": "plan", "elapsed_ms": 0, "question": question, **common},
+        {"ts": ts, "phase": "act", "elapsed_ms": 1100, "iteration": 1,
+         "carried_feedback": "(none)", "draft": answer, "draft_chars": len(answer), **common},
+        {"ts": ts, "phase": "observe", "elapsed_ms": 1600, "iteration": 1,
+         "verdict": "approved", "issues": "(none)", **common},
+        {"ts": ts, "phase": "adapt", "elapsed_ms": 1600, "iteration": 1, "decision": "accept", **common},
+    ]
+
+
+def _seed_chat(assessment_id: int) -> None:
+    for i, (question, answer) in enumerate(DEMO_CHAT):
+        user = AssessmentChatMessage(assessment_id=assessment_id, role="user", content=question)
+        assistant = AssessmentChatMessage(
+            assessment_id=assessment_id, role="assistant", content=answer
+        )
+        db.session.add_all([user, assistant])
+        db.session.flush()
+        run_id = f"health-seed-{i + 1:02d}"
+        db.session.add(
+            AssessmentAILoopRun(
+                assessment_id=assessment_id,
+                message_id=assistant.id,
+                run_id=run_id,
+                question=question,
+                final_answer=answer,
+                iterations=1,
+                verdict="approved",
+                transcript_path=f"tools/ai-loop/logs/reports/health/{run_id}.md",
+                trace=_fake_trace(question, answer, run_id),
+            )
+        )
+
+
 def seed_demo_data() -> None:
     if Assessment.query.first() is not None:
         return
 
+    first_id = None
     for plant_ref, description, status, score, confidence, reason, ident, summary, issues, recs, missing in _SEED:
-        db.session.add(
-            Assessment.from_result(
-                {
-                    "status": status,
-                    "health_score": score,
-                    "score_band": describe_score(score),
-                    "confidence": confidence,
-                    "confidence_reason": reason,
-                    "plant_identification": ident,
-                    "summary": summary,
-                    "issues": issues,
-                    "recommendations": recs,
-                    "missing_information": missing,
-                },
-                model="seed-data",
-                plant_ref=plant_ref,
-                description=description,
-                has_image=False,
-                image_mime=None,
-            )
+        assessment = Assessment.from_result(
+            {
+                "status": status,
+                "health_score": score,
+                "score_band": describe_score(score),
+                "confidence": confidence,
+                "confidence_reason": reason,
+                "plant_identification": ident,
+                "summary": summary,
+                "issues": issues,
+                "recommendations": recs,
+                "missing_information": missing,
+            },
+            model="seed-data",
+            plant_ref=plant_ref,
+            description=description,
+            has_image=False,
+            image_mime=None,
         )
+        db.session.add(assessment)
+        db.session.flush()
+        if first_id is None:
+            first_id = assessment.id
+
+    _seed_chat(first_id)
     db.session.commit()

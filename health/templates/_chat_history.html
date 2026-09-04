@@ -1,0 +1,46 @@
+{% if error %}
+<div role="alert" style="padding:1rem; border-radius:var(--uk-global-radius-s); background:hsl(0 70% 96%); color:hsl(0 55% 32%);">
+    {{ error }}
+</div>
+{% endif %}
+
+{% if messages %}
+<div style="display:grid; gap:0.75rem;">
+    {% for message in messages %}
+    <div style="display:flex; justify-content:{{ 'flex-end' if message.role == 'user' else 'flex-start' }};">
+    <article style="max-width:82%; padding:0.8rem 0.95rem; border-radius:1rem; {% if message.role == 'user' %}border-bottom-right-radius:0.3rem; background:hsl(var(--primary)); color:hsl(var(--primary-foreground));{% else %}border-bottom-left-radius:0.3rem; border:1px solid hsl(var(--border)); background:hsl(var(--card));{% endif %}">
+        <p style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin:0 0 0.3rem; opacity:0.75; color:{% if message.role == 'user' %}hsl(var(--primary-foreground)){% else %}hsl(var(--muted-foreground)){% endif %};">
+            {{ "You" if message.role == "user" else "Assistant" }}
+        </p>
+        <p style="margin:0; line-height:1.6; white-space:pre-wrap;">{{ message.content }}</p>
+        {% if message.role == 'assistant' and message.loop_run %}
+        {% set run = message.loop_run %}
+        <details style="margin-top:0.5rem; font-size:0.68rem; color:hsl(var(--muted-foreground));">
+            <summary style="cursor:pointer;">
+                🔄 Plan → Act → Observe → Adapt · {{ run.iterations }} iteration{{ 's' if run.iterations != 1 }}
+                {%- if run.verdict == 'approved' %} · reviewed ✓
+                {%- elif run.verdict == 'revised_capped' %} · revised, capped ⚠
+                {%- else %} · single-shot (reviewer offline)
+                {%- endif -%}
+            </summary>
+            <a href="{{ url_for('chat.loop_trace', assessment_id=assessment.id, run_id=run.id) }}"
+               style="color:hsl(var(--primary));">Full trace →</a>
+        </details>
+        {% endif %}
+    </article>
+    </div>
+    {% endfor %}
+</div>
+
+<form hx-post="{{ url_for('chat.clear', assessment_id=assessment.id) }}"
+      hx-target="#ai-messages" hx-swap="innerHTML"
+      hx-confirm="Clear this conversation?"
+      style="margin-top:0.75rem; text-align:right;">
+    <button type="submit" class="uk-btn uk-btn-default uk-btn-sm">Clear</button>
+</form>
+{% else %}
+<div class="text-muted-foreground" style="display:grid; min-height:8rem; place-content:center; text-align:center;">
+    <span aria-hidden="true" style="font-size:1.6rem;">🩺</span>
+    <p style="font-size:0.82rem; margin:0.45rem 0 0;">Ask a follow-up question about this assessment.</p>
+</div>
+{% endif %}

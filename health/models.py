@@ -127,3 +127,53 @@ class Assessment(db.Model):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class AssessmentChatMessage(db.Model):
+    """One message in the follow-up conversation about an assessment."""
+
+    __tablename__ = "assessment_chat_messages"
+    __table_args__ = (
+        db.CheckConstraint("role IN ('user', 'assistant')", name="ck_assessment_chat_role"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    assessment_id = db.Column(
+        db.Integer, db.ForeignKey("assessments.id"), nullable=False, index=True
+    )
+    role = db.Column(db.String(16), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    assessment = db.relationship(
+        "Assessment", backref=db.backref("chat_messages", cascade="all, delete-orphan")
+    )
+
+
+class AssessmentAILoopRun(db.Model):
+    """Evidence of one Plan -> Act -> Observe -> Adapt run behind a chat reply."""
+
+    __tablename__ = "assessment_ai_loop_runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    assessment_id = db.Column(
+        db.Integer, db.ForeignKey("assessments.id"), nullable=False, index=True
+    )
+    message_id = db.Column(
+        db.Integer, db.ForeignKey("assessment_chat_messages.id"), nullable=True, index=True
+    )
+    run_id = db.Column(db.String(64), nullable=False, unique=True)
+    question = db.Column(db.Text, nullable=False)
+    final_answer = db.Column(db.Text, nullable=False)
+    iterations = db.Column(db.Integer, nullable=False)
+    verdict = db.Column(db.String(24), nullable=False)
+    transcript_path = db.Column(db.String(255), nullable=False)
+    trace = db.Column(db.JSON, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    assessment = db.relationship(
+        "Assessment", backref=db.backref("loop_runs", cascade="all, delete-orphan")
+    )
+    message = db.relationship(
+        "AssessmentChatMessage", backref=db.backref("loop_run", uselist=False)
+    )

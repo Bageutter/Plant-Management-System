@@ -191,7 +191,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         OLLAMA_TIMEOUT=int(os.environ.get("OLLAMA_TIMEOUT", "120")),
         OLLAMA_AUTO_PULL=os.environ.get("OLLAMA_AUTO_PULL", "false").lower() == "true",
         # Agentic loop (Plan -> Act -> Observe -> Adapt); see docs/agentic-ai-workflow.md.
-        OLLAMA_REVIEW_MODEL=os.environ.get("OLLAMA_REVIEW_MODEL", "llama3.1:8b"),
+        OLLAMA_REVIEW_MODEL=os.environ.get("OLLAMA_REVIEW_MODEL", "qwen3:4b-instruct"),
         AI_LOOP_MAX_ITERATIONS=int(os.environ.get("AI_LOOP_MAX_ITERATIONS", "2")),
         AI_LOOP_LOG_DIR=os.environ.get(
             "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
@@ -500,6 +500,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         db.create_all()
         if not PlantReference.query.first():
             seed_reference_data()
+        if not app.config.get("TESTING") and app.config.get("SEED_DEMO_DATA", True):
+            from seed_data import seed_demo_chat
+
+            seed_demo_chat()
 
     return app
 

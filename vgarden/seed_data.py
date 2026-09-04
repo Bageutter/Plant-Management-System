@@ -13,12 +13,46 @@ Garden ids are assigned 1..12 from a fresh SQLite database, matching the
 ownership rows auth seeds for the same demo user.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from extensions import db
-from models import Container, Garden, GardenArea, Planting, PlantingLocation
+from models import (
+    Container,
+    Garden,
+    GardenAILoopRun,
+    GardenArea,
+    GardenChatMessage,
+    Planting,
+    PlantingLocation,
+)
 
 DEMO_OWNER_ID = 1
+
+# A short seeded conversation on garden 1 so the chat + loop-run tables are
+# populated for the showcase (they also fill as the AI is used during the demo).
+DEMO_CHAT = [
+    ("What's planted in the North bed?",
+     "A Roma tomato (4 plants) is growing in the North bed."),
+    ("Which of my plantings are ready to harvest?",
+     "None are marked harvested yet; the Cos lettuce and the alpine strawberries are closest."),
+    ("Do I need to water today?",
+     "I can't see live weather for this garden — set its location to get a watering answer."),
+    ("How many containers do I have?",
+     "Garden 1 has 12 containers across its areas, from terracotta pots to wicking boxes."),
+    ("What lifecycle state is the bush bean in?",
+     "The Purple King bush bean is 'planned' — it hasn't been sown yet."),
+    ("Summarise the garden.",
+     "12 areas, 12 containers and 15 plantings — mostly warm-season vegetables and herbs, "
+     "with lettuce and kale for the cooler beds."),
+    ("Where is the basil?",
+     "The Genovese basil (6 plants) is in a container, not a bed."),
+    ("What's in the Herb Bed?",
+     "The Herb Bed is one of the 12 areas; check the Plantings table for what's sited there."),
+    ("How many tomato plantings are there?",
+     "Two: 'Tomato (Roma)' with 4 plants and 'Tomato (Cherry)' with 2."),
+    ("Which plantings were sown but not yet growing?",
+     "The Nantes carrot and the Bull's Blood beetroot are both marked 'sown'."),
+]
 
 GARDENS = [
     ("Backyard Beds", "The main raised-bed vegetable garden.", "Melbourne, Victoria, Australia", -37.8136, 144.9631, "temperate"),
@@ -143,4 +177,40 @@ def seed_demo_data() -> None:
             )
         db.session.add(location)
 
+    _seed_chat(main.id)
     db.session.commit()
+
+
+def _fake_trace(question: str, answer: str, run_id: str) -> list[dict]:
+    ts = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    common = {"run_id": run_id, "service": "vgarden"}
+    return [
+        {"ts": ts, "phase": "plan", "elapsed_ms": 0, "question": question, **common},
+        {"ts": ts, "phase": "act", "elapsed_ms": 900, "iteration": 1,
+         "carried_feedback": "(none)", "draft": answer, "draft_chars": len(answer), **common},
+        {"ts": ts, "phase": "observe", "elapsed_ms": 1400, "iteration": 1,
+         "verdict": "approved", "issues": "(none)", **common},
+        {"ts": ts, "phase": "adapt", "elapsed_ms": 1400, "iteration": 1, "decision": "accept", **common},
+    ]
+
+
+def _seed_chat(garden_id: int) -> None:
+    for i, (question, answer) in enumerate(DEMO_CHAT):
+        user = GardenChatMessage(garden_id=garden_id, role="user", content=question)
+        assistant = GardenChatMessage(garden_id=garden_id, role="assistant", content=answer)
+        db.session.add_all([user, assistant])
+        db.session.flush()
+        run_id = f"vgarden-seed-{i + 1:02d}"
+        db.session.add(
+            GardenAILoopRun(
+                garden_id=garden_id,
+                message_id=assistant.id,
+                run_id=run_id,
+                question=question,
+                final_answer=answer,
+                iterations=1,
+                verdict="approved",
+                transcript_path=f"tools/ai-loop/logs/reports/vgarden/{run_id}.md",
+                trace=_fake_trace(question, answer, run_id),
+            )
+        )

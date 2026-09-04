@@ -1,14 +1,16 @@
 # Agentic AI Workflow — Plan → Act → Observe → Adapt
 
-Both AI chat features in this project — **Ask the Almanac** (`almanac/`) and **Ask
-about this garden** (`vgarden/`) — answer through an explicit agentic loop rather
-than a single model call. A second, independent model reviews every draft; the
-loop revises until the reviewer approves or an iteration cap is reached. Every
-phase of every run is logged for evidence.
+All three conversational AI features in this project —
+**Ask the Almanac** (`almanac/`), **Ask about this garden** (`vgarden/`), and
+**Discuss this assessment** (`health/`) — answer through an explicit agentic loop
+rather than a single model call. A second, independent model reviews every draft;
+the loop revises until the reviewer approves or an iteration cap is reached. Every
+phase of every run is logged for evidence. (Plant Health's *initial* assessment
+uses a single streamed vision‑model call; the loop is for the follow‑up chat.)
 
 This is the *runtime* sibling of [`tools/ai-dev/`](../tools/ai-dev/README.md),
 which already runs the same four-phase loop at **build time** over repository
-files (proposer `qwen3:4b-instruct`, reviewer `llama3.1:8b`, human ADAPT, markdown
+files (proposer `qwen3:4b-instruct`, reviewer, human ADAPT, markdown
 evidence under `tools/ai-dev/logs/`).
 
 ## The loop
@@ -26,14 +28,15 @@ evidence under `tools/ai-dev/logs/`).
 
 | Phase | What happens | Code |
 |---|---|---|
-| **PLAN** | Assemble the *grounding* — the only facts the model may use: the plant records relevant to the question (almanac) or the garden snapshot + live weather (vgarden), plus recent chat history. | `build_context()` in `almanac/app.py` / `vgarden/garden_ai.py`; `AgenticLoop._plan` |
+| **PLAN** | Assemble the *grounding* — the only facts the model may use: the plant records relevant to the question (almanac) or the garden snapshot + live weather (vgarden), plus recent chat history. | `build_context()` per service; `AgenticLoop._plan` |
 | **ACT** | A proposer model (`OLLAMA_MODEL`, default `qwen3:4b-instruct`) drafts an answer from the grounding — and, from iteration 2, from the reviewer's guidance on the previous draft. | `OllamaAlmanacAI.draft` / `OllamaGardenAI.draft` |
-| **OBSERVE** | An independent reviewer model (`OLLAMA_REVIEW_MODEL`, default `llama3.1:8b`) checks the draft *against the same grounding*: is every claim supported? does it admit missing info instead of guessing? on-topic? Returns `{verdict: approved\|revise, issues, guidance}`. | `shared/ai_loop.py::Reviewer.review`, prompt `PROMPT_REVIEW` |
+| **OBSERVE** | An independent reviewer model (`OLLAMA_REVIEW_MODEL`, default `qwen3:4b-instruct`) checks the draft *against the same grounding*: is every claim supported? does it admit missing info instead of guessing? on-topic? Returns `{verdict: approved\|revise, issues, guidance}`. | `shared/ai_loop.py::Reviewer.review`, prompt `PROMPT_REVIEW` |
 | **ADAPT** | `approved` → return the draft. `revise` → feed `guidance` into the next ACT and loop. Cap reached → return the last draft, marked `revised_capped`. | `AgenticLoop.run` |
 
 The orchestrator lives in a single shared module, **`shared/ai_loop.py`**
-(`AgenticLoop`, `Reviewer`, `LoopLogger`, `LoopResult`), mounted into both
-containers and imported via a `../shared` `sys.path` entry locally.
+(`AgenticLoop`, `Reviewer`, `LoopLogger`, `LoopResult`), mounted into the
+`almanac`, `vgarden` and `health` containers and imported via a `../shared`
+`sys.path` entry locally.
 
 ### Fallback
 
@@ -46,9 +49,9 @@ A reviewer outage never breaks the chat.
 The reviewer's usefulness depends heavily on `OLLAMA_REVIEW_MODEL`. An
 instruction-tuned model that reads the JSON grounding carefully
 (`qwen3:4b-instruct`, the compose default) approves well-grounded drafts on the
-first pass. A more general model (`llama3.1:8b`) is noticeably stricter and
-over-flags — good for stress-testing the loop, worse for latency. Tune the model
-and `PROMPT_REVIEW` (in `shared/ai_loop.py`) together.
+first pass and keeps a 10‑minute showcase moving. `llama3.1:8b` is a stricter,
+slower reviewer — better for stress-testing the loop, worse for a live demo. Tune
+the model and `PROMPT_REVIEW` (in `shared/ai_loop.py`) together.
 
 ## Evidence — three sinks, every phase
 
@@ -87,21 +90,24 @@ python tools/ai-loop/view.py --follow            # live pretty tail
 docker compose logs -f vgarden                   # the same phases, live from the service
 ```
 
-Runs are also persisted in the database (`ai_loop_runs` / `garden_ai_loop_runs`),
-linked to the assistant chat message they produced.
+Runs are also persisted in the database — `ai_loop_runs` (almanac),
+`garden_ai_loop_runs` (vgarden), `assessment_ai_loop_runs` (health) — linked to
+the assistant chat message they produced.
 
 ## Configuration
 
 | Env var | Default | Meaning |
 |---|---|---|
 | `OLLAMA_MODEL` | `qwen3:4b-instruct` | proposer (ACT) |
-| `OLLAMA_REVIEW_MODEL` | `llama3.1:8b` | reviewer (OBSERVE); empty ⇒ single-shot |
+| `OLLAMA_REVIEW_MODEL` | `qwen3:4b-instruct` | reviewer (OBSERVE); empty ⇒ single-shot |
 | `AI_LOOP_MAX_ITERATIONS` | `2` | max ACT/OBSERVE rounds |
 | `AI_LOOP_LOG_DIR` | `tools/ai-loop/logs` (`/app/ai_loop_logs` in compose) | JSONL + transcripts |
 | `OLLAMA_AUTO_PULL` | `true` (compose) | pull both models on first use |
 
 `docker-compose.yml` mounts `./shared/ai_loop.py` and `./tools/ai-loop/logs` into
-the `almanac` and `vgarden` services and sets the env above.
+the `almanac`, `vgarden` and `health` services and sets the env above. Health also
+has `OLLAMA_CHAT_MODEL` (its follow‑up chat model, default `qwen3:4b-instruct` —
+separate from the `qwen2.5vl:3b` vision model that does the assessment).
 
 ## How this satisfies "Agentic AI Workflow: Plan → Act → Observe → Adapt"
 
@@ -120,6 +126,7 @@ the `almanac` and `vgarden` services and sets the env above.
 - `shared/ai_loop.py`: `almanac/tests/test_ai_loop.py`, `vgarden/tests/test_ai_loop.py`
   (fake drafter + fake reviewer) — iteration counts, feedback carry-through,
   iteration cap, the fallback path, and that all three log sinks are written.
-- Route wiring: `vgarden/tests/test_garden_ai.py`, `almanac/tests/test_ai_mode.py`
-  — the loop runs on `/ai/ask`, an `*AILoopRun` is persisted and linked, the
-  trace page is owner-scoped.
+- Route wiring: `vgarden/tests/test_garden_ai.py`, `almanac/tests/test_ai_mode.py`,
+  `health/tests/test_chat.py` — the loop runs on the chat endpoint, an
+  `*AILoopRun` is persisted and linked, history is carried across turns, and the
+  trace page is scoped to the owning entity.
