@@ -95,6 +95,10 @@ def create_app(config_class: type = Config) -> Flask:
 
     with app.app_context():
         db.create_all()
+        if not app.config.get("TESTING") and app.config.get("SEED_DEMO_DATA", True):
+            from seed_data import seed_demo_data
+
+            seed_demo_data()
 
     return app
 

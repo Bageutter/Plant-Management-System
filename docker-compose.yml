@@ -24,6 +24,7 @@ services:
     environment:
       # Browser-facing URLs of the sibling services, all via the proxy.
       - AUTH_URL=http://localhost:3000/auth
+      - VGARDEN_URL=http://localhost:3000/vgarden/
       - HEALTH_URL=http://localhost:3000/health/plant-health-records/
       - ALMANAC_URL=http://localhost:3000/almanac/
 

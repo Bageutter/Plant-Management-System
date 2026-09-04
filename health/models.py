@@ -37,7 +37,15 @@ class Assessment(db.Model):
     recommendations_json = db.Column(db.Text, nullable=False, default="[]")
     missing_information_json = db.Column(db.Text, nullable=False, default="[]")
 
+    # Free-text follow-up notes the gardener can edit after the assessment
+    # (e.g. "watered less, new leaves look better after a week").
+    notes = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
     @property
     def issues(self) -> list[dict]:
@@ -115,5 +123,7 @@ class Assessment(db.Model):
             "issues": self.issues,
             "recommendations": self.recommendations,
             "missing_information": self.missing_information,
+            "notes": self.notes,
             "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

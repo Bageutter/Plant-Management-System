@@ -13,8 +13,12 @@
         Recorded {{ assessment.created_at.strftime("%d %B %Y at %H:%M") }} UTC
     </p>
 
-    <section class="border border-border rounded-lg p-6 mb-8">
-        <h2 class="text-lg mb-4">What was submitted</h2>
+    <section class="border border-border rounded-lg p-6 mb-8" x-data="{ editing: false }">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg">What was submitted</h2>
+            <button type="button" class="uk-btn uk-btn-default uk-btn-sm"
+                    x-show="!editing" @click="editing = true">Edit details</button>
+        </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
@@ -33,15 +37,42 @@
                 {% endif %}
             </div>
 
-            <div>
+            <div x-show="!editing">
                 <p class="uk-text-meta mb-1">Plant name / reference</p>
                 <p class="mb-4">{{ assessment.plant_ref or "—" }}</p>
 
                 <p class="uk-text-meta mb-1">Description</p>
-                <p class="whitespace-pre-line">{{ assessment.description or "—" }}</p>
+                <p class="whitespace-pre-line mb-4">{{ assessment.description or "—" }}</p>
+
+                <p class="uk-text-meta mb-1">Notes</p>
+                <p class="whitespace-pre-line">{{ assessment.notes or "—" }}</p>
             </div>
+
+            <form x-show="editing" x-cloak method="post"
+                  action="{{ url_for('health.edit_assessment', assessment_id=assessment.id) }}">
+                <label class="uk-form-label" for="plant_ref">Plant name / reference</label>
+                <input class="uk-input mb-3" type="text" id="plant_ref" name="plant_ref"
+                       maxlength="200" value="{{ assessment.plant_ref or '' }}">
+
+                <label class="uk-form-label" for="description">Description</label>
+                <textarea class="uk-textarea mb-3" id="description" name="description" rows="3">{{ assessment.description or '' }}</textarea>
+
+                <label class="uk-form-label" for="notes">Follow-up notes</label>
+                <textarea class="uk-textarea mb-4" id="notes" name="notes" rows="3"
+                          placeholder="e.g. watered less; new leaves look better after a week">{{ assessment.notes or '' }}</textarea>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="uk-btn uk-btn-primary uk-btn-sm">Save</button>
+                    <button type="button" class="uk-btn uk-btn-default uk-btn-sm" @click="editing = false">Cancel</button>
+                </div>
+            </form>
         </div>
     </section>
+
+    <form method="post" action="{{ url_for('health.delete_assessment_form', assessment_id=assessment.id) }}"
+          onsubmit="return confirm('Delete this assessment permanently?');" class="mb-8">
+        <button type="submit" class="uk-btn uk-btn-default uk-btn-sm text-destructive">Delete this record</button>
+    </form>
 
     <h2 class="text-lg mb-4">Assessment</h2>
     {% with detail_view = True %}

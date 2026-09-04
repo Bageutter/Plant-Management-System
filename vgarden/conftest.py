@@ -21,6 +21,7 @@ class TestConfig:
     AUTH_PUBLIC_URL = "http://auth.test"
     WTF_CSRF_ENABLED = False
     TESTING = True
+    SEED_DEMO_DATA = False
     AI_LOOP_MAX_ITERATIONS = 2
     # OLLAMA_REVIEW_MODEL is deliberately unset -> build_reviewer() returns None;
     # the `ai_loop_reviewer` fixture below injects a fake instead.

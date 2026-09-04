@@ -1,13 +1,68 @@
-name: Health
+name: Plant Health
+
 on:
   push:
-    branches: ["bageutter/**"]
-    paths: ["health/**"]
+    branches: ["bageutter/**", "yunz/**"]
+    paths:
+      - "health/**"
+      - "shared/**"
+      - "pyproject.toml"
+      - ".github/workflows/health.yml"
   pull_request:
     branches: ["**"]
-    paths: ["health/**"]
+    paths:
+      - "health/**"
+      - "shared/**"
+      - "pyproject.toml"
+      - ".github/workflows/health.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: health-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  placeholder:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - run: echo "placeholder"
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Run Ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.16.4"
+          args: check --output-format=github health
+      - name: Compile-check Python files
+        run: python -m compileall -q health
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: health/requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r health/requirements-dev.txt
+      - name: Run tests
+        working-directory: health
+        run: python -m pytest -q
+
+  docker-build:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --tag health:ci ./health

@@ -4,6 +4,9 @@ import unittest
 
 from app import create_app
 from models import PlantingMonth, PlantReference
+from seed_data import PLANT_REFERENCES
+
+SEED_COUNT = len(PLANT_REFERENCES)
 
 
 class FakeAuthClient:
@@ -44,19 +47,19 @@ class AlmanacCrudTests(unittest.TestCase):
         response = self.client.post(
             "/plants",
             data={
-                "common_name": "Rosemary",
-                "scientific_name": "Salvia rosmarinus",
-                "family": "Lamiaceae",
-                "summary": "A woody perennial herb.",
+                "common_name": "Tarragon",
+                "scientific_name": "Artemisia dracunculus",
+                "family": "Asteraceae",
+                "summary": "A perennial culinary herb.",
                 "months": ["3", "4", "9"],
             },
             follow_redirects=True,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Rosemary", response.data)
+        self.assertIn(b"Tarragon", response.data)
         with self.app.app_context():
-            plant = PlantReference.query.filter_by(slug="rosemary").one()
-            self.assertEqual(plant.scientific_name, "Salvia rosmarinus")
+            plant = PlantReference.query.filter_by(slug="tarragon").one()
+            self.assertEqual(plant.scientific_name, "Artemisia dracunculus")
             self.assertEqual(
                 sorted(m.month_number for m in plant.planting_months), [3, 4, 9]
             )
@@ -66,7 +69,7 @@ class AlmanacCrudTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn(b"Common name is required", response.data)
         with self.app.app_context():
-            self.assertEqual(PlantReference.query.count(), 6)  # only the seed data
+            self.assertEqual(PlantReference.query.count(), SEED_COUNT)  # only the seed data
 
     def test_slug_collisions_get_a_suffix(self):
         for _ in range(2):

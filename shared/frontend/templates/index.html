@@ -7,9 +7,9 @@
 {{ header(
     brand_url="#",
     nav_links=[
-        {"label": "My Gardens", "url": auth_url ~ "/account"},
-        {"label": "Plant Health", "url": health_url},
-        {"label": "Almanac", "url": almanac_url}
+        {"label": "Virtual Garden", "url": auth_url ~ "/account"},
+        {"label": "Plant Almanac", "url": almanac_url},
+        {"label": "Plant Health", "url": health_url}
     ],
     cta={"label": "Log in", "url": auth_url ~ "/login"}
 ) }}
@@ -56,59 +56,62 @@
 
     <!-- Services -->
     <section id="services" class="uk-container mx-auto py-20">
-        <h2 class="text-2xl md:text-3xl font-bold text-center mb-2">Built from focused services</h2>
+        <h2 class="text-2xl md:text-3xl font-bold text-center mb-2">The Release 0 features</h2>
         <p class="text-muted-foreground text-center max-w-xl mx-auto mb-12">
-            Each service owns one part of the picture, so the system stays easy to reason about
-            as it grows.
+            Three focused services, each with its own frontend, API, and database, and each
+            grounded in the local AI model. Open any of them below.
         </p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="uk-card uk-card-default uk-card-body card-interactive">
+            <a href="{{ auth_url }}/account" class="uk-card uk-card-default uk-card-body card-interactive">
                 <div class="text-2xl mb-3" aria-hidden="true">🪴</div>
                 <h3 class="font-semibold text-lg mb-2">Virtual Garden</h3>
                 <p class="text-sm text-muted-foreground">
-                    The source of truth for your garden — beds, plants, plantings, and every
-                    watering, fertilising, and observation event.
+                    Model your garden — areas, containers, and plantings, with full CRUD — and
+                    ask a per-garden AI assistant grounded in your data and local weather.
                 </p>
-            </div>
+                <span class="text-primary text-sm font-medium mt-4 inline-block">Open my gardens →</span>
+            </a>
             <a href="{{ almanac_url }}" class="uk-card uk-card-default uk-card-body card-interactive">
                 <div class="text-2xl mb-3" aria-hidden="true">📚</div>
                 <h3 class="font-semibold text-lg mb-2">Plant Almanac</h3>
                 <p class="text-sm text-muted-foreground">
-                    General plant knowledge — sunlight, soil, water, and seasonal needs,
-                    queryable by other services and AI assistants via MCP.
+                    Plant reference data — name, family, summary, planting months — with public
+                    read, login CRUD, and a grounded "Ask the Almanac" chat.
                 </p>
                 <span class="text-primary text-sm font-medium mt-4 inline-block">Browse the Almanac →</span>
             </a>
-            <div class="uk-card uk-card-default uk-card-body card-interactive">
+            <a href="{{ health_url }}" class="uk-card uk-card-default uk-card-body card-interactive">
                 <div class="text-2xl mb-3" aria-hidden="true">🩺</div>
-                <h3 class="font-semibold text-lg mb-2">Health Monitoring</h3>
+                <h3 class="font-semibold text-lg mb-2">Plant Health Monitoring</h3>
                 <p class="text-sm text-muted-foreground">
-                    Combines your garden's actual state with almanac knowledge to flag
-                    possible disease, pests, and watering problems early.
+                    Submit a photo and/or description; a local vision model returns a health
+                    status, score, confidence, and concrete recommendations.
                 </p>
-            </div>
-            <div class="uk-card uk-card-default uk-card-body card-interactive">
+                <span class="text-primary text-sm font-medium mt-4 inline-block">Check a plant →</span>
+            </a>
+        </div>
+
+        <p class="text-muted-foreground text-center text-sm mt-12 mb-4">Planned for later releases</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-60">
+            <div class="uk-card uk-card-default uk-card-body">
                 <div class="text-2xl mb-3" aria-hidden="true">🗓️</div>
-                <h3 class="font-semibold text-lg mb-2">Scheduler</h3>
+                <h3 class="font-semibold text-lg mb-2">Scheduler <span class="uk-label">Planned</span></h3>
                 <p class="text-sm text-muted-foreground">
-                    Turns garden changes into future tasks — watering, fertilising,
-                    pruning, harvest — and keeps them up to date as things change.
+                    Turns garden changes into future watering, fertilising, and harvest tasks.
                 </p>
             </div>
-            <div class="uk-card uk-card-default uk-card-body card-interactive">
+            <div class="uk-card uk-card-default uk-card-body">
                 <div class="text-2xl mb-3" aria-hidden="true">🔔</div>
-                <h3 class="font-semibold text-lg mb-2">Notifications</h3>
+                <h3 class="font-semibold text-lg mb-2">Notifications <span class="uk-label">Planned</span></h3>
                 <p class="text-sm text-muted-foreground">
-                    Timely alerts for watering, frost, heat, and harvest windows —
-                    driven by events, not hardcoded gardening logic.
+                    Timely alerts for watering, frost, heat, and harvest windows.
                 </p>
             </div>
-            <div class="uk-card uk-card-default uk-card-body card-interactive">
+            <div class="uk-card uk-card-default uk-card-body">
                 <div class="text-2xl mb-3" aria-hidden="true">🤖</div>
-                <h3 class="font-semibold text-lg mb-2">AI Input Layer</h3>
+                <h3 class="font-semibold text-lg mb-2">AI Input Layer <span class="uk-label">Planned</span></h3>
                 <p class="text-sm text-muted-foreground">
-                    Turns natural language and photos into structured garden
-                    observations, so any input method leads to the same clean data.
+                    Turns natural language and photos into structured garden observations.
                 </p>
             </div>
         </div>

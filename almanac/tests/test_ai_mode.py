@@ -6,6 +6,9 @@ from ai import AIUnavailableError
 from app import create_app
 from extensions import db
 from models import AIChatMessage, AILoopRun
+from seed_data import PLANT_REFERENCES
+
+SEED_COUNT = len(PLANT_REFERENCES)
 
 
 class FakeAlmanacAI:
@@ -81,7 +84,7 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.assertIn(b"pendingQuestion", response.data)
 
     def test_existing_plant_api_still_lists_every_record(self):
-        self.assertEqual(self.client.get("/api/plants").get_json()["count"], 6)
+        self.assertEqual(self.client.get("/api/plants").get_json()["count"], SEED_COUNT)
 
     def test_logged_out_user_cannot_use_chat(self):
         self.auth.user = None

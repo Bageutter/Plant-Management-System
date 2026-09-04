@@ -26,11 +26,15 @@ def create_app(config_class: type | None = None) -> Flask:
     # X-Forwarded-* so url_for()/redirects carry that prefix. No-op without the
     # headers (direct/local runs).
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    here = os.path.abspath(os.path.dirname(__file__))
     app.jinja_loader = ChoiceLoader(
         [
             app.jinja_loader,
             FileSystemLoader(
-                os.path.join(os.path.abspath(os.path.dirname(__file__)), "shared_templates")
+                [
+                    os.path.join(here, "shared_templates"),
+                    os.path.join(here, "..", "shared", "templates"),
+                ]
             ),
         ]
     )
@@ -87,6 +91,10 @@ def create_app(config_class: type | None = None) -> Flask:
         db.create_all()
         # create_all() does not alter existing tables, so reconcile added columns.
         sync_schema(db)
+        if not app.config.get("TESTING") and app.config.get("SEED_DEMO_DATA", True):
+            from seed_data import seed_demo_data
+
+            seed_demo_data()
 
     return app
 

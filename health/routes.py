@@ -209,6 +209,56 @@ def get_assessment(assessment_id):
     return jsonify(assessment.to_dict())
 
 
+MAX_NOTES_CHARS = 4000
+
+
+def _apply_edit(assessment: Assessment, source) -> None:
+    """Update the gardener-editable fields (plant_ref / description / notes).
+
+    The AI assessment result itself is immutable — re-run an assessment to change
+    it. `source` is `request.form` or a JSON dict.
+    """
+    if "plant_ref" in source:
+        assessment.plant_ref = _clean(source.get("plant_ref"), MAX_PLANT_REF_CHARS, "plant_ref")
+    if "description" in source:
+        assessment.description = _clean(
+            source.get("description"), MAX_DESCRIPTION_CHARS, "description"
+        )
+    if "notes" in source:
+        assessment.notes = _clean(source.get("notes"), MAX_NOTES_CHARS, "notes")
+
+
+@bp.route("/assessments/<int:assessment_id>/edit", methods=["POST"])
+def edit_assessment(assessment_id):
+    """Browser form: edit an assessment's plant name, description and notes."""
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None:
+        abort(404)
+    try:
+        _apply_edit(assessment, request.form)
+    except ValueError as exc:
+        return _error(str(exc), 400, wants_html=True)
+    db.session.commit()
+    return redirect(url_for("health.view_assessment", assessment_id=assessment.id))
+
+
+@bp.route("/assessments/<int:assessment_id>", methods=["PATCH", "PUT"])
+def update_assessment(assessment_id):
+    """JSON API: patch an assessment's gardener-editable fields."""
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None:
+        return jsonify({"error": "assessment not found"}), 404
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "a JSON object body is required"}), 400
+    try:
+        _apply_edit(assessment, data)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    db.session.commit()
+    return jsonify(assessment.to_dict())
+
+
 @bp.route("/assessments/<int:assessment_id>", methods=["DELETE"])
 def delete_assessment(assessment_id):
     assessment = db.session.get(Assessment, assessment_id)
@@ -218,6 +268,17 @@ def delete_assessment(assessment_id):
     db.session.delete(assessment)
     db.session.commit()
     return "", 204
+
+
+@bp.route("/assessments/<int:assessment_id>/delete", methods=["POST"])
+def delete_assessment_form(assessment_id):
+    """Browser form: delete an assessment, then return to the index."""
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None:
+        abort(404)
+    db.session.delete(assessment)
+    db.session.commit()
+    return redirect(url_for("health.index"))
 
 
 def _wants_html() -> bool:

@@ -13,6 +13,7 @@ class TestConfig:
     VGARDEN_PUBLIC_URL = "http://vgarden.test"
     WTF_CSRF_ENABLED = False
     TESTING = True
+    SEED_DEMO_DATA = False
 
 
 @pytest.fixture

@@ -63,6 +63,106 @@ PLANT_REFERENCES = [
         },
         "planting_months": [1, 8, 9, 10, 11, 12],
     },
+    {
+        "plant": {
+            "slug": "capsicum",
+            "common_name": "Capsicum",
+            "scientific_name": "Capsicum annuum",
+            "family": "Solanaceae",
+            "summary": "A warm-season fruiting vegetable that needs a long, frost-free season.",
+        },
+        "planting_months": [9, 10, 11],
+    },
+    {
+        "plant": {
+            "slug": "spinach",
+            "common_name": "Spinach",
+            "scientific_name": "Spinacia oleracea",
+            "family": "Amaranthaceae",
+            "summary": "A fast cool-season leaf crop that bolts in summer heat.",
+        },
+        "planting_months": [3, 4, 5, 6, 7, 8],
+    },
+    {
+        "plant": {
+            "slug": "pea",
+            "common_name": "Pea",
+            "scientific_name": "Pisum sativum",
+            "family": "Fabaceae",
+            "summary": "A cool-season climbing legume; sow direct and give it support.",
+        },
+        "planting_months": [3, 4, 5, 8, 9],
+    },
+    {
+        "plant": {
+            "slug": "bean",
+            "common_name": "Bush Bean",
+            "scientific_name": "Phaseolus vulgaris",
+            "family": "Fabaceae",
+            "summary": "A quick warm-season legume; direct-sow after the last frost.",
+        },
+        "planting_months": [9, 10, 11, 12, 1, 2],
+    },
+    {
+        "plant": {
+            "slug": "cucumber",
+            "common_name": "Cucumber",
+            "scientific_name": "Cucumis sativus",
+            "family": "Cucurbitaceae",
+            "summary": "A vining warm-season crop that fruits fast in fertile, moist soil.",
+        },
+        "planting_months": [9, 10, 11, 12, 1],
+    },
+    {
+        "plant": {
+            "slug": "beetroot",
+            "common_name": "Beetroot",
+            "scientific_name": "Beta vulgaris",
+            "family": "Amaranthaceae",
+            "summary": "A dual-purpose root and leaf crop, direct-sown across most of the year.",
+        },
+        "planting_months": [1, 2, 3, 8, 9, 10, 11, 12],
+    },
+    {
+        "plant": {
+            "slug": "kale",
+            "common_name": "Kale",
+            "scientific_name": "Brassica oleracea",
+            "family": "Brassicaceae",
+            "summary": "A hardy leafy brassica that sweetens after cold weather.",
+        },
+        "planting_months": [2, 3, 4, 5, 9, 10],
+    },
+    {
+        "plant": {
+            "slug": "coriander",
+            "common_name": "Coriander",
+            "scientific_name": "Coriandrum sativum",
+            "family": "Apiaceae",
+            "summary": "A fast herb grown for leaf and seed; bolts quickly in heat.",
+        },
+        "planting_months": [3, 4, 5, 9, 10],
+    },
+    {
+        "plant": {
+            "slug": "mint",
+            "common_name": "Mint",
+            "scientific_name": "Mentha spicata",
+            "family": "Lamiaceae",
+            "summary": "A spreading perennial herb best confined to a pot.",
+        },
+        "planting_months": [9, 10, 11, 3, 4],
+    },
+    {
+        "plant": {
+            "slug": "rosemary",
+            "common_name": "Rosemary",
+            "scientific_name": "Salvia rosmarinus",
+            "family": "Lamiaceae",
+            "summary": "A drought-tolerant woody perennial herb for a sunny, well-drained spot.",
+        },
+        "planting_months": [3, 4, 9, 10],
+    },
 ]
 
 

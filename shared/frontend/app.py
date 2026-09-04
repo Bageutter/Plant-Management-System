@@ -15,6 +15,7 @@ app.jinja_loader = ChoiceLoader([
 AUTH_URL = os.environ.get("AUTH_URL", "http://localhost:5001")
 HEALTH_URL = os.environ.get("HEALTH_URL", "http://localhost:5003/plant-health-records/")
 ALMANAC_URL = os.environ.get("ALMANAC_URL", "http://localhost:5004/")
+VGARDEN_URL = os.environ.get("VGARDEN_URL", "http://localhost:5002/")
 
 
 @app.route("/")
@@ -24,6 +25,7 @@ def index():
         auth_url=AUTH_URL,
         health_url=HEALTH_URL,
         almanac_url=ALMANAC_URL,
+        vgarden_url=VGARDEN_URL,
     )
 
 
