@@ -69,8 +69,19 @@
                  aria-hidden="true"
                  @pointerdown.prevent="startResize($event)"></div>
             <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem; border-bottom:1px solid hsl(var(--border));">
-                <div>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
                     <h2 style="font-size:1.15rem; margin:0;">Ask the Almanac</h2>
+                    <form hx-post="{{ url_for('new_ai_chat') }}"
+                          hx-target="#ai-messages"
+                          hx-swap="innerHTML"
+                          x-on:htmx:after-request="if ($event.detail.successful) { question = ''; pendingQuestion = ''; }"
+                          style="margin:0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit"
+                                style="padding:0.25rem 0.5rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--primary)); cursor:pointer; font:inherit; font-size:0.7rem; font-weight:600;">
+                            New chat
+                        </button>
+                    </form>
                 </div>
                 <button type="button"
                         aria-label="Close Almanac chat"

@@ -68,7 +68,7 @@ Recent saved messages are sent with the current question as conversational conte
 | `/api/plants` | All plant records as JSON (`GET`); create (`POST`) | Write only |
 | `/api/plants/<slug>` | One plant record (`GET`); update (`PUT`/`PATCH`); delete (`DELETE`) | Write only |
 | `/ai/ask` | Ask the grounded AI assistant (Plan → Act → Observe → Adapt loop) | Yes |
-| `/ai/clear` | Clear the current user's chat (route only; no visible button) | Yes |
+| `/ai/new` | Start a new chat with empty context | Yes |
 | `/ai/loop/<id>` | Validation report for one agentic-loop run | Yes |
 | `/health` | Database and service health check | No |
 

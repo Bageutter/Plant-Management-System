@@ -234,23 +234,23 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.auth.user = {"id": 2, "email": "other@example.com"}
         self.assertNotIn(b"Tomato answer", self.client.get("/").data)
 
-    def test_chat_history_does_not_show_clear_button(self):
-        self._set_ai(FakeAlmanacAI("Tomato answer"))
-
-        response = self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
-
+    def test_chat_header_offers_new_chat_instead_of_clear_chat(self):
+        response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
+        self.assertIn(b"New chat", response.data)
+        self.assertIn(b'hx-post="/ai/new"', response.data)
         self.assertNotIn(b"Clear chat", response.data)
-        self.assertNotIn(b'/ai/clear', response.data)
 
-    def test_clear_chat_removes_only_current_user_history(self):
+    def test_new_chat_removes_only_current_user_history(self):
         self._set_ai(FakeAlmanacAI("Tomato answer"))
         self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
         self.auth.user = {"id": 2, "email": "other@example.com"}
         self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
         self.auth.user = {"id": 1, "email": "amy@example.com"}
 
-        self.client.post("/ai/clear")
+        response = self.client.post("/ai/new")
+
+        self.assertIn(b"Ask a question to start your Almanac chat", response.data)
 
         with self.app.app_context():
             self.assertTrue(
@@ -259,6 +259,15 @@ class AlmanacAIModeTests(unittest.TestCase):
             self.assertTrue(
                 all(r.owner_key == "user:2" for r in db.session.query(AILoopRun).all())
             )
+
+    def test_new_chat_gives_the_next_question_empty_context(self):
+        fake = self._set_ai(FakeAlmanacAI("Tomato answer"))
+        self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
+
+        self.client.post("/ai/new")
+        self.client.post("/ai/ask", data={"question": "Tell me about basil"})
+
+        self.assertEqual(fake.calls[1]["grounding"]["conversation"], [])
 
     def test_loop_trace_page_is_owner_scoped(self):
         self._set_ai(FakeAlmanacAI("trace me"))

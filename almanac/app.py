@@ -616,8 +616,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             abort(404)
         return render_template("loop_trace.html", run=run)
 
-    @app.post("/ai/clear")
-    def clear_ai_chat():
+    @app.post("/ai/new")
+    def new_ai_chat():
         owner_key = _chat_owner_key()
         if owner_key is None:
             return _render_chat(None, "Your session has expired. Log in again to use the chat."), 401
