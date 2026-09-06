@@ -23,6 +23,16 @@ class FakeAlmanacAI:
         return self.answer
 
 
+class SequencedAlmanacAI(FakeAlmanacAI):
+    def __init__(self, answers):
+        super().__init__()
+        self.answers = iter(answers)
+
+    def draft(self, question, grounding, feedback=None):
+        self.calls.append({"question": question, "grounding": grounding, "feedback": feedback})
+        return next(self.answers)
+
+
 class FakeReviewer:
     """Emits verdicts from `script`, repeating the last one."""
 
@@ -152,6 +162,44 @@ class AlmanacAIModeTests(unittest.TestCase):
             run = AILoopRun.query.one()
             self.assertEqual(run.iterations, 2)
             self.assertEqual(run.verdict, "revised_capped")
+
+    def test_current_month_list_is_complete_and_not_repeated(self):
+        fake = self._set_ai(
+            SequencedAlmanacAI(
+                [
+                    (
+                        "You should plant basil, carrot, lettuce, tomato, and zucchini now. "
+                        "Specifically, in September, you can plant basil, carrot, lettuce, "
+                        "tomato, and zucchini."
+                    ),
+                    (
+                        "In September, you can plant Basil, Carrot, Lebanese Cucumber, "
+                        "Lettuce, Telegraph Improved Cucumber, Tomato, and Zucchini."
+                    ),
+                ]
+            )
+        )
+
+        response = self.client.post("/ai/ask", data={"question": "what should i plant niw"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Lebanese Cucumber", response.data)
+        self.assertIn(b"Telegraph Improved Cucumber", response.data)
+        self.assertEqual(len(fake.calls), 2)
+        self.assertEqual(
+            fake.calls[0]["grounding"]["required_answer_items"],
+            [
+                "Basil",
+                "Carrot",
+                "Lebanese Cucumber",
+                "Lettuce",
+                "Telegraph Improved Cucumber",
+                "Tomato",
+                "Zucchini",
+            ],
+        )
+        self.assertIn("Lebanese Cucumber", fake.calls[1]["feedback"])
+        self.assertIn("Basil", fake.calls[1]["feedback"])
 
     def test_ai_question_rejects_empty_input(self):
         response = self.client.post("/ai/ask", data={"question": "   "})

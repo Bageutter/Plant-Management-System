@@ -115,3 +115,32 @@ def test_review_prompt_is_versioned_alongside_ai_dev():
     # The reviewer instruction is the runtime cousin of tools/ai-dev/prompts/observe.txt.
     assert "verdict" in ai_loop.PROMPT_REVIEW
     assert "approved" in ai_loop.PROMPT_REVIEW and "revise" in ai_loop.PROMPT_REVIEW
+
+
+def test_required_answer_items_are_complete_and_not_repeated(tmp_path):
+    drafts = iter(
+        [
+            "Plant Basil now. In September, plant Basil.",
+            "In September, you can plant Basil, Carrot, and Lettuce.",
+        ]
+    )
+    feedback = []
+
+    def drafter(q, g, fb):
+        feedback.append(fb)
+        return next(drafts)
+
+    def context():
+        return {
+            "required_answer_items": ["Basil", "Carrot", "Lettuce"],
+        }, {"required_items": 3}
+
+    result = _loop(tmp_path, drafter, FakeReviewer(["approved"]), max_iterations=2).run(
+        "What can I plant now?", context
+    )
+
+    assert result.verdict == "approved"
+    assert result.iterations == 2
+    assert "Carrot" in feedback[1]
+    assert "Lettuce" in feedback[1]
+    assert "Basil" in feedback[1]

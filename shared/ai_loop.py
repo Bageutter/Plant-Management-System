@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -49,6 +50,8 @@ Return "revise" only when one of these is clearly true:
 - The question needs a fact the grounding does not contain, and the draft guesses
   or answers confidently instead of saying the information isn't available.
 - The draft does not answer the user's question, or goes off-topic.
+- When GROUNDING contains required_answer_items, the draft omits an item or
+  mentions an item more than once.
 
 If the draft only uses facts that appear in the grounding and answers the
 question, return "approved". When genuinely unsure, return "approved".
@@ -260,6 +263,45 @@ Drafter = Callable[[str, dict, "str | None"], str]
 ContextBuilder = Callable[[], "tuple[dict, dict]"]
 
 
+def _required_items_review(grounding: dict, answer: str) -> dict | None:
+    """Return revision feedback when a grounded required-item list is violated."""
+    required = [
+        str(item).strip()
+        for item in grounding.get("required_answer_items", [])
+        if str(item).strip()
+    ]
+    if not required:
+        return None
+
+    answer_lower = answer.casefold()
+    counts = {
+        item: len(re.findall(rf"(?<!\w){re.escape(item.casefold())}(?!\w)", answer_lower))
+        for item in required
+    }
+    missing = [item for item, count in counts.items() if count == 0]
+    repeated = [item for item, count in counts.items() if count > 1]
+    if not missing and not repeated:
+        return None
+
+    issues = []
+    details = []
+    if missing:
+        issues.append("Missing required items: " + ", ".join(missing))
+        details.append("add " + ", ".join(missing))
+    if repeated:
+        issues.append("Repeated required items: " + ", ".join(repeated))
+        details.append("mention " + ", ".join(repeated) + " only once")
+    return {
+        "verdict": "revise",
+        "issues": issues,
+        "guidance": (
+            "Include every required item exactly once in one concise answer; "
+            + "; ".join(details)
+            + "."
+        ),
+    }
+
+
 class AgenticLoop:
     def __init__(
         self,
@@ -324,6 +366,9 @@ class AgenticLoop:
                 return LoopResult(
                     answer, i, "fallback", run_id, logger.transcript_path, logger.events
                 )
+            required_items_review = _required_items_review(grounding, answer)
+            if required_items_review is not None:
+                review = required_items_review
             logger.phase(
                 "observe",
                 {

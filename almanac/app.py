@@ -69,6 +69,28 @@ def _records_for_question(question: str, records: list[PlantReference]) -> list[
     return matches or records
 
 
+def _asks_for_current_planting_list(
+    question: str, records: list[PlantReference]
+) -> bool:
+    """Whether this is a broad "what can I plant now?" question."""
+    question_lower = question.lower()
+    mentions_a_plant = any(
+        record.slug.lower() in question_lower
+        or record.common_name.lower() in question_lower
+        or record.scientific_name.lower() in question_lower
+        for record in records
+    )
+    if mentions_a_plant:
+        return False
+
+    words = set(re.findall(r"[a-z]+", question_lower))
+    asks_about_planting = bool(words & {"plant", "planting", "sow", "sowing", "grow"})
+    asks_about_now = bool(words & {"now", "niw", "nwo", "today", "currently"}) or (
+        "this month" in question_lower
+    )
+    return asks_about_planting and asks_about_now
+
+
 def _slugify(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
 
@@ -514,18 +536,30 @@ def create_app(test_config: dict | None = None) -> Flask:
         records = _records_for_question(question, all_records)
         plants = [record.to_dict() for record in records]
         history = [{"role": m.role, "content": m.content} for m in _chat_history(owner_key)]
+        current_month = datetime.now().strftime("%B")
+        required_answer_items = []
+        if _asks_for_current_planting_list(question, all_records):
+            required_answer_items = [
+                plant["common_name"]
+                for plant in plants
+                if current_month in plant["planting_months"]
+            ]
 
         def build_context():
             grounding = {
-                "current_month": datetime.now().strftime("%B"),
+                "current_month": current_month,
                 "plant_records": plants,
                 "conversation": history,
             }
+            if required_answer_items:
+                grounding["required_answer_items"] = required_answer_items
             plan_summary = {
                 "plant_records": len(plants),
                 "of_total": len(all_records),
                 "history_messages": len(history),
             }
+            if required_answer_items:
+                plan_summary["required_items"] = len(required_answer_items)
             return grounding, plan_summary
 
         ai_client = app.extensions["almanac_ai"]
