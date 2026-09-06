@@ -1,9 +1,16 @@
+import base64
+import io
 import os
 import tempfile
 import unittest
 
 from app import create_app
-from models import PlantingMonth, PlantReference
+from models import PlantImage, PlantingMonth, PlantReference
+
+
+PNG_1X1 = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 
 
 class FakeAuthClient:
@@ -23,6 +30,7 @@ class AlmanacCrudTests(unittest.TestCase):
                 "WTF_CSRF_ENABLED": False,
                 "SQLALCHEMY_DATABASE_URI": f"sqlite:///{os.path.join(self.tmp.name, 'a.db')}",
                 "AUTH_PUBLIC_URL": "http://auth.test",
+                "PLANT_IMAGE_FOLDER": os.path.join(self.tmp.name, "plant_images"),
             }
         )
         self.auth = FakeAuthClient({"id": 1, "email": "amy@example.com"})
@@ -60,6 +68,112 @@ class AlmanacCrudTests(unittest.TestCase):
             self.assertEqual(
                 sorted(m.month_number for m in plant.planting_months), [3, 4, 9]
             )
+
+    def test_image_picker_supports_choose_drop_and_paste(self):
+        response = self.client.get("/plants/new")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'id="plant-image-paste-zone"', response.data)
+        self.assertIn(b"Choose, drop, or paste an image", response.data)
+        self.assertIn(b"clipboardData", response.data)
+        self.assertIn(b"DataTransfer", response.data)
+        self.assertIn(b"createImageBitmap", response.data)
+        self.assertIn(b"canvas.toBlob", response.data)
+        self.assertIn(b"compressed automatically", response.data)
+
+    def test_create_plant_with_an_image(self):
+        response = self.client.post(
+            "/plants",
+            data={
+                "common_name": "Rosemary",
+                "scientific_name": "Salvia rosmarinus",
+                "image": (io.BytesIO(PNG_1X1), "rosemary.png"),
+            },
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"/plant-images/", response.data)
+        with self.app.app_context():
+            image = PlantImage.query.one()
+            filename = image.filename
+            self.assertEqual(image.content_type, "image/png")
+            self.assertTrue(os.path.isfile(os.path.join(self.tmp.name, "plant_images", filename)))
+
+        served = self.client.get(f"/plant-images/{filename}")
+        self.assertEqual(served.status_code, 200)
+        self.assertEqual(served.mimetype, "image/png")
+        self.assertEqual(served.data, PNG_1X1)
+        self.assertTrue(self.client.get("/api/plants/rosemary").get_json()["image_url"].endswith(filename))
+
+    def test_rejects_invalid_and_oversized_images(self):
+        invalid = self.client.post(
+            "/plants",
+            data={
+                "common_name": "Unsafe",
+                "scientific_name": "Invalid file",
+                "image": (io.BytesIO(b"not an image"), "unsafe.svg"),
+            },
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertIn(b"JPEG, PNG, GIF, or WebP", invalid.data)
+
+        oversized = self.client.post(
+            "/plants",
+            data={
+                "common_name": "Large",
+                "scientific_name": "Large file",
+                "image": (io.BytesIO(PNG_1X1 + b"x" * (5 * 1024 * 1024)), "large.png"),
+            },
+        )
+        self.assertEqual(oversized.status_code, 400)
+        self.assertIn(b"5 MB or smaller", oversized.data)
+        with self.app.app_context():
+            self.assertIsNone(PlantReference.query.filter_by(slug="unsafe").first())
+            self.assertIsNone(PlantReference.query.filter_by(slug="large").first())
+
+    def test_edit_can_replace_and_remove_an_image(self):
+        self.client.post(
+            "/plants",
+            data={
+                "common_name": "Sage",
+                "scientific_name": "Salvia officinalis",
+                "image": (io.BytesIO(PNG_1X1), "sage.png"),
+            },
+        )
+        with self.app.app_context():
+            original = PlantReference.query.filter_by(slug="sage").one().image.filename
+
+        replacement = b"GIF89a" + b"replacement"
+        page = self.client.post(
+            "/plants/sage/edit",
+            data={
+                "common_name": "Sage",
+                "scientific_name": "Salvia officinalis",
+                "image": (io.BytesIO(replacement), "sage.gif"),
+            },
+            follow_redirects=True,
+        )
+        self.assertIn(b"/plant-images/", page.data)
+        with self.app.app_context():
+            current = PlantReference.query.filter_by(slug="sage").one().image.filename
+            self.assertNotEqual(current, original)
+            self.assertFalse(os.path.exists(os.path.join(self.tmp.name, "plant_images", original)))
+            self.assertTrue(os.path.exists(os.path.join(self.tmp.name, "plant_images", current)))
+
+        edit_page = self.client.get("/plants/sage/edit")
+        self.assertIn(b"Remove current image", edit_page.data)
+        self.client.post(
+            "/plants/sage/edit",
+            data={
+                "common_name": "Sage",
+                "scientific_name": "Salvia officinalis",
+                "remove_image": "1",
+            },
+        )
+        with self.app.app_context():
+            self.assertIsNone(PlantReference.query.filter_by(slug="sage").one().image)
+            self.assertFalse(os.path.exists(os.path.join(self.tmp.name, "plant_images", current)))
 
     def test_create_plant_requires_a_common_and_scientific_name(self):
         response = self.client.post("/plants", data={"common_name": "  "})
@@ -125,10 +239,12 @@ class AlmanacCrudTests(unittest.TestCase):
                 "common_name": "Dill",
                 "scientific_name": "Anethum graveolens",
                 "months": ["7", "8", "9"],
+                "image": (io.BytesIO(PNG_1X1), "dill.png"),
             },
         )
         with self.app.app_context():
             before = PlantingMonth.query.count()
+            image_filename = PlantReference.query.filter_by(slug="dill").one().image.filename
 
         response = self.client.post("/plants/dill/delete", follow_redirects=True)
 
@@ -136,6 +252,9 @@ class AlmanacCrudTests(unittest.TestCase):
         with self.app.app_context():
             self.assertIsNone(PlantReference.query.filter_by(slug="dill").first())
             self.assertEqual(PlantingMonth.query.count(), before - 3)  # cascade
+            self.assertFalse(
+                os.path.exists(os.path.join(self.tmp.name, "plant_images", image_filename))
+            )
 
     def test_delete_requires_login(self):
         self.auth.user = None

@@ -8,6 +8,11 @@
         ← Back to Almanac
     </a>
 
+    {% if plant.image_url %}
+    <img src="{{ plant.image_url }}" alt="{{ plant.common_name }}"
+         style="display:block; width:100%; max-height:24rem; object-fit:cover; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); margin-bottom:1.5rem;">
+    {% endif %}
+
     <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
         <div>
             <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:hsl(var(--muted-foreground)); margin:0 0 0.4rem;">{{ plant.scientific_name }}</p>

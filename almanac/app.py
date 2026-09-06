@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import uuid
 from datetime import datetime
 
 from flask import (
@@ -13,11 +14,13 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     url_for,
 )
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import text
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -30,7 +33,7 @@ if os.path.isdir(_SHARED) and _SHARED not in sys.path:
 from ai import AIUnavailableError, OllamaAlmanacAI, sources_for_text
 from auth_client import AuthClient
 from extensions import csrf, db
-from models import AIChatMessage, AILoopRun, PlantingMonth, PlantReference
+from models import AIChatMessage, AILoopRun, PlantImage, PlantingMonth, PlantReference
 from seed_data import seed_reference_data
 
 try:
@@ -39,6 +42,7 @@ except ImportError:  # bare image without shared/ai_loop.py mounted -> single-sh
     ai_loop = None
 
 CHAT_HISTORY_LIMIT = 20
+MAX_PLANT_IMAGE_BYTES = 5 * 1024 * 1024
 
 
 class _SingleShot:
@@ -119,6 +123,62 @@ def _apply_plant(plant: PlantReference, fields: dict, months: list[int]) -> None
         plant.planting_months.append(PlantingMonth(month_number=number))
 
 
+def _image_type(data: bytes) -> tuple[str, str] | None:
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png", "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "jpg", "image/jpeg"
+    if data.startswith((b"GIF87a", b"GIF89a")):
+        return "gif", "image/gif"
+    if len(data) >= 12 and data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        return "webp", "image/webp"
+    return None
+
+
+def _store_uploaded_image(upload) -> tuple[dict | None, str | None]:
+    if upload is None or not upload.filename:
+        return None, None
+
+    data = upload.read(MAX_PLANT_IMAGE_BYTES + 1)
+    if not data:
+        return None, "Choose a non-empty image file."
+    if len(data) > MAX_PLANT_IMAGE_BYTES:
+        return None, "Plant images must be 5 MB or smaller."
+
+    detected = _image_type(data)
+    if detected is None:
+        return None, "Plant images must be JPEG, PNG, GIF, or WebP files."
+
+    extension, content_type = detected
+    filename = f"{uuid.uuid4().hex}.{extension}"
+    original_name = secure_filename(upload.filename) or f"plant-image.{extension}"
+    destination = os.path.join(current_app.config["PLANT_IMAGE_FOLDER"], filename)
+    with open(destination, "wb") as image_file:
+        image_file.write(data)
+    return {
+        "filename": filename,
+        "original_name": original_name[:255],
+        "content_type": content_type,
+    }, None
+
+
+def _delete_image_file(filename: str | None) -> None:
+    if not filename or filename != os.path.basename(filename):
+        return
+    try:
+        os.remove(os.path.join(current_app.config["PLANT_IMAGE_FOLDER"], filename))
+    except FileNotFoundError:
+        pass
+
+
+def _plant_payload(plant: PlantReference) -> dict:
+    payload = plant.to_dict()
+    payload["image_url"] = (
+        url_for("plant_image_file", filename=plant.image.filename) if plant.image else None
+    )
+    return payload
+
+
 def _current_auth_user() -> dict | None:
     if "auth_user" not in g:
         g.auth_user = current_app.extensions["auth_client"].current_user(
@@ -196,6 +256,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         AI_LOOP_LOG_DIR=os.environ.get(
             "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
         ),
+        PLANT_IMAGE_FOLDER=os.environ.get(
+            "PLANT_IMAGE_FOLDER", os.path.join(BASE_DIR, "instance", "plant_images")
+        ),
     )
     if test_config:
         app.config.update(test_config)
@@ -205,6 +268,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         database_directory = os.path.dirname(db_uri.removeprefix("sqlite:///"))
         if database_directory:
             os.makedirs(database_directory, exist_ok=True)
+    os.makedirs(app.config["PLANT_IMAGE_FOLDER"], exist_ok=True)
 
     db.init_app(app)
     csrf.init_app(app)
@@ -230,7 +294,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.get("/")
     def index():
         plants = PlantReference.query.order_by(PlantReference.common_name).all()
-        plants = [p.to_dict() for p in plants]
+        plants = [_plant_payload(p) for p in plants]
         owner_key = _chat_owner_key()
         messages, sources = _chat_context(owner_key) if owner_key else ([], {})
         return render_template(
@@ -245,7 +309,11 @@ def create_app(test_config: dict | None = None) -> Flask:
         plant = PlantReference.query.filter_by(slug=slug).first()
         if plant is None:
             return render_template("404.html"), 404
-        return render_template("plant_detail.html", plant=plant.to_dict())
+        return render_template("plant_detail.html", plant=_plant_payload(plant))
+
+    @app.get("/plant-images/<path:filename>")
+    def plant_image_file(filename: str):
+        return send_from_directory(app.config["PLANT_IMAGE_FOLDER"], filename, max_age=86400)
 
     # --- Plant reference CRUD (browser, login-gated) ---
 
@@ -276,8 +344,17 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "plant_form.html", plant=None, months=months, mode="new", fields=fields
             ), 400
 
+        image_data, image_error = _store_uploaded_image(request.files.get("image"))
+        if image_error:
+            flash(image_error, "error")
+            return render_template(
+                "plant_form.html", plant=None, months=months, mode="new", fields=fields
+            ), 400
+
         plant = PlantReference(slug=_unique_slug(_slugify(fields["common_name"])))
         _apply_plant(plant, fields, months)
+        if image_data:
+            plant.image = PlantImage(**image_data)
         db.session.add(plant)
         db.session.commit()
         flash(f'Added "{plant.common_name}".', "success")
@@ -310,8 +387,28 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "plant_form.html", plant=plant, months=months, mode="edit", fields=fields
             ), 400
 
+        image_data, image_error = _store_uploaded_image(request.files.get("image"))
+        if image_error:
+            flash(image_error, "error")
+            return render_template(
+                "plant_form.html", plant=plant, months=months, mode="edit", fields=fields
+            ), 400
+
         _apply_plant(plant, fields, months)
+        old_filename = None
+        if image_data:
+            if plant.image:
+                old_filename = plant.image.filename
+                plant.image.filename = image_data["filename"]
+                plant.image.original_name = image_data["original_name"]
+                plant.image.content_type = image_data["content_type"]
+            else:
+                plant.image = PlantImage(**image_data)
+        elif request.form.get("remove_image") == "1" and plant.image:
+            old_filename = plant.image.filename
+            plant.image = None
         db.session.commit()
+        _delete_image_file(old_filename)
         flash("Saved.", "success")
         return redirect(url_for("plant_detail", slug=plant.slug))
 
@@ -324,8 +421,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         if plant is None:
             return render_template("404.html"), 404
         name = plant.common_name
+        image_filename = plant.image.filename if plant.image else None
         db.session.delete(plant)
         db.session.commit()
+        _delete_image_file(image_filename)
         flash(f'Deleted "{name}".', "success")
         return redirect(url_for("index"))
 
@@ -334,14 +433,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.get("/api/plants")
     def api_plants():
         records = PlantReference.query.order_by(PlantReference.common_name).all()
-        return jsonify({"count": len(records), "items": [r.to_dict() for r in records]})
+        return jsonify({"count": len(records), "items": [_plant_payload(r) for r in records]})
 
     @app.get("/api/plants/<slug>")
     def api_plant(slug: str):
         record = PlantReference.query.filter_by(slug=slug).first()
         if record is None:
             return jsonify({"error": "plant reference not found"}), 404
-        return jsonify(record.to_dict())
+        return jsonify(_plant_payload(record))
 
     def _api_user_or_401():
         return _current_auth_user()
@@ -369,7 +468,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         _apply_plant(plant, fields, months)
         db.session.add(plant)
         db.session.commit()
-        return jsonify(plant.to_dict()), 201
+        return jsonify(_plant_payload(plant)), 201
 
     @app.route("/api/plants/<slug>", methods=["PUT", "PATCH"])
     @csrf.exempt
@@ -384,7 +483,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             return jsonify({"error": error}), 400
         _apply_plant(plant, fields, months)
         db.session.commit()
-        return jsonify(plant.to_dict())
+        return jsonify(_plant_payload(plant))
 
     @app.delete("/api/plants/<slug>")
     @csrf.exempt
@@ -394,8 +493,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         plant = PlantReference.query.filter_by(slug=slug).first()
         if plant is None:
             return jsonify({"error": "plant reference not found"}), 404
+        image_filename = plant.image.filename if plant.image else None
         db.session.delete(plant)
         db.session.commit()
+        _delete_image_file(image_filename)
         return "", 204
 
     @app.post("/ai/ask")

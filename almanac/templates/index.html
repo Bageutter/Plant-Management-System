@@ -147,6 +147,11 @@
         <a href="{{ url_for('plant_detail', slug=plant.slug) }}"
            class="card-interactive"
            style="display:block; padding:1.5rem; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); background-color:hsl(var(--card));">
+            {% if plant.image_url %}
+            <img src="{{ plant.image_url }}" alt="{{ plant.common_name }}"
+                 loading="lazy"
+                 style="display:block; width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:var(--uk-global-radius-s); margin-bottom:1rem;">
+            {% endif %}
             <p style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.07em; color:hsl(var(--muted-foreground)); margin:0 0 0.35rem;">{{ plant.scientific_name }}</p>
             <h2 style="font-size:1.2rem; font-weight:600; margin:0;">{{ plant.common_name }}</h2>
             {% if plant.summary %}
