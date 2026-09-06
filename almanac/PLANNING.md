@@ -35,6 +35,7 @@ The seed commands are repeatable. `refresh-garden` cleans imported/estimated wor
 4. In the same form, select soil/water/sun preferences, one forest layer, multiple garden functions and uses, a part used and a rotation group. Enter comma-separated pest/disease names; these become shared linked records.
 5. On a plant detail page, select a companion plant and a garden function in **Guild suggestions**. Save notes, or remove the matching plant/function suggestion. Links are directional; reverse relationships must be added separately.
 6. Hover, focus or tap a **?** beside a field to read a short explanation. Press Escape or click outside to dismiss it. Rotation guidance explains where to plant next; sowing notes appear under **When to Plant**.
+7. Select a pest or disease on a plant to open its placeholder reference page. `/pests` and `/diseases` list the shared records and their linked plant counts; each detail page links back to the affected plants.
 
 The calculator rounds `target / yield per plant` upward. Growing area is `plants × in-row cm × row cm / 10,000`. Target and recorded units must match; there is no hidden kg/g or fruit/kg conversion. A harvest window means the entire stated production period, not a yield at every picking. A head/root crop yields once. The result excludes paths, germination losses, immature plants, pollination block geometry and seasonal gaps; succession reminders do not promise continuous supply.
 

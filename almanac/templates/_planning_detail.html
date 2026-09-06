@@ -10,11 +10,18 @@
 {% if not plant.yield_qty or not plant.plants_per_m2 %}<p class="text-muted-foreground" style="margin-top:1rem;">To calculate, record yield quantity, yield unit and both spacings in Edit plant.</p>{% endif %}
 <div id="harvest-result" role="status" aria-live="polite"></div>
 </section>
-{% for title, keys in [('Yield & spacing',['yield_wording','yield_qty','yield_unit','in_row_spacing_cm','row_spacing_cm','succession_interval_days','harvest_window_weeks']),('Soil & care',['feeder_type','soil_ph_min','soil_ph_max','water_needs','sun_needs','care_notes','management_notes']),('Food forest & uses',['forest_layer','function_tags','uses','part_used','uses_notes']),('Pests & diseases',['pests','diseases'])] %}
+{% for title, keys in [('Yield & spacing',['yield_wording','yield_qty','yield_unit','in_row_spacing_cm','row_spacing_cm','succession_interval_days','harvest_window_weeks']),('Soil & care',['feeder_type','soil_ph_min','soil_ph_max','water_needs','sun_needs','care_notes','management_notes']),('Food forest & uses',['forest_layer','function_tags','uses','part_used','uses_notes'])] %}
 <section class="planning-card" style="margin-top:1.2rem;"><h2 style="font-size:1.25rem; margin-bottom:1rem;">{{ title }}</h2><dl class="planning-grid">
 {% for key in keys %}<div><dt class="text-muted-foreground" style="font-size:.8rem;">{{ numeric_fields.get(key) or text_fields.get(key) or key.replace('_',' ').capitalize() }} {{ help(key, numeric_fields.get(key) or text_fields.get(key) or key.replace("_"," ")) }}</dt><dd style="margin:.25rem 0 .8rem; white-space:pre-line;">{% if key in ['function_tags','uses','pests','diseases'] %}{{ plant[key]|join(', ') or 'Not recorded' }}{% else %}{{ plant[key] if plant[key] is not none else 'Not recorded' }}{% endif %}</dd></div>{% endfor %}
 </dl></section>
 {% endfor %}
+<section class="planning-card" style="margin-top:1.2rem;">
+<h2 style="font-size:1.25rem;">Pests & diseases</h2>
+<div class="problem-columns">
+<div><h3>Pests {{ help('pests', 'pests') }}</h3><div class="problem-tags">{% for pest in plant.pest_links %}<a class="tag" href="{{ url_for('pest_detail', pest_id=pest.id) }}">{{ pest.name }}</a>{% else %}<span class="text-muted-foreground">None recorded</span>{% endfor %}</div><a class="problem-browse" href="{{ url_for('pest_index') }}">Browse all pests →</a></div>
+<div><h3>Diseases {{ help('diseases', 'diseases') }}</h3><div class="problem-tags">{% for disease in plant.disease_links %}<a class="tag" href="{{ url_for('disease_detail', disease_id=disease.id) }}">{{ disease.name }}</a>{% else %}<span class="text-muted-foreground">None recorded</span>{% endfor %}</div><a class="problem-browse" href="{{ url_for('disease_index') }}">Browse all diseases →</a></div>
+</div>
+</section>
 <section class="planning-card" style="margin-top:1.2rem;">
 <h2 style="font-size:1.25rem;">Crop rotation {{ help('rotation_group', 'crop rotation') }}</h2>
 {% if plant.rotation_group %}

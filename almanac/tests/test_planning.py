@@ -218,3 +218,33 @@ def test_guild_seed_is_repeatable_and_keeps_edited_links(app):
     assert seed_guilds() == 0
     assert link.notes == "My own planting notes"
     assert all(link.plant_id != link.companion_id for link in PlantCompanion.query.all())
+
+
+def test_pest_and_disease_pages_link_back_to_plants(app):
+    from garden_data import refresh_garden_wording
+
+    import_notion()
+    seed_estimates()
+    refresh_garden_wording()
+    client = app.test_client()
+
+    pests = client.get("/pests")
+    assert pests.status_code == 200
+    assert b"Aphids" in pests.data
+    assert b"Slugs and snails" in pests.data
+
+    plant = PlantReference.query.filter_by(slug="bunching-onion-winter-ishikura").one()
+    plant_page = client.get(f"/plants/{plant.slug}")
+    aphids = next(pest for pest in plant.pests if pest.name == "Aphids")
+    assert 1 < len(aphids.plants) < PlantReference.query.count()
+    assert f"/pests/{aphids.id}".encode() in plant_page.data
+
+    detail = client.get(f"/pests/{aphids.id}")
+    assert detail.status_code == 200
+    assert b"Small sap-feeding insects" in detail.data
+    assert plant.common_name.encode() in detail.data
+
+    diseases = client.get("/diseases")
+    assert diseases.status_code == 200
+    assert b"Powdery mildew" in diseases.data
+    assert client.get("/pests/999999").status_code == 404
