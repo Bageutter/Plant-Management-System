@@ -73,9 +73,11 @@ and `PROMPT_REVIEW` (in `shared/ai_loop.py`) together.
    human-readable file per run: the question, each draft, each review, the adapt
    decision, the final answer.
 
-Plus, in the app: a `🔄 Plan → Act → Observe → Adapt · N iterations · reviewed ✓`
-badge under every AI answer, expandable to the per-iteration draft→verdict list
-and linking to `GET /…/ai/loop/<run_id>`, which renders the full trace.
+In the Almanac chat, each assistant answer has a compact validation status link.
+Opening it loads `GET /almanac/ai/loop/<run_id>` into a report popup with the
+question, final answer, Plan/Act/Observe/Adapt process summaries, reviewer result,
+and phase durations. The report exposes validation evidence without showing private
+model reasoning; the same URL still works as a standalone page.
 
 ### Viewing it
 
