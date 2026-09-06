@@ -10,7 +10,8 @@ The project is built around a **microservice architecture**, with the **Virtual 
 
 branch → PR → review → merge.
 
-each contributor has a personal workflow placeholder (`amy.yml`, `yunus.yml`, `guhan.yml`) — implement yours as needed.
+service workflows cover contributor-owned areas. Amy's `plant_almanac.yml` runs
+Ruff, Almanac tests, and an Almanac Docker build for relevant changes on `amy/**`.
 
 shared CI:
 - [`ruff.yml`](.github/workflows/ruff.yml) — lints every Python service on every PR and push to `main`

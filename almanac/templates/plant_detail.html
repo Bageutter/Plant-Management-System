@@ -8,13 +8,18 @@
         ← Back to Almanac
     </a>
 
+    {% if plant.image_url %}
+    <img src="{{ plant.image_url }}" alt="{{ plant.common_name }}"
+         style="display:block; width:100%; max-height:24rem; object-fit:cover; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); margin-bottom:1.5rem;">
+    {% endif %}
+
     <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
         <div>
             <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:hsl(var(--muted-foreground)); margin:0 0 0.4rem;">{{ plant.scientific_name }}</p>
             <h1 style="font-size:2.5rem; font-weight:700; margin:0 0 1.5rem;">{{ plant.common_name }}</h1>
         </div>
         {% if auth_user %}
-        <a href="{{ url_for('edit_plant', slug=plant.slug) }}" class="uk-btn uk-btn-default uk-btn-sm" style="flex:none;">Edit</a>
+        <a href="{{ url_for('edit_plant', slug=plant.slug) }}" class="uk-btn uk-btn-primary uk-btn-sm" style="flex:none;">Edit</a>
         {% endif %}
     </div>
 

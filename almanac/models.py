@@ -23,6 +23,12 @@ class PlantReference(db.Model):
         cascade="all, delete-orphan",
         order_by="PlantingMonth.month_number",
     )
+    image = db.relationship(
+        "PlantImage",
+        back_populates="plant",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
     def to_dict(self) -> dict:
         return {
@@ -60,6 +66,21 @@ class PlantingMonth(db.Model):
     @property
     def name(self) -> str:
         return month_name[self.month_number]
+
+
+class PlantImage(db.Model):
+    __tablename__ = "plant_images"
+
+    id = db.Column(db.Integer, primary_key=True)
+    plant_reference_id = db.Column(
+        db.Integer,
+        db.ForeignKey("plant_references.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    filename = db.Column(db.String(80), nullable=False, unique=True)
+
+    plant = db.relationship("PlantReference", back_populates="image")
 
 
 class AIChatMessage(db.Model):

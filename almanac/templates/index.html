@@ -2,6 +2,74 @@
 
 {% block title %}Plant Almanac{% endblock %}
 
+{% block extra_head %}
+<style>
+    .ai-validation-link {
+        display: flex;
+        min-height: 2.25rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 0.65rem;
+        padding-top: 0.55rem;
+        border-top: 1px solid hsl(var(--border));
+        color: hsl(var(--primary));
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+    .ai-validation-link:hover { text-decoration: underline; }
+    .validation-report-dialog {
+        width: min(56rem, calc(100vw - 2rem));
+        max-width: none;
+        height: min(48rem, calc(100vh - 2rem));
+        max-height: none;
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid hsl(var(--border));
+        border-radius: 1rem;
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        box-shadow: 0 24px 70px hsl(150 20% 10% / 0.28);
+    }
+    .validation-report-dialog::backdrop {
+        background: hsl(150 20% 10% / 0.46);
+        backdrop-filter: blur(2px);
+    }
+    .validation-report-dialog__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid hsl(var(--border));
+        background: hsl(var(--card));
+    }
+    .validation-report-dialog__header h2 { margin: 0; font-size: 1.1rem; }
+    .validation-report-dialog__close {
+        display: grid;
+        width: 2.25rem;
+        height: 2.25rem;
+        flex: none;
+        padding: 0;
+        place-items: center;
+        border: 0;
+        border-radius: 9999px;
+        background: hsl(var(--muted));
+        color: hsl(var(--foreground));
+        cursor: pointer;
+        font: inherit;
+        font-size: 1.25rem;
+    }
+    .validation-report-dialog__content {
+        height: calc(100% - 3.9rem);
+        box-sizing: border-box;
+        overflow: auto;
+        padding: 1.25rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div style="max-width:56rem; margin:0 auto;">
     <div style="margin-bottom:2.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
@@ -12,7 +80,40 @@
     </div>
 
     {% if auth_user %}
-    <div x-data="{ chatOpen: false, question: '', pendingQuestion: '' }" @keydown.escape.window="chatOpen = false">
+    <div x-data="{
+             chatOpen: false,
+             question: '',
+             pendingQuestion: '',
+             chatWidth: Number(localStorage.getItem('almanac-chat-width')) || 416,
+             chatHeight: Number(localStorage.getItem('almanac-chat-height')) || 608,
+             setChatSize(width, height) {
+                 this.chatWidth = Math.min(window.innerWidth - 32, Math.max(360, width));
+                 this.chatHeight = Math.min(window.innerHeight - 40, Math.max(400, height));
+                 localStorage.setItem('almanac-chat-width', this.chatWidth);
+                 localStorage.setItem('almanac-chat-height', this.chatHeight);
+             },
+             startResize(event) {
+                 if (window.matchMedia('(max-width: 40rem)').matches) return;
+                 const startX = event.clientX;
+                 const startY = event.clientY;
+                 const startWidth = this.chatWidth;
+                 const startHeight = this.chatHeight;
+                 const move = (moveEvent) => this.setChatSize(
+                     startWidth + startX - moveEvent.clientX,
+                     startHeight + startY - moveEvent.clientY
+                 );
+                 const stop = () => {
+                     window.removeEventListener('pointermove', move);
+                     window.removeEventListener('pointerup', stop);
+                     window.removeEventListener('pointercancel', stop);
+                 };
+                 window.addEventListener('pointermove', move);
+                 window.addEventListener('pointerup', stop, { once: true });
+                 window.addEventListener('pointercancel', stop, { once: true });
+             }
+         }"
+         @keydown.escape.window="chatOpen = false"
+         @resize.window="setChatSize(chatWidth, chatHeight)">
         <button type="button"
                 class="ai-chat-launcher"
                 aria-controls="ai-chat-panel"
@@ -30,10 +131,26 @@
                aria-label="Plant Almanac chat"
                x-cloak
                x-show="chatOpen"
+               :style="'--chat-width:' + chatWidth + 'px; --chat-height:' + chatHeight + 'px'"
                x-transition.origin.bottom.right>
+            <div class="ai-chat-resize-corner"
+                 aria-hidden="true"
+                 @pointerdown.prevent="startResize($event)"></div>
             <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem; border-bottom:1px solid hsl(var(--border));">
-                <div>
+                <div style="display:flex; align-items:center; gap:0.75rem;">
                     <h2 style="font-size:1.15rem; margin:0;">Ask the Almanac</h2>
+                    <form hx-post="{{ url_for('clear_ai_chat') }}"
+                          hx-target="#ai-messages"
+                          hx-swap="innerHTML"
+                          hx-confirm="Start a new chat? This removes the current conversation."
+                          x-on:htmx:after-request="if ($event.detail.successful) { question = ''; pendingQuestion = ''; }"
+                          style="margin:0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit"
+                                style="padding:0.25rem 0.5rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--primary)); cursor:pointer; font:inherit; font-size:0.7rem; font-weight:600;">
+                            New chat
+                        </button>
+                    </form>
                 </div>
                 <button type="button"
                         aria-label="Close Almanac chat"
@@ -93,7 +210,7 @@
                               style="min-height:2.6rem; flex:1; box-sizing:border-box; padding:0.65rem 0.75rem; resize:none; border:1px solid hsl(var(--border)); border-radius:0.75rem; background:hsl(var(--background)); color:hsl(var(--foreground));"></textarea>
                     <button type="submit" class="uk-btn uk-btn-primary uk-btn-sm" style="height:2.6rem;">Send</button>
                 </form>
-                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="display:block; font-size:0.7rem; margin-top:0.35rem;">Planning · drafting · reviewing locally… (may take a minute)</span>
+                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="display:block; font-size:0.7rem; margin-top:0.35rem;">Planning · drafting · reviewing locally… The first answer may take several minutes while the models load.</span>
             </footer>
         </aside>
     </div>
@@ -110,6 +227,11 @@
         <a href="{{ url_for('plant_detail', slug=plant.slug) }}"
            class="card-interactive"
            style="display:block; padding:1.5rem; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); background-color:hsl(var(--card));">
+            {% if plant.image_url %}
+            <img src="{{ plant.image_url }}" alt="{{ plant.common_name }}"
+                 loading="lazy"
+                 style="display:block; width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:var(--uk-global-radius-s); margin-bottom:1rem;">
+            {% endif %}
             <p style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.07em; color:hsl(var(--muted-foreground)); margin:0 0 0.35rem;">{{ plant.scientific_name }}</p>
             <h2 style="font-size:1.2rem; font-weight:600; margin:0;">{{ plant.common_name }}</h2>
             {% if plant.summary %}
@@ -125,4 +247,57 @@
     </div>
     {% endif %}
 </div>
+
+<dialog id="validation-report-dialog" class="validation-report-dialog" aria-labelledby="validation-report-dialog-title">
+    <div class="validation-report-dialog__header">
+        <h2 id="validation-report-dialog-title">Answer validation report</h2>
+        <button type="button" class="validation-report-dialog__close" data-validation-report-close aria-label="Close validation report">×</button>
+    </div>
+    <div id="validation-report-dialog-content" class="validation-report-dialog__content" aria-live="polite"></div>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const validationDialog = document.getElementById('validation-report-dialog');
+    const validationDialogContent = document.getElementById('validation-report-dialog-content');
+
+    document.addEventListener('click', async (event) => {
+        const closeButton = event.target.closest('[data-validation-report-close]');
+        if (closeButton) {
+            validationDialog.close();
+            return;
+        }
+
+        const reportLink = event.target.closest('[data-validation-report]');
+        if (!reportLink || typeof validationDialog.showModal !== 'function') return;
+
+        event.preventDefault();
+        validationDialogContent.textContent = 'Loading validation report…';
+        validationDialog.showModal();
+
+        try {
+            const response = await fetch(reportLink.href, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            });
+            if (!response.ok) throw new Error('Report unavailable');
+
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const report = page.querySelector('.validation-report');
+            if (!report) throw new Error('Report unavailable');
+            validationDialogContent.replaceChildren(report);
+        } catch (error) {
+            const message = document.createElement('p');
+            message.textContent = 'The validation report could not be loaded.';
+            const fallback = document.createElement('a');
+            fallback.href = reportLink.href;
+            fallback.textContent = 'Open the report as a page →';
+            validationDialogContent.replaceChildren(message, fallback);
+        }
+    });
+
+    validationDialog.addEventListener('click', (event) => {
+        if (event.target === validationDialog) validationDialog.close();
+    });
+</script>
 {% endblock %}

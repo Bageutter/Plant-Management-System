@@ -27,6 +27,30 @@
         font-weight: 600;
     }
     .month-toggle:has(input:checked) input { accent-color: hsl(var(--primary-foreground)); }
+    .image-paste-zone {
+        display: grid;
+        min-height: 9rem;
+        padding: 1rem;
+        place-items: center;
+        border: 1px dashed hsl(var(--primary));
+        border-radius: var(--uk-global-radius-s);
+        background: hsl(var(--accent) / 0.35);
+        color: hsl(var(--muted-foreground));
+        cursor: pointer;
+        text-align: center;
+    }
+    .image-paste-zone:hover,
+    .image-paste-zone:focus-visible {
+        background: hsl(var(--accent) / 0.65);
+    }
+    .image-paste-zone img {
+        display: block;
+        width: 100%;
+        max-height: 16rem;
+        object-fit: contain;
+        border-radius: var(--uk-global-radius-s);
+    }
+    .image-paste-zone img[hidden] { display: none; }
     /* Fallback for browsers without :has() — the native checkbox still shows a tick. */
 </style>
 {% endblock %}
@@ -41,6 +65,7 @@
     </h1>
 
     <form method="post"
+          enctype="multipart/form-data"
           action="{{ url_for('update_plant', slug=plant.slug) if is_edit else url_for('create_plant') }}"
           style="display:grid; gap:1.1rem;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -68,6 +93,34 @@
             <textarea class="uk-textarea" name="summary" rows="3">{{ f.summary if f else (plant.summary if is_edit else '') }}</textarea>
         </label>
 
+        <div style="display:grid; gap:0.35rem;">
+            <span class="uk-form-label">Plant image</span>
+            <input id="plant-image-input" class="sr-only" type="file" name="image"
+                   accept="image/jpeg,image/png,image/gif,image/webp">
+            <div id="plant-image-paste-zone" class="image-paste-zone" role="button" tabindex="0"
+                 aria-describedby="plant-image-help plant-image-status">
+                <div id="plant-image-prompt">
+                    <strong style="display:block; color:hsl(var(--foreground));">Choose, drop, or paste an image</strong>
+                    <span style="display:block; margin-top:0.3rem; font-size:0.8rem;">Click here, then press ⌘V or Ctrl+V</span>
+                </div>
+                <img id="plant-image-preview" alt="New plant image preview" hidden>
+            </div>
+            <span id="plant-image-help" class="text-muted-foreground" style="font-size:0.75rem;">Large photos are compressed automatically · maximum upload 5 MB</span>
+            <span id="plant-image-status" class="text-muted-foreground" style="font-size:0.75rem;" aria-live="polite"></span>
+        </div>
+
+        {% if is_edit and plant.image %}
+        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <img src="{{ url_for('plant_image_file', filename=plant.image.filename) }}"
+                 alt="Current image for {{ plant.common_name }}"
+                 style="width:7rem; height:5rem; object-fit:cover; border-radius:var(--uk-global-radius-s); border:1px solid hsl(var(--border));">
+            <label style="display:inline-flex; align-items:center; gap:0.45rem; font-size:0.85rem;">
+                <input type="checkbox" name="remove_image" value="1">
+                Remove current image
+            </label>
+        </div>
+        {% endif %}
+
         <fieldset style="border:1px solid hsl(var(--border)); border-radius:var(--uk-global-radius-s); padding:1rem;">
             <legend class="uk-form-label" style="padding:0 0.4rem;">Planting months</legend>
             <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
@@ -78,9 +131,6 @@
                 </label>
                 {% endfor %}
             </div>
-            <p class="text-muted-foreground" style="font-size:0.75rem; margin:0.75rem 0 0;">
-                Selected months are filled in. Leave all unchecked if planting time isn't known.
-            </p>
         </fieldset>
 
         <div style="display:flex; gap:0.75rem;">
@@ -99,4 +149,103 @@
     </form>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (() => {
+        const input = document.getElementById('plant-image-input');
+        const zone = document.getElementById('plant-image-paste-zone');
+        const prompt = document.getElementById('plant-image-prompt');
+        const preview = document.getElementById('plant-image-preview');
+        const status = document.getElementById('plant-image-status');
+        let previewUrl = null;
+
+        const formatBytes = (bytes) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+        const compressImage = async (file) => {
+            if (file.type === 'image/gif' || typeof createImageBitmap !== 'function') return file;
+
+            const bitmap = await createImageBitmap(file);
+            const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+            if (file.size <= 1024 * 1024 && scale === 1) {
+                bitmap.close();
+                return file;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            bitmap.close();
+
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
+            if (!blob || blob.size >= file.size) return file;
+
+            const baseName = (file.name || 'pasted-plant').replace(/\.[^.]+$/, '');
+            return new File([blob], `${baseName}.webp`, {
+                type: 'image/webp',
+                lastModified: Date.now(),
+            });
+        };
+
+        const showFile = async (file) => {
+            if (!file || !file.type.startsWith('image/')) {
+                status.textContent = 'Paste or choose an image file.';
+                return;
+            }
+
+            status.textContent = 'Preparing image…';
+            let prepared = file;
+            try {
+                prepared = await compressImage(file);
+            } catch (error) {
+                prepared = file;
+            }
+
+            if (prepared.size > 5 * 1024 * 1024) {
+                status.textContent = 'Plant images must be 5 MB or smaller.';
+                input.value = '';
+                return;
+            }
+
+            const transfer = new DataTransfer();
+            transfer.items.add(prepared);
+            input.files = transfer.files;
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            previewUrl = URL.createObjectURL(prepared);
+            preview.src = previewUrl;
+            preview.hidden = false;
+            prompt.hidden = true;
+            status.textContent = prepared === file
+                ? `Ready to upload: ${prepared.name || 'pasted image'}`
+                : `Compressed from ${formatBytes(file.size)} to ${formatBytes(prepared.size)}`;
+        };
+
+        zone.addEventListener('click', () => input.click());
+        zone.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                input.click();
+            }
+        });
+        zone.addEventListener('paste', (event) => {
+            const image = Array.from(event.clipboardData?.files || []).find(
+                (file) => file.type.startsWith('image/')
+            );
+            if (!image) {
+                status.textContent = 'There is no image in the clipboard.';
+                return;
+            }
+            event.preventDefault();
+            showFile(image);
+        });
+        zone.addEventListener('dragover', (event) => event.preventDefault());
+        zone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            showFile(event.dataTransfer?.files?.[0]);
+        });
+        input.addEventListener('change', () => showFile(input.files[0]));
+    })();
+</script>
 {% endblock %}

@@ -63,6 +63,34 @@ PLANT_REFERENCES = [
         },
         "planting_months": [1, 8, 9, 10, 11, 12],
     },
+    {
+        "plant": {
+            "slug": "lebanese-cucumber",
+            "common_name": "Lebanese Cucumber",
+            "scientific_name": "Cucumis sativus",
+            "family": "Cucurbitaceae",
+            "summary": (
+                "A sweet-tasting, burpless and high-yielding cucumber with "
+                "excellent flavour. Best picked young and tender at about "
+                "10–15 cm long."
+            ),
+        },
+        "planting_months": [1, 9, 10, 11, 12],
+    },
+    {
+        "plant": {
+            "slug": "telegraph-improved-cucumber",
+            "common_name": "Telegraph Improved Cucumber",
+            "scientific_name": "Cucumis sativus",
+            "family": "Cucurbitaceae",
+            "summary": (
+                "A heavy-cropping cucumber with smooth, thin skin and a sweet, "
+                "crisp flavour. The long fruit is well suited to salads, "
+                "sandwiches and tzatziki."
+            ),
+        },
+        "planting_months": [1, 9, 10, 11, 12],
+    },
 ]
 
 
