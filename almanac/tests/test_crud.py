@@ -69,6 +69,12 @@ class AlmanacCrudTests(unittest.TestCase):
                 sorted(m.month_number for m in plant.planting_months), [3, 4, 9]
             )
 
+    def test_logged_in_user_sees_primary_edit_button(self):
+        response = self.client.get("/plants/tomato")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'class="uk-btn uk-btn-primary uk-btn-sm"', response.data)
+
     def test_image_picker_supports_choose_drop_and_paste(self):
         response = self.client.get("/plants/new")
 

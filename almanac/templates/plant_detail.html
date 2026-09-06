@@ -19,7 +19,7 @@
             <h1 style="font-size:2.5rem; font-weight:700; margin:0 0 1.5rem;">{{ plant.common_name }}</h1>
         </div>
         {% if auth_user %}
-        <a href="{{ url_for('edit_plant', slug=plant.slug) }}" class="uk-btn uk-btn-default uk-btn-sm" style="flex:none;">Edit</a>
+        <a href="{{ url_for('edit_plant', slug=plant.slug) }}" class="uk-btn uk-btn-primary uk-btn-sm" style="flex:none;">Edit</a>
         {% endif %}
     </div>
 
