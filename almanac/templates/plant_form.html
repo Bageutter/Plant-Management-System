@@ -133,6 +133,8 @@
             </div>
         </fieldset>
 
+        {% include "_planning_form.html" %}
+
         <div style="display:flex; gap:0.75rem;">
             <button type="submit" class="uk-btn uk-btn-primary">{{ "Save changes" if is_edit else "Add plant" }}</button>
             <a href="{{ url_for('plant_detail', slug=plant.slug) if is_edit else url_for('index') }}"
