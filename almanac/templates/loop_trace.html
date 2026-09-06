@@ -3,9 +3,7 @@
 {% block title %}Answer validation report — Plant Almanac{% endblock %}
 
 {% block content %}
-<div style="max-width:44rem; margin:0 auto;">
-    <a href="{{ url_for('index') }}" style="font-size:0.85rem; color:hsl(var(--muted-foreground));">← Plant Almanac</a>
-
+<div class="validation-report" style="max-width:44rem; margin:0 auto;">
     <h1 style="font-size:1.6rem; font-weight:700; margin:0.4rem 0 0.2rem; text-wrap:balance;">Answer validation report</h1>
     <p style="font-size:0.85rem; color:hsl(var(--muted-foreground)); margin:0 0 0.2rem;"><code>{{ run.run_id }}</code></p>
     <p style="font-size:0.85rem; color:hsl(var(--muted-foreground)); margin:0 0 0.35rem; text-wrap:pretty;">
@@ -17,6 +15,16 @@
         This report shows the evidence and validation steps used to produce the answer. It is a process summary, not private model reasoning.
     </p>
 
+    <section aria-labelledby="workflow-explanation" style="border:1px solid hsl(var(--border)); border-radius:var(--uk-global-radius); padding:1.1rem 1.25rem; margin-bottom:1.5rem; background:hsl(var(--card));">
+        <h2 id="workflow-explanation" style="font-size:1rem; margin:0 0 0.8rem;">How the answer was checked</h2>
+        <ol style="display:grid; gap:0.7rem; margin:0; padding-left:1.25rem;">
+            <li><strong>Plan:</strong> Understand the question and select the relevant plant records and context.</li>
+            <li><strong>Act:</strong> The first AI model writes an answer using that evidence.</li>
+            <li><strong>Observe:</strong> A second AI model checks whether the answer is supported by the Almanac data.</li>
+            <li><strong>Adapt:</strong> Accept a supported answer, or return feedback so an unsupported answer can be revised and checked again.</li>
+        </ol>
+    </section>
+
     <div style="border:1px solid hsl(var(--border)); border-radius:var(--uk-global-radius); padding:1.25rem; margin-bottom:1.5rem; background:hsl(var(--card));">
         <p style="font-size:0.7rem; text-transform:uppercase; color:hsl(var(--muted-foreground)); margin:0 0 0.25rem;">Question</p>
         <p style="margin:0 0 1rem;">{{ run.question }}</p>
@@ -26,14 +34,39 @@
 
     <div style="display:flex; flex-direction:column; gap:0.75rem;">
         {% for ev in run.trace %}
+        {% if ev.ms is defined %}
+            {% set phase_ms = ev.ms %}
+        {% elif loop.first %}
+            {% set phase_ms = ev.elapsed_ms %}
+        {% else %}
+            {% set phase_ms = ev.elapsed_ms - run.trace[loop.index0 - 1].elapsed_ms %}
+        {% endif %}
         <div style="border-left:3px solid hsl(var(--primary)); border-radius:0.4rem; background:hsl(var(--card)); padding:0.9rem 1rem;">
             <p style="font-weight:600; font-size:0.9rem; margin:0 0 0.35rem;">
-                {{ ev.phase|upper }}{% if ev.iteration %} #{{ ev.iteration }}{% endif %}
-                <span style="font-size:0.72rem; color:hsl(var(--muted-foreground));">· +{{ ev.elapsed_ms }} ms</span>
+                {% if ev.phase == 'plan' %}Plan · Evidence selected
+                {% elif ev.phase == 'act' %}Act{% if ev.iteration %} {{ ev.iteration }}{% endif %} · Answer drafted
+                {% elif ev.phase == 'observe' %}Observe{% if ev.iteration %} {{ ev.iteration }}{% endif %} · Evidence checked
+                {% elif ev.phase == 'adapt' %}Adapt{% if ev.iteration %} {{ ev.iteration }}{% endif %} · Decision made
+                {% else %}Validation fallback
+                {% endif %}
+                <span style="font-size:0.72rem; color:hsl(var(--muted-foreground));">· {{ phase_ms }} ms</span>
             </p>
-            {% for k, v in ev.items() if k not in ('phase','iteration','elapsed_ms','ts','run_id','service') %}
+            {% for k, v in ev.items() if k not in ('phase','iteration','elapsed_ms','ms','ts','run_id','service') %}
             <div style="display:flex; gap:0.5rem; font-size:0.8rem; padding:0.1rem 0;">
-                <span style="min-width:9rem; color:hsl(var(--muted-foreground));">{{ k }}</span>
+                <span style="min-width:9rem; color:hsl(var(--muted-foreground));">
+                    {% if k == 'plant_records' %}Plant records selected
+                    {% elif k == 'of_total' %}Available plant records
+                    {% elif k == 'history_messages' %}Previous messages
+                    {% elif k == 'carried_feedback' %}Reviewer feedback
+                    {% elif k == 'draft' %}Draft answer
+                    {% elif k == 'draft_chars' %}Draft length
+                    {% elif k == 'verdict' %}Review result
+                    {% elif k == 'issues' %}Unsupported claims
+                    {% elif k == 'decision' %}Decision
+                    {% elif k == 'guidance' %}Revision guidance
+                    {% else %}{{ k|replace('_', ' ')|title }}
+                    {% endif %}
+                </span>
                 <span style="white-space:pre-wrap;">{{ v }}</span>
             </div>
             {% endfor %}
@@ -41,10 +74,5 @@
         {% endfor %}
     </div>
 
-    <p style="font-size:0.72rem; color:hsl(var(--muted-foreground)); margin-top:1.5rem;">
-        Also logged to <code>{{ run.transcript_path }}</code> and the service stdout
-        (<code>docker compose logs -f almanac</code>). Replay with
-        <code>python tools/ai-loop/view.py {{ run.run_id }}</code>.
-    </p>
 </div>
 {% endblock %}

@@ -65,18 +65,10 @@
                x-show="chatOpen"
                :style="'--chat-width:' + chatWidth + 'px; --chat-height:' + chatHeight + 'px'"
                x-transition.origin.bottom.right>
-            <button type="button"
-                    class="ai-chat-resizer"
-                    aria-label="Resize Almanac chat. Use arrow keys or drag."
-                    title="Drag to resize"
-                    @pointerdown.prevent="startResize($event)"
-                    @keydown.left.prevent="setChatSize(chatWidth + 24, chatHeight)"
-                    @keydown.right.prevent="setChatSize(chatWidth - 24, chatHeight)"
-                    @keydown.up.prevent="setChatSize(chatWidth, chatHeight + 24)"
-                    @keydown.down.prevent="setChatSize(chatWidth, chatHeight - 24)">
-                <span aria-hidden="true">↖</span>
-            </button>
-            <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem 0.9rem 3.25rem; border-bottom:1px solid hsl(var(--border));">
+            <div class="ai-chat-resize-corner"
+                 aria-hidden="true"
+                 @pointerdown.prevent="startResize($event)"></div>
+            <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem; border-bottom:1px solid hsl(var(--border));">
                 <div>
                     <h2 style="font-size:1.15rem; margin:0;">Ask the Almanac</h2>
                 </div>

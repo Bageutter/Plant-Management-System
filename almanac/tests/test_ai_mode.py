@@ -78,8 +78,8 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.assertIn(b"Ask the Almanac", response.data)
         self.assertIn(b"ai-chat-launcher", response.data)
         self.assertIn(b"ai-chat-panel", response.data)
-        self.assertIn(b"ai-chat-resizer", response.data)
-        self.assertIn(b"Resize Almanac chat", response.data)
+        self.assertIn(b"ai-chat-resize-corner", response.data)
+        self.assertNotIn("↖".encode(), response.data)
         self.assertIn(b"almanac-chat-width", response.data)
         self.assertIn(b"pendingQuestion", response.data)
 
@@ -106,14 +106,11 @@ class AlmanacAIModeTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"January and September to December", response.data)
-        self.assertIn(b"Plan \xe2\x86\x92 Act \xe2\x86\x92 Observe \xe2\x86\x92 Adapt", response.data)
-        self.assertIn(b"How this answer was checked", response.data)
-        self.assertIn(b"Plan \xc2\xb7 Evidence selected", response.data)
-        self.assertIn(b"1 plant record", response.data)
-        self.assertIn(b"Observe 1 \xc2\xb7 Independent review", response.data)
-        self.assertIn(b"Reviewer approved this draft", response.data)
-        self.assertIn(b"Answer accepted after validation", response.data)
-        self.assertIn(b"Open detailed validation report", response.data)
+        self.assertIn(b"Answer checked", response.data)
+        self.assertIn(b"View validation report", response.data)
+        self.assertIn(b"data-validation-report", response.data)
+        self.assertNotIn(b"Plan \xc2\xb7 Evidence selected", response.data)
+        self.assertNotIn(b"Reviewer approved this draft", response.data)
 
         call = fake.calls[0]
         self.assertEqual(call["question"], "When should I plant tomatoes?")
@@ -123,6 +120,7 @@ class AlmanacAIModeTests(unittest.TestCase):
         page = self.client.get("/")
         self.assertIn(b"When should I plant tomatoes?", page.data)
         self.assertIn(b'href="/plants/tomato"', page.data)  # source derived from the answer text
+        self.assertIn(b'id="validation-report-dialog"', page.data)
 
         with self.app.app_context():
             self.assertEqual(AIChatMessage.query.count(), 2)
@@ -188,6 +186,15 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.auth.user = {"id": 2, "email": "other@example.com"}
         self.assertNotIn(b"Tomato answer", self.client.get("/").data)
 
+    def test_chat_history_does_not_show_clear_button(self):
+        self._set_ai(FakeAlmanacAI("Tomato answer"))
+
+        response = self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"Clear chat", response.data)
+        self.assertNotIn(b'/ai/clear', response.data)
+
     def test_clear_chat_removes_only_current_user_history(self):
         self._set_ai(FakeAlmanacAI("Tomato answer"))
         self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
@@ -215,6 +222,13 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Answer validation report", response.data)
         self.assertIn(b"process summary, not private model reasoning", response.data)
+        self.assertIn(b"How the answer was checked", response.data)
+        self.assertIn(b"Understand the question and select the relevant plant records", response.data)
+        self.assertIn(b"A second AI model checks whether the answer is supported", response.data)
+        self.assertNotIn(b"Timeline", response.data)
+        self.assertNotIn(b"Phase duration", response.data)
+        self.assertNotIn(b"Also logged to", response.data)
+        self.assertNotIn(b"\xe2\x86\x90 Plant Almanac", response.data)
         self.auth.user = {"id": 2, "email": "other@example.com"}
         self.assertEqual(self.client.get(f"/ai/loop/{run_id}").status_code, 404)
 
