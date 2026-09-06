@@ -180,7 +180,18 @@ class AlmanacCrudTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn(b"Common name is required", response.data)
         with self.app.app_context():
-            self.assertEqual(PlantReference.query.count(), 6)  # only the seed data
+            self.assertEqual(PlantReference.query.count(), 8)  # only the seed data
+
+    def test_seed_data_includes_both_cucumber_varieties(self):
+        with self.app.app_context():
+            for slug in ("lebanese-cucumber", "telegraph-improved-cucumber"):
+                plant = PlantReference.query.filter_by(slug=slug).one()
+                self.assertEqual(plant.scientific_name, "Cucumis sativus")
+                self.assertEqual(plant.family, "Cucurbitaceae")
+                self.assertEqual(
+                    [month.month_number for month in plant.planting_months],
+                    [1, 9, 10, 11, 12],
+                )
 
     def test_slug_collisions_get_a_suffix(self):
         for _ in range(2):

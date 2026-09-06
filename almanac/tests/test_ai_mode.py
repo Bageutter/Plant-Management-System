@@ -84,7 +84,7 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.assertIn(b"pendingQuestion", response.data)
 
     def test_existing_plant_api_still_lists_every_record(self):
-        self.assertEqual(self.client.get("/api/plants").get_json()["count"], 6)
+        self.assertEqual(self.client.get("/api/plants").get_json()["count"], 8)
 
     def test_logged_out_user_cannot_use_chat(self):
         self.auth.user = None
