@@ -136,7 +136,9 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
     engine = create_engine(f"sqlite:///{path}")
     with engine.begin() as conn:
         with Operations.context(MigrationContext.configure(conn)):
-            runpy.run_path(str(Path(__file__).resolve().parents[1] / "migrations/versions/001_baseline.py"))["upgrade"]()
+            runpy.run_path(
+                str(Path(__file__).resolve().parents[1] / "migrations/versions/001_baseline.py")
+            )["upgrade"]()
         conn.execute(text("ALTER TABLE plant_references ADD COLUMN rotation_group TEXT"))
         conn.execute(
             text(
@@ -177,11 +179,42 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
 
 def test_api_partial_update_preserves_and_validates_details(app):
     client = app.test_client()
-    assert client.patch('/api/plants/tomato', json={'yield_qty':2,'yield_unit':'kg','soil_ph_min':6,'soil_ph_max':7,'uses':['culinary'],'pests':['Aphids']}).status_code == 200
-    assert client.patch('/api/plants/tomato', json={'soil_ph_min':8}).status_code == 400
-    response = client.patch('/api/plants/tomato', json={'yield_qty':3})
+    assert (
+        client.patch(
+            "/api/plants/tomato",
+            json={
+                "yield_qty": 2,
+                "yield_unit": "kg",
+                "soil_ph_min": 6,
+                "soil_ph_max": 7,
+                "uses": ["culinary"],
+                "pests": ["Aphids"],
+            },
+        ).status_code
+        == 200
+    )
+    assert client.patch("/api/plants/tomato", json={"soil_ph_min": 8}).status_code == 400
+    response = client.patch("/api/plants/tomato", json={"yield_qty": 3})
     assert response.status_code == 200
-    assert response.json['yield_qty'] == 3
-    assert response.json['yield_unit'] == 'kg'
-    assert response.json['pests'] == ['Aphids']
-    assert response.json['common_name'] == 'Tomato'
+    assert response.json["yield_qty"] == 3
+    assert response.json["yield_unit"] == "kg"
+    assert response.json["pests"] == ["Aphids"]
+    assert response.json["common_name"] == "Tomato"
+
+
+def test_guild_seed_is_repeatable_and_keeps_edited_links(app):
+    from garden_data import seed_guilds
+
+    import_notion()
+    assert seed_guilds() > 0
+    onion = PlantReference.query.filter_by(slug="bunching-onion-winter-ishikura").one()
+    assert {link.companion.slug for link in onion.guild_links} == {
+        "alyssum",
+        "marigold-french-marigold",
+    }
+    link = onion.guild_links[0]
+    link.notes = "My own planting notes"
+    db.session.commit()
+    assert seed_guilds() == 0
+    assert link.notes == "My own planting notes"
+    assert all(link.plant_id != link.companion_id for link in PlantCompanion.query.all())

@@ -15,7 +15,7 @@
 
     <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
         <div>
-            <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:hsl(var(--muted-foreground)); margin:0 0 0.4rem;">{{ plant.scientific_name }}{{ " · AI identity estimate" if "scientific_name" in plant.estimated_fields }}</p>
+            <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:hsl(var(--muted-foreground)); margin:0 0 0.4rem;">{{ plant.scientific_name }}</p>
             <h1 style="font-size:2.5rem; font-weight:700; margin:0 0 1.5rem;">{{ plant.common_name }}</h1>
         </div>
         {% if auth_user %}
@@ -35,6 +35,8 @@
             <span class="tag">{{ month }}</span>
             {% endfor %}
         </div>
+        {% elif plant.sowing_notes %}
+        <p>{{ plant.sowing_notes }}</p>
         {% else %}
         <p class="text-muted-foreground" style="margin:0; font-size:0.9rem;">No data yet.</p>
         {% endif %}

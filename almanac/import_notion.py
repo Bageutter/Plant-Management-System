@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from catalogue import ROTATION_GROUPS, FUNCTIONS, USES
 from extensions import db
+from garden_data import garden_wording
 from models import PlantReference, RotationGroup, PlantFunctionTag, PlantUse
 
 
@@ -37,7 +38,7 @@ def import_notion():
                 common_name=row["Name"],
                 scientific_name=row["Scientific Name"] or "",
                 family="",
-                summary=row["Description"] or "",
+                summary=garden_wording(row["Description"]) or "",
             )
             db.session.add(plant)
             added += 1
@@ -55,7 +56,7 @@ def import_notion():
         }
         for key, value in values.items():
             if getattr(plant, key) is None:
-                setattr(plant, key, value)
+                setattr(plant, key, garden_wording(value))
         # Explicit mapping from the requested crop list; never infer unknown groups.
         crop = row["Name"].lower()
         group = next(
@@ -99,7 +100,7 @@ def seed_estimates():
                     plant.rotation_group = RotationGroup.query.filter_by(name=value).one()
                     inferred.append(key)
             elif not getattr(plant, key):
-                apply_details(plant, {key: value})
+                apply_details(plant, {key: garden_wording(value)})
                 inferred.append(key)
         plant.estimated_fields = inferred
         count += 1

@@ -36,7 +36,7 @@ from models import AIChatMessage, AILoopRun, PlantImage, PlantingMonth, PlantRef
 from seed_data import seed_reference_data
 from schema import upgrade_schema
 from import_notion import seed_lookups, import_notion, seed_estimates
-from catalogue import CHOICES, NUMERIC, TEXT
+from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
 from planning import parse_details, apply_details, calculate
 from models import RotationGroup, PlantFunctionTag, PlantUse, PlantCompanion
 
@@ -319,6 +319,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
             "health_public_url": app.config["HEALTH_PUBLIC_URL"],
             "auth_user": _current_auth_user(),
+            "field_help": FIELD_HELP,
             "detail_choices": CHOICES, "numeric_fields": NUMERIC, "text_fields": TEXT,
             "rotation_groups": RotationGroup.query.order_by(RotationGroup.id).all(),
             "function_options": PlantFunctionTag.query.all(), "use_options": PlantUse.query.all(),
@@ -698,6 +699,12 @@ def create_app(test_config: dict | None = None) -> Flask:
         """Import the versioned Notion snapshot, preserving existing edits."""
         added, linked = import_notion()
         print(f"Imported {added} plants; linked {linked} existing plants.")
+
+    @app.cli.command("refresh-garden")
+    def refresh_garden_command():
+        """Refresh seeded wording and add starter companion suggestions."""
+        from garden_data import refresh_garden_wording, seed_guilds
+        print(f"Updated {refresh_garden_wording()} text fields; added {seed_guilds()} companion links.")
 
     @app.cli.command("seed-estimates")
     def seed_estimates_command():

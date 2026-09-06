@@ -42,6 +42,14 @@
             --uk-global-radius: 0.75rem;
             --uk-global-radius-s: 0.5rem;
         }
+        .field-help { position:relative; display:inline-flex; vertical-align:middle; font-family:Inter, sans-serif; font-weight:400; }
+        .help-button { border:1px solid hsl(var(--border)); border-radius:50%; width:1.2rem; height:1.2rem; padding:0; font-size:.75rem; line-height:1; color:hsl(var(--muted-foreground)); background:hsl(var(--card)); cursor:help; }
+        .help-popover { position:fixed; z-index:20; width:17rem; max-width:75vw; padding:.8rem; border:1px solid hsl(var(--border)); border-radius:.5rem; box-shadow:0 5px 20px #0002; background:hsl(var(--card)); color:hsl(var(--foreground)); font-size:.85rem; line-height:1.5; text-transform:none; letter-spacing:normal; }
+        .rotation-summary { display:flex; gap:1rem; flex-wrap:wrap; align-items:center; margin:1rem 0; }
+        .guild-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%, 15rem),1fr)); gap:.8rem; }
+        .guild-card { padding:1rem; border:1px solid hsl(var(--border)); border-radius:.5rem; background:hsl(var(--muted) / .4); }
+        .guild-plant { display:block; font-weight:600; margin-bottom:.6rem; }
+        .guild-card p { font-size:.9rem; line-height:1.6; margin:.7rem 0 0; }
         .planning-card { padding:1.3rem; border:1px solid hsl(var(--border)); border-radius:.75rem; }
         .planning-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%, 15rem),1fr)); gap:1rem; }
         body {
