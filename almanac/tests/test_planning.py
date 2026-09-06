@@ -1,5 +1,6 @@
 import runpy
 import sqlite3
+from pathlib import Path
 
 import pytest
 from alembic.migration import MigrationContext
@@ -135,7 +136,7 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
     engine = create_engine(f"sqlite:///{path}")
     with engine.begin() as conn:
         with Operations.context(MigrationContext.configure(conn)):
-            runpy.run_path("almanac/migrations/versions/001_baseline.py")["upgrade"]()
+            runpy.run_path(str(Path(__file__).resolve().parents[1] / "migrations/versions/001_baseline.py"))["upgrade"]()
         conn.execute(text("ALTER TABLE plant_references ADD COLUMN rotation_group TEXT"))
         conn.execute(
             text(
