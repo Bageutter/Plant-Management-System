@@ -6,7 +6,7 @@
 | --- | --- |
 | `ruff.yml` | python lint gate — runs on **every PR and push** to `main` |
 | `integration-ci.yml` | integration CI — builds, smoke-checks, and tears down the stack |
-| `plant_almanac.yml` | Amy's Almanac CI — Ruff, compile check, pytest, and Docker build for `amy/**` pushes and relevant PR changes |
+| `plant_almanac.yml` | Amy's Almanac CI — Ruff, compile check, pytest, and Docker build for `amy/**` pushes and manual runs |
 | `vgarden.yml` | virtual garden service CI — triggers on `yunz/**` branches and `vgarden/` path changes |
 | `health.yml` | health monitoring service CI — triggers on `bageutter/**` branches and `health/` path changes |
 

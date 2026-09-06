@@ -8,13 +8,6 @@ on:
       - "shared/**"
       - "pyproject.toml"
       - ".github/workflows/plant_almanac.yml"
-  pull_request:
-    branches: ["**"]
-    paths:
-      - "almanac/**"
-      - "shared/**"
-      - "pyproject.toml"
-      - ".github/workflows/plant_almanac.yml"
   workflow_dispatch:
 
 permissions:

@@ -2,6 +2,7 @@
 
 from datetime import datetime
 import json
+import re
 from urllib import error, request
 
 
@@ -43,6 +44,38 @@ def sources_for_text(text: str, plants: list[dict]) -> list[str]:
         or plant.get("scientific_name", "").lower() in lowered
     ]
     return list(dict.fromkeys(found))
+
+
+def enforce_answer_requirements(answer: str, grounding: dict) -> str:
+    """Replace an incomplete current-month list with one built from its evidence."""
+    required = grounding.get("required_answer_items", [])
+    if not required:
+        return answer
+
+    answer_lower = answer.casefold()
+
+    def count(item: str) -> int:
+        return len(
+            re.findall(rf"(?<!\w){re.escape(item.casefold())}(?!\w)", answer_lower)
+        )
+
+    other_plants = [
+        plant["common_name"]
+        for plant in grounding.get("plant_records", [])
+        if plant["common_name"] not in required
+    ]
+    if all(count(item) == 1 for item in required) and not any(
+        count(item) for item in other_plants
+    ):
+        return answer
+
+    if len(required) == 1:
+        plant_list = required[0]
+    elif len(required) == 2:
+        plant_list = f"{required[0]} and {required[1]}"
+    else:
+        plant_list = ", ".join(required[:-1]) + f", and {required[-1]}"
+    return f"In {grounding['current_month']}, you can plant {plant_list}."
 
 
 class OllamaAlmanacAI:

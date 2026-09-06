@@ -39,7 +39,6 @@ class PlantReference(db.Model):
             "family": self.family,
             "summary": self.summary,
             "planting_months": [month.name for month in self.planting_months],
-            "image_filename": self.image.filename if self.image else None,
         }
 
 
@@ -78,14 +77,8 @@ class PlantImage(db.Model):
         db.ForeignKey("plant_references.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
-        index=True,
     )
     filename = db.Column(db.String(80), nullable=False, unique=True)
-    original_name = db.Column(db.String(255), nullable=False)
-    content_type = db.Column(db.String(40), nullable=False)
-    created_at = db.Column(
-        db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
-    )
 
     plant = db.relationship("PlantReference", back_populates="image")
 

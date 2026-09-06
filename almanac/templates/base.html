@@ -136,72 +136,6 @@
             cursor: nwse-resize;
             touch-action: none;
         }
-        .ai-validation-link {
-            display: flex;
-            min-height: 2.25rem;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.75rem;
-            margin-top: 0.65rem;
-            padding-top: 0.55rem;
-            border-top: 1px solid hsl(var(--border));
-            color: hsl(var(--primary));
-            font-size: 0.72rem;
-            font-weight: 600;
-            text-decoration: none;
-        }
-        .ai-validation-link:hover { text-decoration: underline; }
-        .validation-report-dialog {
-            width: min(56rem, calc(100vw - 2rem));
-            max-width: none;
-            height: min(48rem, calc(100vh - 2rem));
-            max-height: none;
-            padding: 0;
-            overflow: hidden;
-            border: 1px solid hsl(var(--border));
-            border-radius: 1rem;
-            background: hsl(var(--background));
-            color: hsl(var(--foreground));
-            box-shadow: 0 24px 70px hsl(150 20% 10% / 0.28);
-        }
-        .validation-report-dialog::backdrop {
-            background: hsl(150 20% 10% / 0.46);
-            backdrop-filter: blur(2px);
-        }
-        .validation-report-dialog__header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: 0.8rem 1rem;
-            border-bottom: 1px solid hsl(var(--border));
-            background: hsl(var(--card));
-        }
-        .validation-report-dialog__header h2 {
-            margin: 0;
-            font-size: 1.1rem;
-        }
-        .validation-report-dialog__close {
-            display: grid;
-            width: 2.25rem;
-            height: 2.25rem;
-            flex: none;
-            padding: 0;
-            place-items: center;
-            border: 0;
-            border-radius: 9999px;
-            background: hsl(var(--muted));
-            color: hsl(var(--foreground));
-            cursor: pointer;
-            font: inherit;
-            font-size: 1.25rem;
-        }
-        .validation-report-dialog__content {
-            height: calc(100% - 3.9rem);
-            box-sizing: border-box;
-            overflow: auto;
-            padding: 1.25rem;
-        }
         @media (max-width: 40rem) {
             .ai-chat-launcher { right: 0.75rem; bottom: 0.75rem; }
             .ai-chat-resize-corner { display: none; }
@@ -248,58 +182,8 @@
         {% block content %}{% endblock %}
     </main>
 
-    <dialog id="validation-report-dialog" class="validation-report-dialog" aria-labelledby="validation-report-dialog-title">
-        <div class="validation-report-dialog__header">
-            <h2 id="validation-report-dialog-title">Answer validation report</h2>
-            <button type="button" class="validation-report-dialog__close" data-validation-report-close aria-label="Close validation report">×</button>
-        </div>
-        <div id="validation-report-dialog-content" class="validation-report-dialog__content" aria-live="polite"></div>
-    </dialog>
-
     <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/core.iife.js"></script>
     <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/icon.iife.js"></script>
-    <script>
-        const validationDialog = document.getElementById('validation-report-dialog');
-        const validationDialogContent = document.getElementById('validation-report-dialog-content');
-
-        document.addEventListener('click', async (event) => {
-            const closeButton = event.target.closest('[data-validation-report-close]');
-            if (closeButton) {
-                validationDialog.close();
-                return;
-            }
-
-            const reportLink = event.target.closest('[data-validation-report]');
-            if (!reportLink || typeof validationDialog.showModal !== 'function') return;
-
-            event.preventDefault();
-            validationDialogContent.textContent = 'Loading validation report…';
-            validationDialog.showModal();
-
-            try {
-                const response = await fetch(reportLink.href, {
-                    headers: {'X-Requested-With': 'XMLHttpRequest'},
-                });
-                if (!response.ok) throw new Error('Report unavailable');
-
-                const page = new DOMParser().parseFromString(await response.text(), 'text/html');
-                const report = page.querySelector('.validation-report');
-                if (!report) throw new Error('Report unavailable');
-                validationDialogContent.replaceChildren(report);
-            } catch (error) {
-                const message = document.createElement('p');
-                message.textContent = 'The validation report could not be loaded.';
-                const fallback = document.createElement('a');
-                fallback.href = reportLink.href;
-                fallback.textContent = 'Open the report as a page →';
-                validationDialogContent.replaceChildren(message, fallback);
-            }
-        });
-
-        validationDialog.addEventListener('click', (event) => {
-            if (event.target === validationDialog) validationDialog.close();
-        });
-    </script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

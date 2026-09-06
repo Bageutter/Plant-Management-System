@@ -20,7 +20,6 @@ from flask import (
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import text
 from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -30,7 +29,7 @@ _SHARED = os.path.join(BASE_DIR, "..", "shared")
 if os.path.isdir(_SHARED) and _SHARED not in sys.path:
     sys.path.insert(0, _SHARED)
 
-from ai import AIUnavailableError, OllamaAlmanacAI, sources_for_text
+from ai import AIUnavailableError, OllamaAlmanacAI, enforce_answer_requirements, sources_for_text
 from auth_client import AuthClient
 from extensions import csrf, db
 from models import AIChatMessage, AILoopRun, PlantImage, PlantingMonth, PlantReference
@@ -85,10 +84,13 @@ def _asks_for_current_planting_list(
 
     words = set(re.findall(r"[a-z]+", question_lower))
     asks_about_planting = bool(words & {"plant", "planting", "sow", "sowing", "grow"})
-    asks_about_now = bool(words & {"now", "niw", "nwo", "today", "currently"}) or (
+    asks_about_now = bool(words & {"now", "today", "currently"}) or (
         "this month" in question_lower
     )
-    return asks_about_planting and asks_about_now
+    asks_broad_question = bool(words & {"what", "which"}) and bool(
+        words & {"can", "should"}
+    )
+    return asks_about_planting and (asks_about_now or asks_broad_question)
 
 
 def _slugify(value: str) -> str:
@@ -145,19 +147,19 @@ def _apply_plant(plant: PlantReference, fields: dict, months: list[int]) -> None
         plant.planting_months.append(PlantingMonth(month_number=number))
 
 
-def _image_type(data: bytes) -> tuple[str, str] | None:
+def _image_extension(data: bytes) -> str | None:
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "png", "image/png"
+        return "png"
     if data.startswith(b"\xff\xd8\xff"):
-        return "jpg", "image/jpeg"
+        return "jpg"
     if data.startswith((b"GIF87a", b"GIF89a")):
-        return "gif", "image/gif"
+        return "gif"
     if len(data) >= 12 and data.startswith(b"RIFF") and data[8:12] == b"WEBP":
-        return "webp", "image/webp"
+        return "webp"
     return None
 
 
-def _store_uploaded_image(upload) -> tuple[dict | None, str | None]:
+def _store_uploaded_image(upload) -> tuple[str | None, str | None]:
     if upload is None or not upload.filename:
         return None, None
 
@@ -167,21 +169,15 @@ def _store_uploaded_image(upload) -> tuple[dict | None, str | None]:
     if len(data) > MAX_PLANT_IMAGE_BYTES:
         return None, "Plant images must be 5 MB or smaller."
 
-    detected = _image_type(data)
-    if detected is None:
+    extension = _image_extension(data)
+    if extension is None:
         return None, "Plant images must be JPEG, PNG, GIF, or WebP files."
 
-    extension, content_type = detected
     filename = f"{uuid.uuid4().hex}.{extension}"
-    original_name = secure_filename(upload.filename) or f"plant-image.{extension}"
     destination = os.path.join(current_app.config["PLANT_IMAGE_FOLDER"], filename)
     with open(destination, "wb") as image_file:
         image_file.write(data)
-    return {
-        "filename": filename,
-        "original_name": original_name[:255],
-        "content_type": content_type,
-    }, None
+    return filename, None
 
 
 def _delete_image_file(filename: str | None) -> None:
@@ -191,6 +187,8 @@ def _delete_image_file(filename: str | None) -> None:
         os.remove(os.path.join(current_app.config["PLANT_IMAGE_FOLDER"], filename))
     except FileNotFoundError:
         pass
+    except OSError:
+        current_app.logger.warning("Could not remove plant image %s", filename)
 
 
 def _plant_payload(plant: PlantReference) -> dict:
@@ -366,7 +364,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "plant_form.html", plant=None, months=months, mode="new", fields=fields
             ), 400
 
-        image_data, image_error = _store_uploaded_image(request.files.get("image"))
+        image_filename, image_error = _store_uploaded_image(request.files.get("image"))
         if image_error:
             flash(image_error, "error")
             return render_template(
@@ -375,10 +373,15 @@ def create_app(test_config: dict | None = None) -> Flask:
 
         plant = PlantReference(slug=_unique_slug(_slugify(fields["common_name"])))
         _apply_plant(plant, fields, months)
-        if image_data:
-            plant.image = PlantImage(**image_data)
+        if image_filename:
+            plant.image = PlantImage(filename=image_filename)
         db.session.add(plant)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            _delete_image_file(image_filename)
+            raise
         flash(f'Added "{plant.common_name}".', "success")
         return redirect(url_for("plant_detail", slug=plant.slug))
 
@@ -409,7 +412,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "plant_form.html", plant=plant, months=months, mode="edit", fields=fields
             ), 400
 
-        image_data, image_error = _store_uploaded_image(request.files.get("image"))
+        image_filename, image_error = _store_uploaded_image(request.files.get("image"))
         if image_error:
             flash(image_error, "error")
             return render_template(
@@ -418,18 +421,21 @@ def create_app(test_config: dict | None = None) -> Flask:
 
         _apply_plant(plant, fields, months)
         old_filename = None
-        if image_data:
+        if image_filename:
             if plant.image:
                 old_filename = plant.image.filename
-                plant.image.filename = image_data["filename"]
-                plant.image.original_name = image_data["original_name"]
-                plant.image.content_type = image_data["content_type"]
+                plant.image.filename = image_filename
             else:
-                plant.image = PlantImage(**image_data)
+                plant.image = PlantImage(filename=image_filename)
         elif request.form.get("remove_image") == "1" and plant.image:
             old_filename = plant.image.filename
             plant.image = None
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            _delete_image_file(image_filename)
+            raise
         _delete_image_file(old_filename)
         flash("Saved.", "success")
         return redirect(url_for("plant_detail", slug=plant.slug))
@@ -566,11 +572,14 @@ def create_app(test_config: dict | None = None) -> Flask:
         try:
             if ai_loop is None:
                 grounding, _ = build_context()
-                result = _SingleShot(ai_client.draft(question, grounding, None))
+                answer = ai_client.draft(question, grounding, None)
+                result = _SingleShot(enforce_answer_requirements(answer, grounding))
             else:
                 loop = ai_loop.AgenticLoop(
                     service="almanac",
-                    drafter=lambda q, g, fb: ai_client.draft(q, g, fb),
+                    drafter=lambda q, g, fb: enforce_answer_requirements(
+                        ai_client.draft(q, g, fb), g
+                    ),
                     reviewer=app.extensions.get("ai_loop_reviewer"),
                     log_dir=app.config["AI_LOOP_LOG_DIR"],
                     max_iterations=app.config["AI_LOOP_MAX_ITERATIONS"],
@@ -616,8 +625,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             abort(404)
         return render_template("loop_trace.html", run=run)
 
-    @app.post("/ai/new")
-    def new_ai_chat():
+    @app.post("/ai/clear")
+    def clear_ai_chat():
         owner_key = _chat_owner_key()
         if owner_key is None:
             return _render_chat(None, "Your session has expired. Log in again to use the chat."), 401

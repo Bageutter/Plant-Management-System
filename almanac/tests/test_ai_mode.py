@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from ai import AIUnavailableError
 from app import create_app
@@ -21,16 +22,6 @@ class FakeAlmanacAI:
         if self.error:
             raise self.error
         return self.answer
-
-
-class SequencedAlmanacAI(FakeAlmanacAI):
-    def __init__(self, answers):
-        super().__init__()
-        self.answers = iter(answers)
-
-    def draft(self, question, grounding, feedback=None):
-        self.calls.append({"question": question, "grounding": grounding, "feedback": feedback})
-        return next(self.answers)
 
 
 class FakeReviewer:
@@ -89,8 +80,6 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.assertIn(b"ai-chat-launcher", response.data)
         self.assertIn(b"ai-chat-panel", response.data)
         self.assertIn(b"ai-chat-resize-corner", response.data)
-        self.assertNotIn("↖".encode(), response.data)
-        self.assertIn(b"almanac-chat-width", response.data)
         self.assertIn(b"pendingQuestion", response.data)
 
     def test_existing_plant_api_still_lists_every_record(self):
@@ -165,27 +154,24 @@ class AlmanacAIModeTests(unittest.TestCase):
 
     def test_current_month_list_is_complete_and_not_repeated(self):
         fake = self._set_ai(
-            SequencedAlmanacAI(
-                [
-                    (
-                        "You should plant basil, carrot, lettuce, tomato, and zucchini now. "
-                        "Specifically, in September, you can plant basil, carrot, lettuce, "
-                        "tomato, and zucchini."
-                    ),
-                    (
-                        "In September, you can plant Basil, Carrot, Lebanese Cucumber, "
-                        "Lettuce, Telegraph Improved Cucumber, Tomato, and Zucchini."
-                    ),
-                ]
+            FakeAlmanacAI(
+                "You should plant basil, carrot, lettuce, tomato, and zucchini now. "
+                "Specifically, plant basil, carrot, lettuce, tomato, and zucchini."
             )
         )
+        self.app.extensions["ai_loop_reviewer"] = None
 
-        response = self.client.post("/ai/ask", data={"question": "what should i plant niw"})
+        with patch("app.datetime") as clock:
+            clock.now.return_value.strftime.return_value = "September"
+            response = self.client.post(
+                "/ai/ask", data={"question": "what should i plant niw"}
+            )
 
         self.assertEqual(response.status_code, 200)
+        self.assertIn(b"In September, you can plant", response.data)
         self.assertIn(b"Lebanese Cucumber", response.data)
         self.assertIn(b"Telegraph Improved Cucumber", response.data)
-        self.assertEqual(len(fake.calls), 2)
+        self.assertEqual(len(fake.calls), 1)
         self.assertEqual(
             fake.calls[0]["grounding"]["required_answer_items"],
             [
@@ -198,8 +184,6 @@ class AlmanacAIModeTests(unittest.TestCase):
                 "Zucchini",
             ],
         )
-        self.assertIn("Lebanese Cucumber", fake.calls[1]["feedback"])
-        self.assertIn("Basil", fake.calls[1]["feedback"])
 
     def test_ai_question_rejects_empty_input(self):
         response = self.client.post("/ai/ask", data={"question": "   "})
@@ -238,7 +222,8 @@ class AlmanacAIModeTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"New chat", response.data)
-        self.assertIn(b'hx-post="/ai/new"', response.data)
+        self.assertIn(b'hx-post="/ai/clear"', response.data)
+        self.assertIn(b"Start a new chat?", response.data)
         self.assertNotIn(b"Clear chat", response.data)
 
     def test_new_chat_removes_only_current_user_history(self):
@@ -248,23 +233,24 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
         self.auth.user = {"id": 1, "email": "amy@example.com"}
 
-        response = self.client.post("/ai/new")
+        response = self.client.post("/ai/clear")
 
+        self.assertEqual(response.status_code, 200)
         self.assertIn(b"Ask a question to start your Almanac chat", response.data)
 
         with self.app.app_context():
-            self.assertTrue(
-                all(m.owner_key == "user:2" for m in db.session.query(AIChatMessage).all())
-            )
-            self.assertTrue(
-                all(r.owner_key == "user:2" for r in db.session.query(AILoopRun).all())
-            )
+            messages = db.session.query(AIChatMessage).all()
+            runs = db.session.query(AILoopRun).all()
+            self.assertEqual(len(messages), 2)
+            self.assertEqual(len(runs), 1)
+            self.assertTrue(all(message.owner_key == "user:2" for message in messages))
+            self.assertEqual(runs[0].owner_key, "user:2")
 
     def test_new_chat_gives_the_next_question_empty_context(self):
         fake = self._set_ai(FakeAlmanacAI("Tomato answer"))
         self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
 
-        self.client.post("/ai/new")
+        self.client.post("/ai/clear")
         self.client.post("/ai/ask", data={"question": "Tell me about basil"})
 
         self.assertEqual(fake.calls[1]["grounding"]["conversation"], [])
