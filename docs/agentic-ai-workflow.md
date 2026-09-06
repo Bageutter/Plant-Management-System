@@ -1,5 +1,10 @@
 # Agentic AI Workflow — Plan → Act → Observe → Adapt
 
+> This is the deep dive on the **runtime loop**. For the whole-project view of AI
+> — architecture, context management, prompt engineering, and how the runtime and
+> build-time loops relate — see [`docs/ai/`](ai/README.md), specifically
+> [`docs/ai/agentic-workflow.md`](ai/agentic-workflow.md).
+
 Both AI chat features in this project — **Ask the Almanac** (`almanac/`) and **Ask
 about this garden** (`vgarden/`) — answer through an explicit agentic loop rather
 than a single model call. A second, independent model reviews every draft; the

@@ -74,6 +74,10 @@ revises until approved). Every phase is logged for evidence — stdout, JSONL, a
 per-run transcript. See **[docs/agentic-ai-workflow.md](docs/agentic-ai-workflow.md)**
 and `python tools/ai-loop/view.py`.
 
+How AI is designed, prompted, grounded, and made auditable across **every**
+microservice is documented in **[docs/ai/](docs/ai/README.md)** — architecture,
+context management, prompt engineering, and the agentic workflow.
+
 ## Overview
 
 Users can describe and update their garden through several input methods:
