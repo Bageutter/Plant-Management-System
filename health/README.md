@@ -211,6 +211,41 @@ model works. Each event is a JSON object on a `data:` line:
 The stream ends after exactly one `done` or `error` event. `summary` is extracted from
 partially-generated JSON, so the summary appears word by word as it is written.
 
+### `PATCH` / `PUT /plant-health-records/assessments/<id>`
+
+Edits the context recorded against a report: `plant_ref` and `description`. Accepts
+`application/json` or form encoding. `PATCH` moves only the fields supplied; `PUT`
+replaces both, so an omitted field is cleared.
+
+```bash
+curl -X PATCH http://localhost:5003/plant-health-records/assessments/1 \
+  -H 'Content-Type: application/json' \
+  -d '{"plant_ref":"Tomato, back bed (east end)"}'
+```
+
+Responds `200` with the updated record, or the re-rendered submission fragment for an
+HTMX request. `400` if a field is not a string or exceeds its length limit (200
+characters for `plant_ref`, 4000 for `description`), `404` if the record does not exist.
+
+The AI verdict itself is deliberately not editable: it is the output of a past model run,
+and rewriting it would misrepresent what the model actually said. Regenerate instead.
+
+### `POST /plant-health-records/assessments/<id>/regenerate`
+
+Runs the model again over the record's stored photo and its *current* description and
+name, so a report can be re-issued after the context is corrected — or simply for a
+second opinion.
+
+The existing report is never overwritten: the rerun is saved as a new record and returned
+with `201`, so the two runs can be compared side by side. In the UI each rerun is appended
+below the report already on the page.
+
+`400` if the record has neither a description nor a stored photo (records created before
+photos were persisted), `404` if it does not exist, `503` if the local AI is unreachable.
+
+`POST /plant-health-records/assessments/<id>/regenerate/stream` is the `text/event-stream`
+variant, emitting the same events as `/assessments/stream`.
+
 ### Other endpoints
 
 | Method | Path | Description |
@@ -221,7 +256,15 @@ partially-generated JSON, so the summary appears word by word as it is written.
 | `GET` | `/healthz` | Liveness plus local AI reachability |
 | `GET` | `/plant-health-records/assessments?plant_ref=&limit=` | List assessments, newest first |
 | `GET` | `/plant-health-records/assessments/<id>` | Fetch a single assessment as JSON |
+| `PATCH` | `/plant-health-records/assessments/<id>` | Edit the plant name and description |
+| `PUT` | `/plant-health-records/assessments/<id>` | Replace the plant name and description |
+| `POST` | `/plant-health-records/assessments/<id>/regenerate` | Assess the same inputs again as a new record |
 | `DELETE` | `/plant-health-records/assessments/<id>` | Delete an assessment |
+
+Every one of these is reachable from the UI as well as the API: records are deleted from
+the row in the list or from the record page, the name and description are edited in place
+on the record page, and "Generate report again" streams a fresh assessment below the
+existing one.
 
 Uploaded photos **are** persisted, at the reduced resolution actually used for inference
 (typically ~75 KB), so a past record can be reviewed alongside the photo it was based on.
