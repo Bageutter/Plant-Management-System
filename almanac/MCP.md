@@ -23,6 +23,7 @@ python3 -m venv .venv
 export DATABASE_URL="sqlite:////tmp/plant-almanac-mcp-demo.db"
 export PLANT_IMAGE_FOLDER="/tmp/plant-almanac-mcp-demo-images"
 export PYTHONPATH=almanac
+export MCP_ALMANAC_BASE_URL=http://127.0.0.1:5103
 .venv/bin/python -m flask --app app import-notion
 .venv/bin/python -m flask --app app seed-estimates
 .venv/bin/python -m flask --app app refresh-garden
@@ -41,10 +42,25 @@ Lettuce, Aphids and Powdery mildew, and reads their records. It prints estimate
 labels, resource URIs and guide source links. IDs come from search, not hardcoded
 sample numbers. Missing seed records are reported explicitly.
 
+Open http://127.0.0.1:5103/tools for the **Explore with tools** page. Choose a tool,
+enter its inputs, run a lookup and expand **View evidence**. Turning off the checkbox
+prevents calls; `MCP_ENABLED=false` disables calls in the web service and adapter.
+Set that flag in each independently launched process. Discovery remains available;
+public website/API reads remain available. This is an operational switch, not authorization.
+The page uses real stdio MCP, not a simulated HTTP-only tool response. It does not
+automatically send catalogue data to an LLM or change the existing chat.
+
 For the Compose stack, build this branch and use
 `ALMANAC_BASE_URL=http://127.0.0.1:3000/almanac` (the default). The MCP adapter runs
 outside the web container and needs only `almanac/requirements-mcp.txt`; it does
 not import Flask, initialise a database, run migrations or read database files.
+The web explorer also installs these dependencies in its image. Its fixed internal
+target defaults to `MCP_ALMANAC_BASE_URL=http://127.0.0.1:5000`, appropriate inside
+the Almanac container. Use concurrent/threaded web workers because the child adapter
+calls the same service; the current Flask container runs threaded. Tool users cannot
+override that URL. Each web lookup launches one short-lived adapter (30-second total
+deadline); a remotely shared/high-volume service would need authentication and
+rate/concurrency limits before deployment.
 
 ## Connect a local host
 
@@ -136,18 +152,72 @@ The suite includes real stdio and Streamable HTTP MCP sessions against a tempora
 Flask service, discovery of tools/resources/prompts, retrieval of all three kinds,
 harvest calculation, invalid inputs, no-result/error cases, preserved estimate
 labels, pagination and prevention of private-chat exposure. Tests make no LLM calls.
-Existing Almanac CI installs the optional MCP dependencies via requirements-dev;
-the production Flask image keeps its existing requirements. Pip cache keys now
-include all requirements files, and Almanac validation runs after main merges too.
+Almanac runtime and development requirements include the pinned MCP dependencies.
+Pip cache keys include all requirements files, and validation runs after main merges
+too. CI uploads `almanac-mcp-evidence` from actual test invocations for 14 days;
+these artifacts explicitly say model review was not run. CI needs no Ollama or model downloads.
+
+## Execute → capture → review → improve
+
+```bash
+# Repeatable evidence only (all four tools, three catalogue kinds):
+ALMANAC_BASE_URL=http://127.0.0.1:5103 .venv/bin/python almanac/mcp_review.py
+
+# Lab-style local proposer + reviewer, through the existing development pipeline:
+ALMANAC_BASE_URL=http://127.0.0.1:5103 .venv/bin/python tools/ai-dev/pipeline.py --scope mcp
+
+# Equivalent direct command, with optional explicit models:
+.venv/bin/python almanac/mcp_review.py --base-url http://127.0.0.1:5103 --review \
+  --proposer qwen2.5:0.5b --reviewer llama3.1:8b
+```
+
+The three sample records must be seeded first. The collector discovers schemas and
+IDs, executes seven real calls covering all four tools, and records inputs, results,
+errors, timestamps and durations. Missing samples, tool failures, discovery failures
+and invalid model responses produce non-success status; absence is never a pass.
+Each UUID run under ignored `.ai-dev-runs/mcp/` contains `evidence.json`,
+`run-report.md`, `boundary-analysis.md`, `tool-review.md`, and `integration-report.md`.
+Runs never overwrite previous evidence. Reports contain public catalogue data only;
+inspect before sharing, particularly if using a custom catalogue.
+
+Optional review uses installed **local Ollama** models only, temperature zero and
+validated JSON schemas. The proposer receives a compact set of actual output fields;
+the reviewer compares that interpretation to the same evidence and tool boundaries.
+At most two proposal/review attempts run; each model request has a 120-second timeout.
+The full original outputs stay in the evidence file. No model downloads or automatic
+code edits occur. Unavailable models, invalid JSON, invented evidence IDs, excessive
+summary length, guide-availability claims that contradict actual results, and
+unresolved revisions are recorded, not silently approved. See
+[the measured Lab 7 improvement](MCP_LAB7_EVIDENCE.md) for a real small-model failure
+and the resulting safeguards. The existing project's `qwen3:4b-instruct` is also
+supported through `--proposer` when installed locally.
+
+Model approval is advisory. Human review stays **pending**, even after both models
+agree. Review the evidence and proposed measurable next test in `tool-review.md`,
+record your decision in the PR, make any accepted improvement separately, then rerun
+the tests and collector. Existing `shared/ai_loop.py` and other pipeline scopes are
+unchanged. A model cannot decide whether a plant is diseased or a PR is mergeable.
 
 ## Lab 7 and merge sequence
 
-This implements MCP tools, resources, prompts, transports and an API adapter with
-explicit service ownership. The linked UTS Canvas Lab 7 page required sign-in when
-this change was prepared, so exact lab-specific checklist alignment is pending.
-No claim of completing its assessment requirements is made.
+After reading the signed-in Lab 7 and its linked reference, this adapts its enterprise
+integration lessons to gardening rather than copying the enrolment demo:
+
+| Lab lesson | Almanac application |
+| --- | --- |
+| Explicit tool selection and opt-in UI | Four named, read-only tools; checkbox plus server-side off switch; real MCP calls at `/tools/run`. |
+| Purpose, schema, failure and responsibility boundaries | Typed input/output discovery, bounded catalogue API, visible errors, estimate labels, and no diagnosis/mutation tools. |
+| Execute before interpreting | `mcp_evidence.py` stores actual inputs/outputs and timestamps, never a guessed execution. |
+| Plan → Act → Observe → Adapt | Choose sample queries → execute → capture/review → one bounded revision; human approves any subsequent change. |
+| Separate backend, UI and automated validation | HTTP/API tests, real stdio/HTTP protocol tests, browser explorer and deterministic pipeline tests. |
+| Independent local review and evidence reports | Qwen proposer, Llama reviewer, strict JSON, four reports plus raw evidence, separate human decision. |
+
+The lab's student-count/project-files/CI tools are intentionally not exposed to
+gardening users. No arbitrary filesystem access, shell execution or CI-policy claims
+were added. This is a domain adaptation, not a claim of completing lab assessment.
 
 - [UTS Lab 7: MCP and Enterprise Integrations](https://canvas.uts.edu.au/courses/39716/pages/lab-7-mcp-and-enterprise-integrations?module_item_id=2579498)
+- [Lab's linked implementation reference](https://github.com/Georges034302/asd-labs/blob/main/Lab_07_MCP_and_Enterprise_Integrations.md)
 - [Official Python SDK](https://github.com/modelcontextprotocol/python-sdk)
 - [MCP specification](https://modelcontextprotocol.io/specification/latest)
 

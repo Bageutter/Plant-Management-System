@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Explore with tools — Almanac{% endblock %}
+{% block extra_head %}
+<style>
+.tool-shell { max-width:62rem; margin:auto; }
+.tool-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:1.25rem; align-items:start; margin-top:1.5rem; }
+.tool-form { display:grid; gap:1rem; }
+.tool-form label { display:grid; gap:.45rem; font-weight:600; }
+.tool-form input:not([type=checkbox]), .tool-form select { width:100%; padding:.65rem; border:1px solid hsl(var(--border)); border-radius:.5rem; background:white; font:inherit; }
+.tool-evidence { white-space:pre-wrap; overflow-wrap:anywhere; max-height:26rem; overflow:auto; font-size:.78rem; padding:1rem; background:hsl(var(--muted)); border-radius:.5rem; }
+.tool-results { display:grid; gap:.7rem; margin:1rem 0; }
+.tool-results a { color:hsl(var(--primary)); text-decoration:underline; }
+.tool-progress { display:none; }.htmx-request .tool-progress {display:inline;}
+@media(max-width:42rem) { .tool-layout {grid-template-columns:1fr;} }
+[x-cloak] {display:none !important;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="tool-shell" x-data="{on: {{ 'true' if enabled else 'false' }}, tool:'search_catalogue'}">
+    <a href="{{ url_for('index') }}">← Back to Almanac</a>
+    <header class="guide-hero" style="margin-top:1rem;">
+        <p class="guide-kicker">The garden, with evidence</p>
+        <h1 style="font-size:2.5rem;margin:0 0 .75rem;">Explore with tools</h1>
+        <p>Choose a lookup, see the recorded result, and follow its sources. These tools read the Almanac; they do not change your plants or diagnose a problem.</p>
+    </header>
+    <div class="tool-layout">
+        <section class="guide-section">
+            <h2>What would you like to find?</h2>
+            {% if not enabled %}<p role="status">Tool access is disabled in the server configuration.</p>{% endif %}
+            <form class="tool-form" method="post" action="{{ url_for('mcp_ui.run') }}" hx-post="{{ url_for('mcp_ui.run') }}" hx-target="#tool-result" hx-disabled-elt="find button" @submit="if (!on) $event.preventDefault()">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label style="display:flex;align-items:center;gap:.6rem;">
+                    <input type="checkbox" name="enabled" value="on" x-model="on" {% if enabled %}checked{% else %}disabled{% endif %}> Enable tool lookups
+                </label>
+                <p x-show="!on" role="status">Tool mode is off. Turn it on to run a lookup.</p>
+                <label>Tool
+                    <select name="tool" x-model="tool">
+                        <option value="search_catalogue">Search plants, pests & diseases</option>
+                        <option value="get_plant">Read a plant guide</option>
+                        <option value="get_problem">Read a pest or disease guide</option>
+                        <option value="calculate_harvest">Calculate harvest space</option>
+                    </select>
+                </label>
+                <div x-show="tool === 'search_catalogue'" class="tool-form">
+                    <label>Name to find<input name="query" maxlength="120" placeholder="Try Aphids, Lettuce or Powdery mildew"></label>
+                    <label>Look in<select name="kind"><option value="all">Everything</option><option value="plant">Plants</option><option value="pest">Pests</option><option value="disease">Diseases</option></select></label>
+                </div>
+                <label x-cloak x-show="tool === 'get_plant' || tool === 'calculate_harvest'">Plant key<input name="slug" placeholder="lettuce" maxlength="100"></label>
+                <div x-cloak x-show="tool === 'get_problem'" class="tool-form">
+                    <label>Guide type<select name="problem_kind"><option value="pest">Pest</option><option value="disease">Disease</option></select></label>
+                    <label>Record ID from search<input name="record_id" type="number" min="1" :disabled="tool !== 'get_problem'" placeholder="Use the ID shown in a search result"></label>
+                </div>
+                <div x-cloak x-show="tool === 'calculate_harvest'" class="tool-form">
+                    <label>Target harvest<input name="amount" type="number" min="0.01" step="any" :disabled="tool !== 'calculate_harvest'" placeholder="10"></label>
+                    <label>Recorded unit<input name="unit" maxlength="40" placeholder="head"></label>
+                </div>
+                <button type="submit" class="uk-btn uk-btn-primary" :disabled="!on" {% if not enabled %}disabled{% endif %}>Run lookup <span class="tool-progress"> · Looking up…</span></button>
+            </form>
+        </section>
+        <section id="tool-result" class="guide-section" aria-live="polite" aria-atomic="true">
+            <h2>Your result appears here</h2>
+            <p>Start with a name search. Plant keys and problem IDs let you open an exact record next.</p>
+            <p style="margin-top:1rem;">Every lookup includes the tool, its inputs, execution time and original result under <strong>View evidence</strong>.</p>
+        </section>
+    </div>
+</div>
+{% endblock %}

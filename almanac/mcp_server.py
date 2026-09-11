@@ -141,6 +141,8 @@ def create_server(api=None):
     server = MCPServer("Plant Almanac", instructions=INSTRUCTIONS, version="1.0.0")
 
     def read(path, **params):
+        if os.environ.get("MCP_ENABLED", "true").lower() not in ("true", "1", "yes", "on"):
+            raise ResourceError("MCP tool access is disabled by the server configuration.")
         try:
             return api.get(path, **params)
         except ValueError as error:

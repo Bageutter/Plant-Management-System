@@ -8,6 +8,7 @@ on:
     paths:
       - "almanac/**"
       - "shared/**"
+      - "tools/ai-dev/**"
       - "pyproject.toml"
       - ".github/workflows/almanac.yml"
   pull_request:
@@ -15,6 +16,7 @@ on:
     paths:
       - "almanac/**"
       - "shared/**"
+      - "tools/ai-dev/**"
       - "pyproject.toml"
       - ".github/workflows/almanac.yml"
   workflow_dispatch:
@@ -40,7 +42,7 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           version: "0.16.4"
-          args: check --output-format=github almanac shared/ai_loop.py
+          args: check --output-format=github almanac shared/ai_loop.py tools/ai-dev/pipeline.py tools/ai-dev/tests
       - name: Compile-check Python files
         run: python -m compileall -q almanac shared
 
@@ -59,7 +61,19 @@ jobs:
         run: pip install -r almanac/requirements-dev.txt
       - name: Run tests
         working-directory: almanac
+        env:
+          MCP_EVIDENCE_DIR: ${{ runner.temp }}/mcp-evidence
         run: python -m pytest -q
+      - name: Check the development pipeline dispatcher
+        run: python -m pytest -q tools/ai-dev/tests
+      - name: Preserve real MCP execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: almanac-mcp-evidence
+          path: ${{ runner.temp }}/mcp-evidence
+          if-no-files-found: warn
+          retention-days: 14
 
   docker-build:
     name: Docker image builds

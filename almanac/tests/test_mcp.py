@@ -22,6 +22,8 @@ from garden_data import refresh_garden_wording, seed_guilds
 from import_notion import import_notion, seed_estimates
 from mcp_server import AlmanacClient, create_server
 from models import AIChatMessage, Disease, Pest, PlantReference
+from mcp_evidence import collect, run_tool
+from mcp_review import generate, review_evidence, write_reports
 
 
 @pytest.fixture
@@ -147,6 +149,220 @@ def live_catalogue(catalogue):
         service.shutdown()
         thread.join(timeout=5)
         service.server_close()
+
+
+def test_lab_collector_reports_actual_calls(live_catalogue, tmp_path):
+    evidence = asyncio.run(collect(live_catalogue))
+    assert all(evidence["validation"].values())
+    assert len(evidence["calls"]) == 7
+    assert all(call["started_at"] and call["duration_ms"] >= 0 for call in evidence["calls"])
+    assert evidence["human_review"]["decision"] == "pending"
+    assert all(tool["inputSchema"] and tool["outputSchema"] for tool in evidence["tools"])
+    root = Path(os.environ.get("MCP_EVIDENCE_DIR", str(tmp_path)))
+    directory = root / evidence["run_id"]
+    write_reports(evidence, directory)
+    assert len(list(directory.iterdir())) == 5
+    assert "not_run" in (directory / "tool-review.md").read_text()
+    assert "PRIVATE_CHAT_SENTINEL" not in (directory / "evidence.json").read_text()
+    with pytest.raises(FileExistsError):
+        write_reports(evidence, directory)
+
+
+def test_lab_collector_offline_captures_failure(tmp_path):
+    evidence = asyncio.run(collect("http://127.0.0.1:1"))
+    assert not all(evidence["validation"].values())
+    assert all(call["is_error"] for call in evidence["calls"])
+    write_reports(evidence, tmp_path / "offline")
+
+
+def test_lab_collector_discovery_failure(monkeypatch):
+    async def unavailable(url):
+        raise RuntimeError("private internal error")
+
+    monkeypatch.setattr("mcp_evidence._collect", unavailable)
+    evidence = asyncio.run(collect("http://127.0.0.1:1"))
+    assert evidence["validation"] == {"collection_completed": False}
+    assert "private internal error" not in json.dumps(evidence)
+
+
+def test_mcp_ui_gates_and_csrf(catalogue, monkeypatch):
+    def unexpected(*args):
+        pytest.fail("Disabled or invalid requests must not start a tool")
+
+    monkeypatch.setattr("mcp_ui.run_tool", unexpected)
+    client = catalogue.test_client()
+    assert client.get("/tools").status_code == 200
+    assert (
+        client.post("/tools/run", data={"enabled": "on", "tool": "search_catalogue"}).status_code
+        == 400
+    )
+    catalogue.config["WTF_CSRF_ENABLED"] = False
+    assert client.post("/tools/run", data={"tool": "search_catalogue"}).status_code == 403
+    assert client.post("/tools/run", data={"enabled": "on", "tool": "read_file"}).status_code == 400
+    assert (
+        client.post(
+            "/tools/run", data={"enabled": "on", "tool": "get_problem", "record_id": "bad"}
+        ).status_code
+        == 400
+    )
+    catalogue.config["MCP_ENABLED"] = False
+    assert b"disabled in the server" in client.get("/tools").data
+    assert (
+        client.post("/tools/run", data={"enabled": "on", "tool": "search_catalogue"}).status_code
+        == 403
+    )
+
+
+def test_mcp_ui_actual_protocol_and_proxy(catalogue, live_catalogue):
+    catalogue.config.update(WTF_CSRF_ENABLED=False, MCP_ALMANAC_BASE_URL=live_catalogue)
+    client = catalogue.test_client()
+    pest_id = Pest.query.filter_by(name="Aphids").one().id
+    for inputs, expected in [
+        ({"tool": "search_catalogue", "query": "Aphids"}, "Aphids"),
+        ({"tool": "get_plant", "slug": "lettuce"}, "Includes estimated values"),
+        ({"tool": "get_problem", "problem_kind": "pest", "record_id": pest_id}, "Aphids"),
+        ({"tool": "calculate_harvest", "slug": "lettuce", "amount": 10, "unit": "head"}, "0.90 m²"),
+    ]:
+        response = client.post(
+            "/tools/run",
+            data={"enabled": "on", **inputs},
+            headers={"X-Forwarded-Prefix": "/almanac"},
+        )
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert expected in html and "View evidence" in html
+        assert "PRIVATE_CHAT_SENTINEL" not in html
+        if inputs["tool"] == "search_catalogue":
+            assert f'href="/almanac/pests/{pest_id}"' in html
+    response = client.post(
+        "/tools/run", data={"enabled": "on", "tool": "get_plant", "slug": "missing"}
+    )
+    assert response.status_code == 502 and b"No answer returned" in response.data
+
+
+def test_mcp_ui_escapes_evidence_and_connection_errors(catalogue, monkeypatch):
+    catalogue.config["WTF_CSRF_ENABLED"] = False
+
+    def malicious(*args):
+        return {
+            "calls": [
+                {
+                    "tool": "search_catalogue",
+                    "is_error": False,
+                    "duration_ms": 0,
+                    "started_at": "now",
+                    "output": {
+                        "items": [],
+                        "total": "<script>alert(1)</script>",
+                        "next_offset": None,
+                    },
+                }
+            ]
+        }
+
+    monkeypatch.setattr("mcp_ui.run_tool", malicious)
+    client = catalogue.test_client()
+    data = {"enabled": "on", "tool": "search_catalogue"}
+    response = client.post("/tools/run", data=data)
+    assert response.status_code == 200 and b"<script>alert(1)</script>" not in response.data
+
+    def offline(*args):
+        raise RuntimeError("private internal URL")
+
+    monkeypatch.setattr("mcp_ui.run_tool", offline)
+    response = client.post("/tools/run", data=data)
+    assert response.status_code == 503 and b"private internal URL" not in response.data
+
+
+def test_server_disable_flag_blocks_data(live_catalogue, monkeypatch):
+    monkeypatch.setenv("MCP_ENABLED", "false")
+    evidence = run_tool(live_catalogue, "get_plant", {"slug": "lettuce"})
+    assert evidence["calls"][0]["is_error"]
+    assert "disabled" in evidence["calls"][0]["message"]
+
+
+def test_two_model_review_revision_and_failure():
+    evidence = {
+        "calls": [
+            {"tool": "search_catalogue", "input": {}, "is_error": False, "output": {"total": 3}}
+        ],
+        "human_review": {"decision": "pending"},
+    }
+    models = []
+
+    def fake(base, model, prompt, payload, schema):
+        models.append(model)
+        if model == "proposer":
+            return {
+                "summary": "The search returned three records.",
+                "evidence_ids": [0],
+                "limitations": ["No diagnosis."],
+                "guide_checks": [],
+            }
+        return {
+            "verdict": "revise" if len(models) == 2 else "approve",
+            "reason": "Checked evidence.",
+            "unsupported_claims": ["Recheck"] if len(models) == 2 else [],
+            "next_test": "Search an unknown name; expect zero records.",
+        }
+
+    result = review_evidence(evidence, "http://localhost:11434", "proposer", "reviewer", fake)
+    assert result["status"] == "model_approved"
+    assert models == ["proposer", "reviewer", "proposer", "reviewer"]
+    assert evidence["human_review"]["decision"] == "pending"
+
+    def failed(*args):
+        raise ValueError("private model response")
+
+    assert review_evidence(evidence, "http://localhost", "p", "r", failed)["status"] == "failed"
+    assert "private model response" not in json.dumps(evidence)
+
+
+def test_model_review_rejects_fabricated_evidence_ids():
+    evidence = {
+        "calls": [{"tool": "search_catalogue", "input": {}, "is_error": False, "output": {}}]
+    }
+
+    def fake(*args):
+        return {
+            "summary": "Unsupported.",
+            "evidence_ids": [999],
+            "limitations": ["None."],
+            "guide_checks": [],
+        }
+
+    result = review_evidence(evidence, "http://localhost", "p", "r", fake)
+    assert result["status"] == "needs_revision"
+    assert len(result["attempts"]) == 2
+    with pytest.raises(ValueError, match="local Ollama"):
+        generate("https://remote.example", "model", "prompt", {}, object)
+
+
+def test_review_rejects_missing_guide_claim_before_model_approval():
+    evidence = {
+        "calls": [
+            {
+                "tool": "get_problem",
+                "input": {},
+                "is_error": False,
+                "output": {"guide_available": True},
+            }
+        ]
+    }
+
+    def incorrect(*args):
+        return {
+            "summary": "The guide is unavailable.",
+            "evidence_ids": [0],
+            "limitations": ["Missing guide."],
+            "guide_checks": [{"call_id": 0, "available": False}],
+        }
+
+    result = review_evidence(evidence, "http://localhost", "p", "r", incorrect)
+    assert result["status"] == "needs_revision"
+    assert all(
+        "validation_error" in attempt and "review" not in attempt for attempt in result["attempts"]
+    )
 
 
 async def exercise_protocol(target):
