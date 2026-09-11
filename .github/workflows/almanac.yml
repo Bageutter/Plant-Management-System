@@ -1,10 +1,10 @@
-name: Plant Almanac (yunz)
+name: Almanac validation
 
-# Runs the almanac test suite on the yunz/* branches (the shared placeholder
-# workflow plant_almanac.yml still covers amy/*).
+# Validate PRs and the merged main branch; retain yunz branch checks.
+# plant_almanac.yml separately covers Amy's feature branch pushes.
 on:
   push:
-    branches: ["yunz/**"]
+    branches: ["main", "yunz/**"]
     paths:
       - "almanac/**"
       - "shared/**"
@@ -54,7 +54,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: almanac/requirements-dev.txt
+          cache-dependency-path: almanac/requirements*.txt
       - name: Install dependencies
         run: pip install -r almanac/requirements-dev.txt
       - name: Run tests
