@@ -11,7 +11,7 @@ from werkzeug.datastructures import MultiDict
 from app import create_app
 from extensions import db
 from import_notion import import_notion, seed_estimates
-from models import PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
+from models import Disease, PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
 from planning import calculate, parse_details
 
 
@@ -233,6 +233,11 @@ def test_pest_and_disease_pages_link_back_to_plants(app):
     assert b"Aphids" in pests.data
     assert b"Slugs and snails" in pests.data
 
+    home = client.get("/")
+    assert b"Plant problem library" in home.data
+    assert b'href="/pests"' in home.data
+    assert b'href="/diseases"' in home.data
+
     plant = PlantReference.query.filter_by(slug="bunching-onion-winter-ishikura").one()
     plant_page = client.get(f"/plants/{plant.slug}")
     aphids = next(pest for pest in plant.pests if pest.name == "Aphids")
@@ -241,10 +246,38 @@ def test_pest_and_disease_pages_link_back_to_plants(app):
 
     detail = client.get(f"/pests/{aphids.id}")
     assert detail.status_code == 200
-    assert b"Small sap-feeding insects" in detail.data
+    assert b"Use the lightest effective response" in detail.data
+    assert b"Sweet Alyssum" in detail.data
+    assert b"Nasturtium" in detail.data
+    assert b"insecticidal soap" in detail.data
+    assert b'href="/plants/alyssum"' in detail.data
     assert plant.common_name.encode() in detail.data
 
     diseases = client.get("/diseases")
     assert diseases.status_code == 200
     assert b"Powdery mildew" in diseases.data
+    mildew = Disease.query.filter_by(name="Powdery mildew").one()
+    disease_detail = client.get(f"/diseases/{mildew.id}")
+    assert disease_detail.status_code == 200
+    assert b"Make the garden less inviting" in disease_detail.data
+    assert b"Choose a labelled treatment" in disease_detail.data
+    assert b"horticultural oil" in disease_detail.data
     assert client.get("/pests/999999").status_code == 404
+
+
+def test_refresh_updates_old_problem_copy_but_preserves_custom_descriptions(app):
+    from garden_data import LEGACY_PROBLEM_DESCRIPTIONS, PROBLEM_DESCRIPTIONS
+    from garden_data import refresh_garden_wording
+
+    import_notion()
+    seed_estimates()
+    mildew = Disease.query.filter_by(name="Powdery mildew").one()
+    mildew.description = LEGACY_PROBLEM_DESCRIPTIONS["Powdery mildew"]
+    db.session.commit()
+    refresh_garden_wording()
+    assert mildew.description == PROBLEM_DESCRIPTIONS["Powdery mildew"]
+    mildew.description = "My local observations and management notes"
+    db.session.commit()
+    refresh_garden_wording()
+    assert mildew.description == "My local observations and management notes"
+    assert refresh_garden_wording() == 0

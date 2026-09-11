@@ -39,6 +39,7 @@ from import_notion import seed_lookups, import_notion, seed_estimates
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
 from planning import parse_details, apply_details, calculate
 from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
+from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 
 try:
     import ai_loop
@@ -346,6 +347,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             plants=plants,
             messages=messages,
             sources=sources,
+            pest_count=Pest.query.count(),
+            disease_count=Disease.query.count(),
         )
 
     @app.get("/plants/<slug>")
@@ -371,8 +374,26 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.get("/pests/<int:pest_id>")
     def pest_detail(pest_id: int):
+        record = db.get_or_404(Pest, pest_id)
+        guide = PEST_GUIDES.get(record.name)
+        companions = []
+        if guide:
+            for suggestion in guide["companions"]:
+                item = suggestion.copy()
+                if item.get("slug"):
+                    plant = PlantReference.query.filter_by(slug=item["slug"]).first()
+                    item["url"] = (
+                        url_for("plant_detail", slug=plant.slug) if plant else None
+                    )
+                else:
+                    item["url"] = item.get("external_url")
+                companions.append(item)
         return render_template(
-            "problem_detail.html", kind="pest", record=db.get_or_404(Pest, pest_id)
+            "problem_detail.html",
+            kind="pest",
+            record=record,
+            guide=guide,
+            companion_suggestions=companions,
         )
 
     @app.get("/diseases")
@@ -385,10 +406,15 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.get("/diseases/<int:disease_id>")
     def disease_detail(disease_id: int):
+        record = db.get_or_404(Disease, disease_id)
         return render_template(
             "problem_detail.html",
             kind="disease",
-            record=db.get_or_404(Disease, disease_id),
+            record=record,
+            guide=DISEASE_GUIDES.get(record.name),
+            companion_suggestions=(
+                DISEASE_GUIDES.get(record.name, {}).get("companions", [])
+            ),
         )
 
     @app.post("/plants/<slug>/guild")
