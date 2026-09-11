@@ -22,5 +22,16 @@
     <p style="margin-top:1rem;"><strong>Includes estimated values.</strong> Check the original guide and evidence before planning.</p>
 {% endif %}
 <p style="margin:1rem 0;font-size:.85rem;">{{ boundary }}</p>
-<details><summary>View evidence</summary><p>{{ call.tool }} · {{ call.duration_ms }} ms · {{ call.started_at }}</p><pre class="tool-evidence">{{ evidence|tojson(indent=2) }}</pre></details>
+<details x-data="{ copyStatus: '', copying: false }">
+    <summary>View evidence</summary>
+    <div class="tool-evidence-actions">
+        <button type="button" class="uk-btn uk-btn-default" :disabled="copying"
+                @click="copying = true; copyStatus = ''; try { await navigator.clipboard.writeText($refs.evidence.textContent); copyStatus = 'Response copied.'; } catch (error) { copyStatus = 'Could not copy. Select the response below and copy it manually.'; } finally { copying = false; }"
+                x-text="copyStatus === 'Response copied.' ? 'Copied!' : 'Copy response'">Copy response</button>
+        <small>Copies the full evidence JSON.</small>
+    </div>
+    <p role="status" aria-live="polite" x-text="copyStatus"></p>
+    <p>{{ call.tool }} · {{ call.duration_ms }} ms · {{ call.started_at }}</p>
+    <pre class="tool-evidence" x-ref="evidence" tabindex="0" aria-label="Full response JSON">{{ evidence|tojson(indent=2) }}</pre>
+</details>
 {% endif %}

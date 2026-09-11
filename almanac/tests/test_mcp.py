@@ -231,6 +231,9 @@ def test_mcp_ui_actual_protocol_and_proxy(catalogue, live_catalogue):
         assert response.status_code == 200
         html = response.get_data(as_text=True)
         assert expected in html and "View evidence" in html
+        assert '>Copy response</button>' in html
+        assert 'x-ref="evidence" tabindex="0"' in html
+        assert "Copies the full evidence JSON." in html
         assert "PRIVATE_CHAT_SENTINEL" not in html
         if inputs["tool"] == "search_catalogue":
             assert f'href="/almanac/pests/{pest_id}"' in html
