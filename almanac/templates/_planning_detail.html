@@ -1,15 +1,4 @@
 {% from "_field_help.html" import help with context %}
-<section class="planning-card" style="background:hsl(var(--accent) / .4); margin-top:1.5rem;">
-<p class="text-muted-foreground" style="text-transform:uppercase; letter-spacing:.1em; font-size:.75rem;">Plan your harvest</p>
-<h2 style="font-size:1.6rem; margin:.4rem 0 1rem;">How much growing space?</h2>
-{% if plant.plants_per_m2 %}<p><strong>{{ '%.1f'|format(plant.plants_per_m2) }} plants / m²</strong> at {{ plant.in_row_spacing_cm }} × {{ plant.row_spacing_cm }} cm spacing.</p>{% endif %}
-<form action="{{ url_for('harvest_calculator', slug=plant.slug) }}" method="get" hx-get="{{ url_for('harvest_calculator', slug=plant.slug) }}" hx-target="#harvest-result" hx-swap="outerHTML" style="display:flex; gap:.7rem; align-items:end; flex-wrap:wrap; margin-top:1rem;">
-<label>Target harvest<input class="uk-input" name="amount" type="number" min="0.001" max="1000000000" step="any" required placeholder="e.g. 10"></label>
-<label>Unit<input class="uk-input" name="unit" value="{{ plant.yield_unit or '' }}" required placeholder="e.g. kg"></label>
-<button class="uk-btn uk-btn-primary">Calculate</button></form>
-{% if not plant.yield_qty or not plant.plants_per_m2 %}<p class="text-muted-foreground" style="margin-top:1rem;">To calculate, record yield quantity, yield unit and both spacings in Edit plant.</p>{% endif %}
-<div id="harvest-result" role="status" aria-live="polite"></div>
-</section>
 {% for title, keys in [('Yield & spacing',['yield_wording','yield_qty','yield_unit','in_row_spacing_cm','row_spacing_cm','succession_interval_days','harvest_window_weeks']),('Soil & care',['feeder_type','soil_ph_min','soil_ph_max','water_needs','sun_needs','care_notes','management_notes']),('Food forest & uses',['forest_layer','function_tags','uses','part_used','uses_notes']),('Pests & diseases',['pests','diseases'])] %}
 <section class="planning-card" style="margin-top:1.2rem;"><h2 style="font-size:1.25rem; margin-bottom:1rem;">{{ title }}</h2><dl class="planning-grid">
 {% for key in keys %}<div><dt class="text-muted-foreground" style="font-size:.8rem;">{{ numeric_fields.get(key) or text_fields.get(key) or key.replace('_',' ').capitalize() }} {{ help(key, numeric_fields.get(key) or text_fields.get(key) or key.replace("_"," ")) }}</dt><dd style="margin:.25rem 0 .8rem; white-space:pre-line;">{% if key in ['function_tags','uses','pests','diseases'] %}{{ plant[key]|join(', ') or 'Not recorded' }}{% else %}{{ plant[key] if plant[key] is not none else 'Not recorded' }}{% endif %}</dd></div>{% endfor %}

@@ -1,4 +1,4 @@
-"""Validated catalogue edits and deterministic harvest estimates."""
+"""Validated growing-knowledge catalogue edits."""
 
 import math
 from catalogue import CHOICES, NUMERIC, TEXT
@@ -84,32 +84,3 @@ def apply_details(plant, fields):
             setattr(plant, key, records)
         else:
             setattr(plant, key, value)
-
-
-def calculate(plant, amount, unit):
-    try:
-        target = float(amount)
-    except (TypeError, ValueError):
-        raise ValueError("Enter a positive target harvest amount.") from None
-    if not math.isfinite(target) or target <= 0 or target > 1e9:
-        raise ValueError("Target harvest must be greater than zero and at most one billion.")
-    if not plant.yield_qty or not plant.yield_unit:
-        raise ValueError("Add a yield quantity and unit to this plant before calculating.")
-    if unit.strip().casefold() != plant.yield_unit.strip().casefold():
-        raise ValueError(
-            f"Use the recorded yield unit: {plant.yield_unit}. No unit conversion is applied."
-        )
-    if not plant.in_row_spacing_cm or not plant.row_spacing_cm:
-        raise ValueError("Add both in-row and between-row spacing before calculating.")
-    plants = math.ceil(target / plant.yield_qty)
-    area = plants * plant.in_row_spacing_cm * plant.row_spacing_cm / 10000
-    if not math.isfinite(area):
-        raise ValueError("The result is too large. Check yield and spacing values.")
-    return {
-        "plants": plants,
-        "area_m2": area,
-        "target": target,
-        "unit": plant.yield_unit,
-        "harvest_window_weeks": plant.harvest_window_weeks,
-        "succession_interval_days": plant.succession_interval_days,
-    }

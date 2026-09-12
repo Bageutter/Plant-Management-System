@@ -37,7 +37,7 @@ from seed_data import seed_reference_data
 from schema import upgrade_schema
 from import_notion import seed_lookups, import_notion, seed_estimates
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
-from planning import parse_details, apply_details, calculate
+from planning import parse_details, apply_details
 from models import RotationGroup, PlantFunctionTag, PlantUse, PlantCompanion
 
 try:
@@ -710,16 +710,6 @@ def create_app(test_config: dict | None = None) -> Flask:
     def seed_estimates_command():
         """Fill missing fields using labelled AI planning estimates."""
         print(f"Estimated missing fields for {seed_estimates()} plants.")
-
-    @app.get("/plants/<slug>/calculate")
-    def harvest_calculator(slug):
-        plant = PlantReference.query.filter_by(slug=slug).first_or_404()
-        result, error = None, None
-        try:
-            result = calculate(plant, request.args.get("amount"), request.args.get("unit", ""))
-        except ValueError as exc:
-            error = str(exc)
-        return render_template("_harvest_result.html", result=result, error=error), 400 if error else 200
 
     return app
 

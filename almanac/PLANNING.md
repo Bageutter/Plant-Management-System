@@ -1,4 +1,4 @@
-# Plant planning and growing knowledge
+# Plant growing knowledge
 
 The Almanac now stores measurable yield, two-dimensional spacing, succession and harvest windows; soil preferences; linked pests and diseases; food-forest functions and guild suggestions; uses; and eight consistent rotation groups. Nutrition and garden-owned rotation sequences/history remain future work.
 
@@ -30,13 +30,13 @@ The seed commands are repeatable. `refresh-garden` cleans imported/estimated wor
 ## Use it
 
 1. Open the Almanac and choose **Lettuce** (direct preview: `/plants/lettuce`).
-2. Enter **10** and unit **head**, then **Calculate**. The seeded assumptions return **10 plants** and **0.90 m²**, at 30 × 30 cm spacing.
-3. Sign in through the existing Auth service and choose **Edit**. Update yield quantity and unit together, both spacings, succession days and harvest weeks. Save.
+2. Browse recorded growing information, soil preferences and companion suggestions.
+3. Sign in through the existing Auth service and choose **Edit**. Update growing facts; yield quantity and unit must be entered together. Save.
 4. In the same form, select soil/water/sun preferences, one forest layer, multiple garden functions and uses, a part used and a rotation group. Enter comma-separated pest/disease names; these become shared linked records.
 5. On a plant detail page, select a companion plant and a garden function in **Guild suggestions**. Save notes, or remove the matching plant/function suggestion. Links are directional; reverse relationships must be added separately.
 6. Hover, focus or tap a **?** beside a field to read a short explanation. Press Escape or click outside to dismiss it. Rotation guidance explains where to plant next; sowing notes appear under **When to Plant**.
 
-The calculator rounds `target / yield per plant` upward. Growing area is `plants × in-row cm × row cm / 10,000`. Target and recorded units must match; there is no hidden kg/g or fruit/kg conversion. A harvest window means the entire stated production period, not a yield at every picking. A head/root crop yields once. The result excludes paths, germination losses, immature plants, pollination block geometry and seasonal gaps; succession reminders do not promise continuous supply.
+Harvest-to-space planning is outside this Almanac's scope. The calculator UI and endpoint have been removed. Existing yield, spacing and harvest-window records remain descriptive growing knowledge; no saved data or migrations were dropped. Recorded estimates are not guarantees of yield or continuous supply.
 
 ## AI estimates and sources
 
@@ -56,7 +56,7 @@ My Gardens should own `RotationSequence`, steps, spring/autumn restart and bed h
 
 ## API and validation
 
-`GET /api/plants/<slug>` includes the new fields, linked names, rotation metadata, guild links, density and estimated-field provenance. Authenticated POST/PUT/PATCH accept numeric fields and choice strings; `pests`, `diseases`, `uses`, and `function_tags` accept JSON lists. PATCH preserves omitted values. Empty optional values clear them; yield quantity/unit must be cleared together.
+`GET /api/plants/<slug>` includes the new fields, linked names, rotation metadata, guild links and estimated-field provenance. It does not derive planting density or target-based space requirements. Authenticated POST/PUT/PATCH accept numeric fields and choice strings; `pests`, `diseases`, `uses`, and `function_tags` accept JSON lists. PATCH preserves omitted values. Empty optional values clear them; yield quantity/unit must be cleared together.
 
 Validation rejects non-finite or non-positive planning numbers, fractional succession days, invalid vocabulary, missing yield units, reversed pH ranges and pH outside 0–14. Database checks and foreign keys also protect persisted records.
 

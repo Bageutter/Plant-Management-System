@@ -115,4 +115,4 @@ those images.
 
 ## Yield planning and growing knowledge
 
-See [PLANNING.md](PLANNING.md) for migrations, Notion import, seeded growing data, field explanations, companion suggestions, calculator examples, editing and API usage.
+See [PLANNING.md](PLANNING.md) for migrations, Notion import, seeded growing data, field explanations, companion suggestions, editing and API usage.

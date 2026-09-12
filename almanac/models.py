@@ -137,9 +137,6 @@ class PlantReference(db.Model):
                 }
                 for link in self.guild_links
             ],
-            "plants_per_m2": 10000 / (self.in_row_spacing_cm * self.row_spacing_cm)
-            if self.in_row_spacing_cm and self.row_spacing_cm
-            else None,
             "id": self.id,
             "slug": self.slug,
             "common_name": self.common_name,
