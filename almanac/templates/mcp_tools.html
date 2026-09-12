@@ -39,21 +39,16 @@
                         <option value="search_catalogue">Search plants, pests & diseases</option>
                         <option value="get_plant">Read a plant guide</option>
                         <option value="get_problem">Read a pest or disease guide</option>
-                        <option value="calculate_harvest">Calculate harvest space</option>
                     </select>
                 </label>
                 <div x-show="tool === 'search_catalogue'" class="tool-form">
                     <label>Name to find<input name="query" maxlength="120" placeholder="Try Aphids, Lettuce or Powdery mildew"></label>
                     <label>Look in<select name="kind"><option value="all">Everything</option><option value="plant">Plants</option><option value="pest">Pests</option><option value="disease">Diseases</option></select></label>
                 </div>
-                <label x-cloak x-show="tool === 'get_plant' || tool === 'calculate_harvest'">Plant key<input name="slug" placeholder="lettuce" maxlength="100"></label>
+                <label x-cloak x-show="tool === 'get_plant'">Plant key<input name="slug" placeholder="lettuce" maxlength="100"></label>
                 <div x-cloak x-show="tool === 'get_problem'" class="tool-form">
                     <label>Guide type<select name="problem_kind"><option value="pest">Pest</option><option value="disease">Disease</option></select></label>
                     <label>Record ID from search<input name="record_id" type="number" min="1" :disabled="tool !== 'get_problem'" placeholder="Use the ID shown in a search result"></label>
-                </div>
-                <div x-cloak x-show="tool === 'calculate_harvest'" class="tool-form">
-                    <label>Target harvest<input name="amount" type="number" min="0.01" step="any" :disabled="tool !== 'calculate_harvest'" placeholder="10"></label>
-                    <label>Recorded unit<input name="unit" maxlength="40" placeholder="head"></label>
                 </div>
                 <button type="submit" class="uk-btn uk-btn-primary" :disabled="!on" {% if not enabled %}disabled{% endif %}>Run lookup <span class="tool-progress"> · Looking up…</span></button>
             </form>

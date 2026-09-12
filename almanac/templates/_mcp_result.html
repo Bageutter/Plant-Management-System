@@ -7,10 +7,6 @@
     <h2>{{ output.total }} matching {{ 'record' if output.total == 1 else 'records' }}</h2>
     <ul class="tool-results">{% for item in output['items'] %}<li><a href="{{ record_link(item) }}">{{ item.name }}</a> · {{ item.kind }}<br><small>Key: {{ item.key }} · ID: {{ item.id }}</small></li>{% else %}<li>No matches recorded. Try another name.</li>{% endfor %}</ul>
     {% if output.next_offset is not none %}<p>Showing the first {{ output.limit }} results. Refine your search to narrow the list.</p>{% endif %}
-{% elif call.tool == 'calculate_harvest' %}
-    <h2>{{ output.calculation.plants }} {{ output.name }} plants</h2>
-    <p>About {{ '%.2f'|format(output.calculation.area_m2) }} m² for {{ output.calculation.target }} {{ output.calculation.unit }}.</p>
-    <p>{{ output.evidence_note }}</p>
 {% else %}
     <h2>{{ output.name }}</h2>
     {% if call.tool == 'get_plant' %}<p>{{ output.record.summary }}</p>
@@ -18,7 +14,7 @@
     <p style="margin-top:1rem;"><a href="{{ record_link(output) }}">Open the full guide →</a></p>
     <p>{{ output.evidence_note }}</p>
 {% endif %}
-{% if output and (output.estimated_fields or (output.record and output.record.estimated_fields)) %}
+{% if output and output.record and output.record.estimated_fields %}
     <p style="margin-top:1rem;"><strong>Includes estimated values.</strong> Check the original guide and evidence before planning.</p>
 {% endif %}
 <p style="margin:1rem 0;font-size:.85rem;">{{ boundary }}</p>

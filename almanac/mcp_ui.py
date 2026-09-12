@@ -22,7 +22,7 @@ def run():
     tool = request.form.get("tool", "")
     if tool not in BOUNDARIES:
         return render_template(
-            "_mcp_result.html", error="Choose one of the four available tools."
+            "_mcp_result.html", error="Choose one of the three available tools."
         ), 400
     try:
         if tool == "search_catalogue":
@@ -36,12 +36,6 @@ def run():
             arguments = {
                 "kind": request.form.get("problem_kind", "pest"),
                 "record_id": int(request.form.get("record_id", "")),
-            }
-        else:
-            arguments = {
-                "slug": request.form.get("slug", ""),
-                "amount": float(request.form.get("amount", "")),
-                "unit": request.form.get("unit", ""),
             }
         evidence = run_tool(current_app.config["MCP_ALMANAC_BASE_URL"], tool, arguments)
     except (ValueError, TypeError):

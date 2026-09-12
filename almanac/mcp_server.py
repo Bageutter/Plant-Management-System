@@ -32,7 +32,6 @@ Slug = Annotated[str, Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=10
 Limit = Annotated[int, Field(ge=1, le=50, strict=True)]
 Offset = Annotated[int, Field(ge=0, le=100000, strict=True)]
 RecordId = Annotated[int, Field(ge=1, strict=True)]
-Amount = Annotated[float, Field(gt=0, le=1e9, allow_inf_nan=False)]
 
 
 class Reference(BaseModel):
@@ -68,12 +67,6 @@ class ProblemDetail(Reference):
     limit: int
     offset: int
     next_offset: int | None
-    evidence_note: str
-
-
-class HarvestResult(Reference):
-    calculation: dict[str, Any]
-    estimated_fields: list[str]
     evidence_note: str
 
 
@@ -176,19 +169,6 @@ def create_server(api=None):
         """
         return ProblemDetail.model_validate(
             read(f"/{kind}/{record_id}", limit=limit, offset=offset)
-        )
-
-    @server.tool(annotations=READ_ONLY)
-    def calculate_harvest(
-        slug: Slug, amount: Amount, unit: Annotated[str, Field(min_length=1, max_length=40)]
-    ) -> HarvestResult:
-        """Estimate plants and bed area for a target harvest using existing Almanac maths.
-
-        Read get_plant first. Unit must exactly match yield_unit. Requires recorded positive
-        yield and both spacings; reports missing data instead of guessing. Makes no changes.
-        """
-        return HarvestResult.model_validate(
-            read(f"/plant/{valid_slug(slug)}/calculate", amount=amount, unit=unit)
         )
 
     @server.resource("almanac://about", mime_type="text/plain")

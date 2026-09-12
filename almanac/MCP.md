@@ -1,7 +1,7 @@
 # Plant Almanac MCP integration
 
 An MCP host can search the Almanac, follow plant → pest/disease → supporting plant
-links, read sourced management guides, and calculate harvest space. The adapter
+links, and read sourced management guides. The adapter
 uses the same records and guidance as the website, including the work in PRs #34
 and #35. It does not call an LLM; the host chooses when to call a tool. Project AI
 inference remains local Ollama as required by `AGENTS.md`.
@@ -37,7 +37,7 @@ export ALMANAC_BASE_URL=http://127.0.0.1:5103
 .venv/bin/python almanac/mcp_demo.py
 ```
 
-The demo starts the real stdio MCP adapter, discovers four tools, searches for
+The demo starts the real stdio MCP adapter, discovers three tools, searches for
 Lettuce, Aphids and Powdery mildew, and reads their records. It prints estimate
 labels, resource URIs and guide source links. IDs come from search, not hardcoded
 sample numbers. Missing seed records are reported explicitly.
@@ -99,12 +99,15 @@ sharing would need an explicit authentication and deployment design first.
 
 ## Available capabilities
 
+The scope is plants, pests and diseases. Harvest-to-space planning is removed:
+there is no calculator tool, form or HTTP endpoint. Existing descriptive yield
+and spacing records remain intact; tools do not derive planting density or bed area.
+
 | Capability | Inputs and result |
 | --- | --- |
 | `search_catalogue` | Optional query, kind (`all`, `plant`, `pest`, `disease`), limit and offset. Returns names, keys, URIs, page paths and next offset. Searches plant scientific names too. |
 | `get_plant` | A slug from search. Returns growing data, `estimated_fields`, companion links and problem IDs. |
 | `get_problem` | Kind + ID from search; optional paging for linked plants. Returns guide, sources, precautions and affected-plant associations. |
-| `calculate_harvest` | Plant slug, positive target amount and recorded yield unit. Reuses the existing calculator and returns plants/area plus estimate labels. No unit conversion or guessed inputs. |
 | `almanac://about` | Instructions for using catalogue evidence. |
 | `almanac://plants/{slug}` | A plant reference as JSON. |
 | `almanac://pests/{record_id}` | A pest guide and first page of linked plants. |
@@ -115,7 +118,7 @@ Example requests for an MCP-enabled local AI host:
 
 - “What does the Almanac say about aphids, and which plants might support beneficial insects?”
 - “Compare powdery mildew signs with my cucumber's white leaf patches. What should I inspect?”
-- “How many lettuce plants and how much bed area for ten heads? Which inputs are estimates?”
+- “What growing facts are recorded for lettuce, and which fields are labelled estimates?”
 
 The server provides evidence, not a diagnosis. `guide_available=false` means a
 record has no detailed guide (currently the Slugs and snails starter record).
@@ -131,11 +134,10 @@ All new endpoints are GET-only and expose public catalogue data:
 - `/api/catalogue?q=&kind=all&limit=20&offset=0`
 - `/api/catalogue/plant/<slug>`
 - `/api/catalogue/pest/<id>` and `/api/catalogue/disease/<id>`
-- `/api/catalogue/plant/<slug>/calculate?amount=10&unit=head`
 
 Search and linked-plant pages default to 20 and allow at most 50 entries. Query
 length is capped at 120; SQL wildcard characters are treated literally. Missing
-records return JSON 404; invalid parameters or missing calculation inputs return
+records return JSON 404; invalid parameters return
 JSON 400. MCP turns these into tool errors. Timeouts/unavailable services produce
 actionable errors, not invented facts. HTTP redirects are not followed. Tool
 arguments cannot supply an arbitrary URL, HTTP method, filesystem path or SQL.
@@ -150,7 +152,7 @@ git diff --check
 
 The suite includes real stdio and Streamable HTTP MCP sessions against a temporary
 Flask service, discovery of tools/resources/prompts, retrieval of all three kinds,
-harvest calculation, invalid inputs, no-result/error cases, preserved estimate
+retired-calculator rejection, invalid inputs, no-result/error cases, preserved estimate
 labels, pagination and prevention of private-chat exposure. Tests make no LLM calls.
 Almanac runtime and development requirements include the pinned MCP dependencies.
 Pip cache keys include all requirements files, and validation runs after main merges
@@ -160,7 +162,7 @@ these artifacts explicitly say model review was not run. CI needs no Ollama or m
 ## Execute → capture → review → improve
 
 ```bash
-# Repeatable evidence only (all four tools, three catalogue kinds):
+# Repeatable evidence only (all three tools, three catalogue kinds):
 ALMANAC_BASE_URL=http://127.0.0.1:5103 .venv/bin/python almanac/mcp_review.py
 
 # Lab-style local proposer + reviewer, through the existing development pipeline:
@@ -172,7 +174,7 @@ ALMANAC_BASE_URL=http://127.0.0.1:5103 .venv/bin/python tools/ai-dev/pipeline.py
 ```
 
 The three sample records must be seeded first. The collector discovers schemas and
-IDs, executes seven real calls covering all four tools, and records inputs, results,
+IDs, executes six real calls covering all three tools, and records inputs, results,
 errors, timestamps and durations. Missing samples, tool failures, discovery failures
 and invalid model responses produce non-success status; absence is never a pass.
 Each UUID run under ignored `.ai-dev-runs/mcp/` contains `evidence.json`,
@@ -205,7 +207,7 @@ integration lessons to gardening rather than copying the enrolment demo:
 
 | Lab lesson | Almanac application |
 | --- | --- |
-| Explicit tool selection and opt-in UI | Four named, read-only tools; checkbox plus server-side off switch; real MCP calls at `/tools/run`. |
+| Explicit tool selection and opt-in UI | Three named, read-only tools; checkbox plus server-side off switch; real MCP calls at `/tools/run`. |
 | Purpose, schema, failure and responsibility boundaries | Typed input/output discovery, bounded catalogue API, visible errors, estimate labels, and no diagnosis/mutation tools. |
 | Execute before interpreting | `mcp_evidence.py` stores actual inputs/outputs and timestamps, never a guessed execution. |
 | Plan → Act → Observe → Adapt | Choose sample queries → execute → capture/review → one bounded revision; human approves any subsequent change. |

@@ -88,23 +88,14 @@ def test_public_details_preserve_evidence_and_make_no_writes(catalogue):
     for path in ["plant/no-such-plant", "pest/999999", "disease/999999"]:
         response = client.get("/api/catalogue/" + path)
         assert response.status_code == 404 and response.json["error"]
-    result = client.get("/api/catalogue/plant/lettuce/calculate?amount=10&unit=head").json
-    assert result["calculation"]["plants"] == 10
-    assert result["calculation"]["area_m2"] == pytest.approx(0.9)
-    assert "yield_qty" in result["estimated_fields"]
-    for query in ["amount=0&unit=head", "amount=10&unit=kg", "amount=nan&unit=head"]:
-        assert client.get("/api/catalogue/plant/lettuce/calculate?" + query).status_code == 400
-    empty = PlantReference.query.filter_by(slug="lettuce").one()
-    empty.row_spacing_cm = None
-    db.session.flush()
+    assert "plants_per_m2" not in payload["record"]
     assert (
-        client.get("/api/catalogue/plant/lettuce/calculate?amount=10&unit=head").status_code == 400
+        client.get("/api/catalogue/plant/lettuce/calculate?amount=10&unit=head").status_code == 404
     )
-    db.session.rollback()
     for method in [client.post, client.put, client.patch, client.delete]:
         assert method("/api/catalogue/plant/lettuce").status_code in (400, 405)
     assert [p.to_dict() for p in PlantReference.query.order_by(PlantReference.id)] == before
-    assert "PRIVATE_CHAT_SENTINEL" not in json.dumps([payload, guide, result])
+    assert "PRIVATE_CHAT_SENTINEL" not in json.dumps([payload, guide])
 
 
 @pytest.mark.parametrize(
@@ -154,7 +145,7 @@ def live_catalogue(catalogue):
 def test_lab_collector_reports_actual_calls(live_catalogue, tmp_path):
     evidence = asyncio.run(collect(live_catalogue))
     assert all(evidence["validation"].values())
-    assert len(evidence["calls"]) == 7
+    assert len(evidence["calls"]) == 6
     assert all(call["started_at"] and call["duration_ms"] >= 0 for call in evidence["calls"])
     assert evidence["human_review"]["decision"] == "pending"
     assert all(tool["inputSchema"] and tool["outputSchema"] for tool in evidence["tools"])
@@ -191,7 +182,9 @@ def test_mcp_ui_gates_and_csrf(catalogue, monkeypatch):
 
     monkeypatch.setattr("mcp_ui.run_tool", unexpected)
     client = catalogue.test_client()
-    assert client.get("/tools").status_code == 200
+    page = client.get("/tools")
+    assert page.status_code == 200
+    assert b"calculate_harvest" not in page.data
     assert (
         client.post("/tools/run", data={"enabled": "on", "tool": "search_catalogue"}).status_code
         == 400
@@ -203,6 +196,10 @@ def test_mcp_ui_gates_and_csrf(catalogue, monkeypatch):
         client.post(
             "/tools/run", data={"enabled": "on", "tool": "get_problem", "record_id": "bad"}
         ).status_code
+        == 400
+    )
+    assert (
+        client.post("/tools/run", data={"enabled": "on", "tool": "calculate_harvest"}).status_code
         == 400
     )
     catalogue.config["MCP_ENABLED"] = False
@@ -221,7 +218,6 @@ def test_mcp_ui_actual_protocol_and_proxy(catalogue, live_catalogue):
         ({"tool": "search_catalogue", "query": "Aphids"}, "Aphids"),
         ({"tool": "get_plant", "slug": "lettuce"}, "Includes estimated values"),
         ({"tool": "get_problem", "problem_kind": "pest", "record_id": pest_id}, "Aphids"),
-        ({"tool": "calculate_harvest", "slug": "lettuce", "amount": 10, "unit": "head"}, "0.90 m²"),
     ]:
         response = client.post(
             "/tools/run",
@@ -231,7 +227,7 @@ def test_mcp_ui_actual_protocol_and_proxy(catalogue, live_catalogue):
         assert response.status_code == 200
         html = response.get_data(as_text=True)
         assert expected in html and "View evidence" in html
-        assert '>Copy response</button>' in html
+        assert ">Copy response</button>" in html
         assert 'x-ref="evidence" tabindex="0"' in html
         assert "Copies the full evidence JSON." in html
         assert "PRIVATE_CHAT_SENTINEL" not in html
@@ -375,7 +371,6 @@ async def exercise_protocol(target):
             "search_catalogue",
             "get_plant",
             "get_problem",
-            "calculate_harvest",
         }
         assert all(
             t.annotations.read_only_hint and not t.annotations.destructive_hint for t in tools
@@ -387,18 +382,13 @@ async def exercise_protocol(target):
         assert guide.structured_content["guide"]["sources"]
         plant = await client.call_tool("get_plant", {"slug": "lettuce"})
         assert "yield_qty" in plant.structured_content["record"]["estimated_fields"]
-        result = await client.call_tool(
-            "calculate_harvest", {"slug": "lettuce", "amount": 10, "unit": "head"}
-        )
-        assert result.structured_content["calculation"]["plants"] == 10
         for name, args in [
             ("search_catalogue", {"limit": 500}),
             ("get_plant", {"slug": "../../ai/history"}),
             ("get_problem", {"kind": "user", "record_id": 1}),
             ("get_problem", {"kind": "pest", "record_id": -1}),
             ("get_plant", {"slug": "no-such-plant"}),
-            ("calculate_harvest", {"slug": "lettuce", "amount": -1, "unit": "head"}),
-            ("calculate_harvest", {"slug": "lettuce", "amount": 1, "unit": "kg"}),
+            ("calculate_harvest", {"slug": "lettuce", "amount": 10, "unit": "head"}),
         ]:
             assert (await client.call_tool(name, args)).is_error
         resources = (await client.list_resources()).resources

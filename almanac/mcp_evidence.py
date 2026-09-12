@@ -16,7 +16,6 @@ BOUNDARIES = {
     "search_catalogue": "Find recorded names and keys; does not infer missing species or diagnoses.",
     "get_plant": "Read growing facts and estimates; does not edit plants or promise yields.",
     "get_problem": "Read guides and associations; does not diagnose a plant or prescribe doses.",
-    "calculate_harvest": "Calculate from recorded yield/spacing; does not convert units or guess inputs.",
 }
 
 
@@ -49,11 +48,11 @@ class EvidenceSession:
         tools = (await self.client.list_tools()).tools
         self.report["tools"] = [tool.model_dump(mode="json", by_alias=True) for tool in tools]
         if {tool.name for tool in tools} != set(BOUNDARIES):
-            raise ValueError("Discovered tools do not match the four allowed Almanac tools.")
+            raise ValueError("Discovered tools do not match the three allowed Almanac tools.")
 
     async def invoke(self, tool, arguments):
         if tool not in BOUNDARIES:
-            raise ValueError("Choose one of the four Almanac tools.")
+            raise ValueError("Choose one of the three Almanac tools.")
         started, clock = now(), time.monotonic()
         try:
             result = await self.client.call_tool(tool, arguments)
@@ -91,7 +90,7 @@ async def execute(base_url, tool, arguments):
 
 
 async def _collect(base_url):
-    """Exercise all four tools with discovered sample IDs; capture failures too."""
+    """Exercise all three tools with discovered sample IDs; capture failures too."""
     async with Client(stdio_target(base_url), read_timeout_seconds=15) as client:
         session = EvidenceSession(client)
         await session.discover()
@@ -110,16 +109,7 @@ async def _collect(base_url):
                 continue
             samples.append(kind)
             if kind == "plant":
-                detail = await session.invoke("get_plant", {"slug": exact["key"]})
-                record = (detail["output"] or {}).get("record", {})
-                await session.invoke(
-                    "calculate_harvest",
-                    {
-                        "slug": exact["key"],
-                        "amount": 10,
-                        "unit": record.get("yield_unit") or "head",
-                    },
-                )
+                await session.invoke("get_plant", {"slug": exact["key"]})
             else:
                 await session.invoke("get_problem", {"kind": kind, "record_id": exact["id"]})
         succeeded = {call["tool"] for call in session.report["calls"] if not call["is_error"]}

@@ -7,7 +7,6 @@ from sqlalchemy import func, literal, or_, select, union_all
 
 from extensions import db
 from models import Disease, Pest, PlantReference
-from planning import calculate
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 
 
@@ -141,18 +140,4 @@ def problem(kind, record_id):
         next_offset=offset + limit if offset + limit < total else None,
         evidence_note="Recorded plant links are catalogue associations, not confirmed diagnoses. "
         "A missing guide means management guidance is not available in this catalogue.",
-    )
-
-
-@catalogue_api.get("/plant/<slug>/calculate")
-def harvest(slug):
-    record = PlantReference.query.filter_by(slug=slug).first()
-    if record is None:
-        return jsonify(error="Plant not found; search the catalogue for a valid slug."), 404
-    result = calculate(record, request.args.get("amount"), request.args.get("unit", ""))
-    return jsonify(
-        **reference("plant", record),
-        calculation=result,
-        estimated_fields=record.estimated_fields or [],
-        evidence_note="A planning estimate based on recorded yield and spacing; not a harvest guarantee.",
     )

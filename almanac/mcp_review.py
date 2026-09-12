@@ -95,7 +95,7 @@ def review_evidence(evidence, base_url, proposer, reviewer, generate_fn=generate
                 "is_error": call["is_error"],
                 "result": {
                     key: output[key]
-                    for key in ("name", "total", "guide_available", "calculation", "evidence_note")
+                    for key in ("name", "total", "guide_available", "evidence_note")
                     if key in output
                 },
                 "estimated_fields": output.get(
