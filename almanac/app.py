@@ -34,6 +34,11 @@ from auth_client import AuthClient
 from extensions import csrf, db
 from models import AIChatMessage, AILoopRun, PlantImage, PlantingMonth, PlantReference
 from seed_data import seed_reference_data
+from schema import upgrade_schema
+from import_notion import seed_lookups, import_notion, seed_estimates
+from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
+from planning import parse_details, apply_details
+from models import RotationGroup, PlantFunctionTag, PlantUse, PlantCompanion
 
 try:
     import ai_loop
@@ -126,6 +131,10 @@ def _parse_plant_form(form) -> tuple[dict, list[int], str | None]:
         if not 1 <= month <= 12:
             return fields, [], "Planting months must be between 1 and 12."
         months.append(month)
+    try:
+        fields.update(parse_details(form))
+    except ValueError as exc:
+        return fields, sorted(set(months)), str(exc)
     return fields, sorted(set(months)), None
 
 
@@ -134,6 +143,7 @@ def _apply_plant(plant: PlantReference, fields: dict, months: list[int]) -> None
     plant.scientific_name = fields["scientific_name"]
     plant.family = fields["family"]
     plant.summary = fields["summary"]
+    apply_details(plant, {key: value for key, value in fields.items() if key not in ("common_name", "scientific_name", "family", "summary")})
 
     # Diff rather than replace: assigning a fresh list would try to INSERT a
     # month row before deleting the old one with the same (plant, month) and
@@ -309,6 +319,10 @@ def create_app(test_config: dict | None = None) -> Flask:
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
             "health_public_url": app.config["HEALTH_PUBLIC_URL"],
             "auth_user": _current_auth_user(),
+            "field_help": FIELD_HELP,
+            "detail_choices": CHOICES, "numeric_fields": NUMERIC, "text_fields": TEXT,
+            "rotation_groups": RotationGroup.query.order_by(RotationGroup.id).all(),
+            "function_options": PlantFunctionTag.query.all(), "use_options": PlantUse.query.all(),
         }
 
     @app.get("/")
@@ -329,7 +343,30 @@ def create_app(test_config: dict | None = None) -> Flask:
         plant = PlantReference.query.filter_by(slug=slug).first()
         if plant is None:
             return render_template("404.html"), 404
-        return render_template("plant_detail.html", plant=_plant_payload(plant))
+        return render_template("plant_detail.html", plant=_plant_payload(plant), guild_candidates=PlantReference.query.filter(PlantReference.id != plant.id).order_by(PlantReference.common_name).all())
+
+    @app.post("/plants/<slug>/guild")
+    def save_guild(slug):
+        if _current_auth_user() is None:
+            return redirect(f"{app.config['AUTH_PUBLIC_URL']}/login")
+        plant = PlantReference.query.filter_by(slug=slug).first_or_404()
+        companion_id = request.form.get("companion_id", type=int)
+        function_id = request.form.get("function_id", type=int)
+        if (companion_id == plant.id or not companion_id or not function_id
+                or not db.session.get(PlantReference, companion_id)
+                or not db.session.get(PlantFunctionTag, function_id)):
+            abort(400)
+        link = db.session.get(PlantCompanion, (plant.id, companion_id, function_id))
+        if request.form.get("action") == "remove":
+            if link:
+                db.session.delete(link)
+        else:
+            if link is None:
+                link = PlantCompanion(plant_id=plant.id, companion_id=companion_id, function_id=function_id)
+                db.session.add(link)
+            link.notes = request.form.get("notes", "").strip() or None
+        db.session.commit()
+        return redirect(url_for("plant_detail", slug=slug))
 
     @app.get("/plant-images/<path:filename>")
     def plant_image_file(filename: str):
@@ -450,6 +487,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             return render_template("404.html"), 404
         name = plant.common_name
         image_filename = plant.image.filename if plant.image else None
+        PlantCompanion.query.filter_by(companion_id=plant.id).delete()
         db.session.delete(plant)
         db.session.commit()
         _delete_image_file(image_filename)
@@ -473,16 +511,25 @@ def create_app(test_config: dict | None = None) -> Flask:
     def _api_user_or_401():
         return _current_auth_user()
 
-    def _api_parse(payload: dict):
-        class _Form:
-            def get(self, key):
-                return payload.get(key)
-
-            def getlist(self, key):
-                value = payload.get(key, [])
-                return value if isinstance(value, list) else [value]
-
-        return _parse_plant_form(_Form())
+    def _api_parse(payload: dict, plant=None):
+        from werkzeug.datastructures import MultiDict
+        if not isinstance(payload, dict):
+            return {}, [], "Send a JSON object."
+        if plant is not None:
+            previous = {key: getattr(plant, key) for key in ["common_name", "scientific_name", "family", "summary", *NUMERIC, *TEXT, *CHOICES, "rotation_group_id"]}
+            previous["months"] = [month.month_number for month in plant.planting_months]
+            payload = {**previous, **payload}
+        form = MultiDict()
+        for key, value in payload.items():
+            if key in ("months", "uses", "function_tags"):
+                form.setlist(key, [str(v) for v in (value if isinstance(value, list) else [value])])
+            elif key in ("pests", "diseases") and isinstance(value, list):
+                form[key] = ",".join(str(v) for v in value)
+            else:
+                form[key] = str(value) if value is not None else ""
+            if key in ("pests", "diseases", "uses", "function_tags"):
+                form[f"{key}_present"] = "1"
+        return _parse_plant_form(form)
 
     @app.post("/api/plants")
     @csrf.exempt
@@ -506,7 +553,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         plant = PlantReference.query.filter_by(slug=slug).first()
         if plant is None:
             return jsonify({"error": "plant reference not found"}), 404
-        fields, months, error = _api_parse(request.get_json(silent=True) or {})
+        fields, months, error = _api_parse(request.get_json(silent=True) or {}, plant)
         if error:
             return jsonify({"error": error}), 400
         _apply_plant(plant, fields, months)
@@ -522,6 +569,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         if plant is None:
             return jsonify({"error": "plant reference not found"}), 404
         image_filename = plant.image.filename if plant.image else None
+        PlantCompanion.query.filter_by(companion_id=plant.id).delete()
         db.session.delete(plant)
         db.session.commit()
         _delete_image_file(image_filename)
@@ -641,9 +689,27 @@ def create_app(test_config: dict | None = None) -> Flask:
         return jsonify({"status": "ok", "service": "almanac"})
 
     with app.app_context():
-        db.create_all()
+        upgrade_schema()
+        seed_lookups()
         if not PlantReference.query.first():
             seed_reference_data()
+
+    @app.cli.command("import-notion")
+    def import_notion_command():
+        """Import the versioned Notion snapshot, preserving existing edits."""
+        added, linked = import_notion()
+        print(f"Imported {added} plants; linked {linked} existing plants.")
+
+    @app.cli.command("refresh-garden")
+    def refresh_garden_command():
+        """Refresh seeded wording and add starter companion suggestions."""
+        from garden_data import refresh_garden_wording, seed_guilds
+        print(f"Updated {refresh_garden_wording()} text fields; added {seed_guilds()} companion links.")
+
+    @app.cli.command("seed-estimates")
+    def seed_estimates_command():
+        """Fill missing fields using labelled AI planning estimates."""
+        print(f"Estimated missing fields for {seed_estimates()} plants.")
 
     return app
 

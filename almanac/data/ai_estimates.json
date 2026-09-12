@@ -1,0 +1,625 @@
+{
+  "generated": "2026-09-06",
+  "method": "AI-authored estimates requested by the user. Temperate home-garden assumptions; not measurements or extracted Notion facts. Yield is total per established plant across the stated window. No survival allowance. Single-harvest windows describe picking timing, not weekly regrowth.",
+  "plants": {
+    "Alyssum": {
+      "row_spacing_cm": 25,
+      "feeder_type": "light feeder",
+      "forest_layer": "groundcover",
+      "part_used": "flower",
+      "uses": [
+        "ornamental"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "function_tags": [
+        "pollinator attractor"
+      ]
+    },
+    "Basil - Genovese": {
+      "yield_qty": 0.2,
+      "yield_unit": "kg",
+      "harvest_window_weeks": 8,
+      "succession_interval_days": 28,
+      "row_spacing_cm": 30,
+      "feeder_type": "light feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "leaf",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 0.2 kg per established plant over a 8-week harvest window. Total across repeated pickings, not the yield at every picking.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Bergamot - Lemon Mint": {
+      "row_spacing_cm": 40,
+      "feeder_type": "light feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "leaf",
+      "uses": [
+        "culinary",
+        "ornamental"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "diseases": [
+        "Powdery mildew"
+      ],
+      "function_tags": [
+        "pollinator attractor"
+      ]
+    },
+    "Broccoli - Purple Sprouting": {
+      "yield_qty": 0.6,
+      "yield_unit": "kg",
+      "harvest_window_weeks": 6,
+      "succession_interval_days": 28,
+      "row_spacing_cm": 60,
+      "feeder_type": "heavy feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "flower",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "high",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 0.6 kg per established plant over a 6-week harvest window. Total across repeated pickings, not the yield at every picking.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Bunching Onion - Winter Ishikura": {
+      "yield_qty": 1,
+      "yield_unit": "plant",
+      "harvest_window_weeks": 1,
+      "succession_interval_days": 21,
+      "row_spacing_cm": 30,
+      "feeder_type": "light feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "leaf",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 plant per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Carrot - Cosmic Purple": {
+      "yield_qty": 1,
+      "yield_unit": "root",
+      "harvest_window_weeks": 1,
+      "succession_interval_days": 21,
+      "row_spacing_cm": 25,
+      "feeder_type": "light feeder",
+      "forest_layer": "rhizosphere",
+      "part_used": "root",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 root per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Carrot - Nantes": {
+      "yield_qty": 1,
+      "yield_unit": "root",
+      "harvest_window_weeks": 1,
+      "succession_interval_days": 21,
+      "row_spacing_cm": 25,
+      "feeder_type": "light feeder",
+      "forest_layer": "rhizosphere",
+      "part_used": "root",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 root per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Carrot - Solar Yellow": {
+      "yield_qty": 1,
+      "yield_unit": "root",
+      "harvest_window_weeks": 1,
+      "succession_interval_days": 21,
+      "row_spacing_cm": 25,
+      "feeder_type": "light feeder",
+      "forest_layer": "rhizosphere",
+      "part_used": "root",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 root per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Eggplant - Casper": {
+      "yield_qty": 8,
+      "yield_unit": "fruit",
+      "harvest_window_weeks": 10,
+      "row_spacing_cm": 80,
+      "feeder_type": "heavy feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "fruit",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "high",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 8 fruit per established plant over a 10-week harvest window. Total across repeated pickings, not the yield at every picking.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "scientific_name": "Solanum melongena",
+      "in_row_spacing_cm": 60
+    },
+    "Eggplant - Tsakoniki": {
+      "yield_qty": 8,
+      "yield_unit": "fruit",
+      "harvest_window_weeks": 10,
+      "row_spacing_cm": 80,
+      "feeder_type": "heavy feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "fruit",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "high",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 8 fruit per established plant over a 10-week harvest window. Total across repeated pickings, not the yield at every picking.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Grass Jelly": {
+      "row_spacing_cm": 150,
+      "feeder_type": "light feeder",
+      "forest_layer": "vine",
+      "part_used": "leaf",
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "part shade",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "rotation_group": "Perennials"
+    },
+    "Horseradish": {
+      "yield_qty": 0.3,
+      "yield_unit": "kg",
+      "harvest_window_weeks": 1,
+      "row_spacing_cm": 60,
+      "feeder_type": "light feeder",
+      "forest_layer": "rhizosphere",
+      "part_used": "root",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 0.3 kg per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "rotation_group": "Perennials"
+    },
+    "Hyssop": {
+      "row_spacing_cm": 60,
+      "feeder_type": "light feeder",
+      "forest_layer": "shrub",
+      "part_used": "leaf",
+      "uses": [
+        "culinary",
+        "ornamental"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "function_tags": [
+        "pollinator attractor"
+      ],
+      "rotation_group": "Perennials"
+    },
+    "Japanese Raisin Tree": {
+      "feeder_type": "light feeder",
+      "forest_layer": "canopy",
+      "uses": [
+        "ornamental"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "rotation_group": "Perennials"
+    },
+    "Lettuce": {
+      "yield_qty": 1,
+      "yield_unit": "head",
+      "harvest_window_weeks": 1,
+      "succession_interval_days": 14,
+      "row_spacing_cm": 30,
+      "feeder_type": "light feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "leaf",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "high",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 head per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Lettuce - Buttercrunch": {
+      "yield_qty": 1,
+      "yield_unit": "head",
+      "harvest_window_weeks": 1,
+      "succession_interval_days": 14,
+      "row_spacing_cm": 30,
+      "feeder_type": "light feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "leaf",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "high",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 head per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Lilly of the Valley": {
+      "row_spacing_cm": 30,
+      "feeder_type": "light feeder",
+      "forest_layer": "groundcover",
+      "part_used": "flower",
+      "uses": [
+        "ornamental"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "part shade",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "scientific_name": "Convallaria majalis",
+      "in_row_spacing_cm": 20,
+      "uses_notes": "AI identity assumption: lily of the valley (Convallaria majalis). Ornamental only; poisonous if eaten. Confirm identification before using this record.",
+      "rotation_group": "Perennials"
+    },
+    "Marigold - French Marigold": {
+      "row_spacing_cm": 30,
+      "feeder_type": "light feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "flower",
+      "uses": [
+        "ornamental"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "function_tags": [
+        "pollinator attractor"
+      ]
+    },
+    "Pea - Greenfeast": {
+      "yield_qty": 0.25,
+      "yield_unit": "kg",
+      "harvest_window_weeks": 4,
+      "succession_interval_days": 21,
+      "row_spacing_cm": 50,
+      "feeder_type": "nitrogen fixer",
+      "forest_layer": "vine",
+      "part_used": "fruit",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 0.25 kg per established plant over a 4-week harvest window. Total across repeated pickings, not the yield at every picking.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "diseases": [
+        "Powdery mildew"
+      ],
+      "function_tags": [
+        "nitrogen fixer"
+      ]
+    },
+    "Pea - Oregon Dwarf": {
+      "yield_qty": 0.25,
+      "yield_unit": "kg",
+      "harvest_window_weeks": 4,
+      "succession_interval_days": 21,
+      "row_spacing_cm": 50,
+      "feeder_type": "nitrogen fixer",
+      "forest_layer": "vine",
+      "part_used": "fruit",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 0.25 kg per established plant over a 4-week harvest window. Total across repeated pickings, not the yield at every picking.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "diseases": [
+        "Powdery mildew"
+      ],
+      "function_tags": [
+        "nitrogen fixer"
+      ]
+    },
+    "Radish - French Breakfast": {
+      "yield_qty": 1,
+      "yield_unit": "root",
+      "harvest_window_weeks": 1,
+      "succession_interval_days": 14,
+      "row_spacing_cm": 20,
+      "feeder_type": "light feeder",
+      "forest_layer": "rhizosphere",
+      "part_used": "root",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 root per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Stepover Apples": {
+      "row_spacing_cm": 150,
+      "feeder_type": "light feeder",
+      "forest_layer": "shrub",
+      "part_used": "fruit",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "scientific_name": "Malus domestica",
+      "in_row_spacing_cm": 150,
+      "rotation_group": "Perennials"
+    },
+    "Sunflower - Golden Prominence F1": {
+      "yield_qty": 1,
+      "yield_unit": "flower",
+      "harvest_window_weeks": 1,
+      "succession_interval_days": 21,
+      "row_spacing_cm": 45,
+      "feeder_type": "heavy feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "flower",
+      "uses": [
+        "ornamental"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 flower per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Sweet Corn Terrific F1": {
+      "yield_qty": 1,
+      "yield_unit": "cob",
+      "harvest_window_weeks": 1,
+      "succession_interval_days": 14,
+      "row_spacing_cm": 50,
+      "feeder_type": "heavy feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "seed",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "high",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 cob per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Sweet potato": {
+      "yield_qty": 1,
+      "yield_unit": "kg",
+      "harvest_window_weeks": 1,
+      "row_spacing_cm": 100,
+      "feeder_type": "light feeder",
+      "forest_layer": "groundcover",
+      "part_used": "root",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 1 kg per established plant over a 1-week harvest window. Single destructive harvest; one plant is harvested once.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Tomato - Black Krim": {
+      "yield_qty": 3,
+      "yield_unit": "kg",
+      "harvest_window_weeks": 10,
+      "row_spacing_cm": 80,
+      "feeder_type": "heavy feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "fruit",
+      "uses": [
+        "culinary"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "high",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 3 kg per established plant over a 10-week harvest window. Total across repeated pickings, not the yield at every picking.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ]
+    },
+    "Zinnia": {
+      "yield_qty": 8,
+      "yield_unit": "flower",
+      "harvest_window_weeks": 8,
+      "succession_interval_days": 28,
+      "row_spacing_cm": 30,
+      "feeder_type": "light feeder",
+      "forest_layer": "herbaceous",
+      "part_used": "flower",
+      "uses": [
+        "ornamental"
+      ],
+      "soil_ph_min": 6.0,
+      "soil_ph_max": 7.0,
+      "water_needs": "moderate",
+      "sun_needs": "full sun",
+      "yield_wording": "AI estimate: 8 flower per established plant over a 8-week harvest window. Total across repeated pickings, not the yield at every picking.",
+      "management_notes": "AI suggestion: inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment.",
+      "pests": [
+        "Aphids",
+        "Slugs and snails"
+      ],
+      "diseases": [
+        "Powdery mildew"
+      ],
+      "function_tags": [
+        "pollinator attractor"
+      ]
+    }
+  }
+}

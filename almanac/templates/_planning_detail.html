@@ -1,0 +1,27 @@
+{% from "_field_help.html" import help with context %}
+{% for title, keys in [('Yield & spacing',['yield_wording','yield_qty','yield_unit','in_row_spacing_cm','row_spacing_cm','succession_interval_days','harvest_window_weeks']),('Soil & care',['feeder_type','soil_ph_min','soil_ph_max','water_needs','sun_needs','care_notes','management_notes']),('Food forest & uses',['forest_layer','function_tags','uses','part_used','uses_notes']),('Pests & diseases',['pests','diseases'])] %}
+<section class="planning-card" style="margin-top:1.2rem;"><h2 style="font-size:1.25rem; margin-bottom:1rem;">{{ title }}</h2><dl class="planning-grid">
+{% for key in keys %}<div><dt class="text-muted-foreground" style="font-size:.8rem;">{{ numeric_fields.get(key) or text_fields.get(key) or key.replace('_',' ').capitalize() }} {{ help(key, numeric_fields.get(key) or text_fields.get(key) or key.replace("_"," ")) }}</dt><dd style="margin:.25rem 0 .8rem; white-space:pre-line;">{% if key in ['function_tags','uses','pests','diseases'] %}{{ plant[key]|join(', ') or 'Not recorded' }}{% else %}{{ plant[key] if plant[key] is not none else 'Not recorded' }}{% endif %}</dd></div>{% endfor %}
+</dl></section>
+{% endfor %}
+<section class="planning-card" style="margin-top:1.2rem;">
+<h2 style="font-size:1.25rem;">Crop rotation {{ help('rotation_group', 'crop rotation') }}</h2>
+{% if plant.rotation_group %}
+<div class="rotation-summary"><span class="tag">{{ plant.rotation_group.name }}</span><span>Nutrient demand: <strong>{{ plant.rotation_group.feeder_weight }}</strong> {{ help('feeder_weight', 'nutrient demand') }}</span></div>
+{% if plant.rotation_group.name == 'Perennials' %}<p>Keep this plant in a permanent bed. It does not need to move with your yearly vegetable crops.</p>
+{% elif plant.rotation_group.is_rotation_exempt %}<p>Use this crop to fill gaps between your planned crops. It does not take a fixed turn in your rotation.</p>
+{% else %}<p>Grow {{ plant.rotation_group.name|lower }} in a different bed next season, rather than repeating them in this spot.</p><p class="text-muted-foreground">Changing crop groups helps reduce the build-up of crop-specific pests and diseases.</p>{% endif %}
+{% else %}<p>No rotation group recorded.</p>{% endif %}
+</section>
+<section class="planning-card" style="margin-top:1.2rem;">
+<h2 style="font-size:1.25rem;">Guild suggestions {{ help('guild_links', 'guild suggestions') }}</h2>
+<p class="text-muted-foreground" style="margin:.5rem 0 1rem;">Companions with a useful role beside this plant.</p>
+<div class="guild-grid">
+{% for link in plant.guild_links %}<article class="guild-card"><a class="guild-plant" href="{{ url_for('plant_detail',slug=link.slug) }}">{{ link.name }} <span aria-hidden="true">↗</span></a><span class="tag">{{ link.function|capitalize }}</span>{% if link.notes %}<p>{{ link.notes }}</p>{% endif %}</article>{% else %}<p>No companions added yet.</p>{% endfor %}
+</div>
+{% if auth_user %}<form method="post" action="{{ url_for('save_guild',slug=plant.slug) }}" style="display:grid; gap:.6rem; margin-top:1rem;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Companion plant<select class="uk-select" name="companion_id" required>{% for candidate in guild_candidates %}<option value="{{ candidate.id }}">{{ candidate.common_name }}</option>{% endfor %}</select></label>
+<label>Function<select class="uk-select" name="function_id" required>{% for option in function_options %}<option value="{{ option.id }}">{{ option.name }}</option>{% endfor %}</select></label>
+<label>Notes<textarea class="uk-textarea" name="notes" rows="2"></textarea></label>
+<div><button class="uk-btn uk-btn-primary" name="action" value="save">Save suggestion</button> <button class="uk-btn uk-btn-default" name="action" value="remove">Remove matching suggestion</button></div></form>{% endif %}
+</section>

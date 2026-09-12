@@ -112,3 +112,7 @@ The tests use fake Auth and AI clients, so they do not call Ollama or require a 
 SQLite data and uploaded plant images are stored in the `almanac_data` Docker volume
 and survive container restarts. `docker compose down -v` deletes that local data and
 those images.
+
+## Yield planning and growing knowledge
+
+See [PLANNING.md](PLANNING.md) for migrations, Notion import, seeded growing data, field explanations, companion suggestions, editing and API usage.
