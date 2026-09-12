@@ -67,6 +67,49 @@
         overflow: auto;
         padding: 1.25rem;
     }
+    .problem-hub {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin: -0.75rem 0 2.5rem;
+    }
+    .problem-hub-card {
+        position: relative;
+        display: flex;
+        min-height: 9.5rem;
+        overflow: hidden;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 1.35rem;
+        border: 1px solid hsl(var(--border));
+        border-radius: 1rem;
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .problem-hub-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px hsl(150 20% 10% / .09);
+    }
+    .problem-hub-card--pests { background: linear-gradient(135deg, hsl(41 66% 94%), hsl(24 55% 91%)); }
+    .problem-hub-card--diseases { background: linear-gradient(135deg, hsl(105 30% 93%), hsl(174 24% 91%)); }
+    .problem-hub-card::after {
+        position: absolute;
+        right: 1rem;
+        top: .65rem;
+        color: hsl(var(--foreground) / .13);
+        font-family: 'Fraunces', serif;
+        font-size: 4.5rem;
+        line-height: 1;
+    }
+    .problem-hub-card--pests::after { content: "01"; }
+    .problem-hub-card--diseases::after { content: "02"; }
+    .problem-hub-card__label { margin: 0 0 .45rem; color: hsl(var(--muted-foreground)); font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .problem-hub-card h2 { margin: 0; font-size: 1.5rem; }
+    .problem-hub-card p { max-width: 25rem; margin: .55rem 0 1.1rem; color: hsl(var(--muted-foreground)); font-size: .9rem; line-height: 1.55; }
+    .problem-hub-card__link { color: hsl(var(--primary)); font-size: .85rem; font-weight: 700; }
+    @media (max-width: 38rem) {
+        .problem-hub { grid-template-columns: 1fr; }
+        .problem-hub-card { min-height: 8.5rem; }
+    }
 </style>
 {% endblock %}
 
@@ -78,6 +121,25 @@
         <a href="{{ url_for('new_plant') }}" class="uk-btn uk-btn-primary uk-btn-sm">+ Add a plant</a>
         {% endif %}
     </div>
+
+    <section class="problem-hub" aria-label="Plant problem library">
+        <a class="problem-hub-card problem-hub-card--pests" href="{{ url_for('pest_index') }}">
+            <div>
+                <p class="problem-hub-card__label">Identify & respond</p>
+                <h2>Pests</h2>
+                <p>Spot chewing and sap-feeding visitors, then start with the lightest effective response.</p>
+            </div>
+            <span class="problem-hub-card__link">Browse {{ pest_count }} {{ 'guide' if pest_count == 1 else 'guides' }} →</span>
+        </a>
+        <a class="problem-hub-card problem-hub-card--diseases" href="{{ url_for('disease_index') }}">
+            <div>
+                <p class="problem-hub-card__label">Diagnose & prevent</p>
+                <h2>Diseases</h2>
+                <p>Compare visible signs, improve growing conditions and know when a treatment may help.</p>
+            </div>
+            <span class="problem-hub-card__link">Browse {{ disease_count }} {{ 'guide' if disease_count == 1 else 'guides' }} →</span>
+        </a>
+    </section>
 
     {% if auth_user %}
     <div x-data="{

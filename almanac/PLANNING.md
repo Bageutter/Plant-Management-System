@@ -35,6 +35,7 @@ The seed commands are repeatable. `refresh-garden` cleans imported/estimated wor
 4. In the same form, select soil/water/sun preferences, one forest layer, multiple garden functions and uses, a part used and a rotation group. Enter comma-separated pest/disease names; these become shared linked records.
 5. On a plant detail page, select a companion plant and a garden function in **Guild suggestions**. Save notes, or remove the matching plant/function suggestion. Links are directional; reverse relationships must be added separately.
 6. Hover, focus or tap a **?** beside a field to read a short explanation. Press Escape or click outside to dismiss it. Rotation guidance explains where to plant next; sowing notes appear under **When to Plant**.
+7. Select a pest or disease on a plant to open its placeholder reference page. `/pests` and `/diseases` list the shared records and their linked plant counts; each detail page links back to the affected plants.
 
 Harvest-to-space planning is outside this Almanac's scope. The calculator UI and endpoint have been removed. Existing yield, spacing and harvest-window records remain descriptive growing knowledge; no saved data or migrations were dropped. Recorded estimates are not guarantees of yield or continuous supply.
 

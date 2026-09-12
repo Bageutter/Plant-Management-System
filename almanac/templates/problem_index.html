@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% set plural = "Pests" if kind == "pest" else "Diseases" %}
+{% set other = "Diseases" if kind == "pest" else "Pests" %}
+
+{% block title %}{{ plural }} — Almanac{% endblock %}
+
+{% block content %}
+<div style="max-width:56rem; margin:0 auto;">
+    <a href="{{ url_for('index') }}" class="text-muted-foreground">← Back to Almanac</a>
+    <div style="display:flex; justify-content:space-between; gap:1rem; align-items:end; flex-wrap:wrap; margin-top:1.2rem;">
+        <div><p class="text-muted-foreground" style="text-transform:uppercase; letter-spacing:.1em;">Plant problems</p><h1 style="font-size:2.5rem; margin:.25rem 0;">{{ plural }}</h1></div>
+        <a class="uk-btn uk-btn-default" href="{{ url_for('disease_index' if kind == 'pest' else 'pest_index') }}">View {{ other }}</a>
+    </div>
+    <p style="margin:1rem 0 0; max-width:40rem; line-height:1.6;">Browse the problems recorded in the Almanac, learn the first signs to check, and see which plants may be affected.</p>
+    <div class="problem-list">
+    {% for record in records %}
+        {% set detail_endpoint = 'pest_detail' if kind == 'pest' else 'disease_detail' %}
+        <a class="planning-card problem-card problem-card--{{ kind }} card-interactive" href="{{ url_for(detail_endpoint, **{(kind ~ '_id'): record.id}) }}">
+            <div>
+                <p class="text-muted-foreground" style="font-size:.7rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin:0 0 .55rem;">{{ kind }} guide</p>
+                <h2 style="font-size:1.3rem; margin:0 0 .5rem;">{{ record.name }}</h2>
+                {% if record.description %}<p class="text-muted-foreground" style="font-size:.88rem; line-height:1.55; margin:.7rem 0;">{{ record.description }}</p>{% endif %}
+            </div>
+            <span class="problem-card__count">{{ record.plants|length }} linked {{ 'plant' if record.plants|length == 1 else 'plants' }}</span>
+        </a>
+    {% else %}
+        <p class="planning-card">No {{ plural|lower }} have been recorded yet.</p>
+    {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,7 +1,7 @@
 """Garden-facing wording and opt-in starter companion links."""
 
 from extensions import db
-from models import PlantReference, PlantCompanion, PlantFunctionTag
+from models import Disease, Pest, PlantReference, PlantCompanion, PlantFunctionTag
 
 # Exact wording replacements avoid rewriting a gardener's own descriptions.
 COPY_REPLACEMENTS = {
@@ -17,6 +17,51 @@ COPY_REPLACEMENTS = {
     "Dark slicing tomato included as synthetic planning data.": "Dark slicing tomato for warm-season growing with a sturdy stake or cage.",
     "Canopy and anchor crop in the synthetic Tomato Edge Guild.": "Tall summer crop; keep lower-growing companions outside its main root and shade area.",
 }
+
+PROBLEM_DESCRIPTIONS = {
+    "Aphids": "Small sap-feeding insects that often gather on soft new growth and beneath leaves. Learn to recognise colonies and start with gentle, targeted control.",
+    "Slugs and snails": "Soft-bodied garden pests that chew seedlings and leaves, often feeding overnight or after rain. Identification and organic management guidance will be expanded here.",
+    "Powdery mildew": "A group of fungal diseases that produce pale, flour-like patches on leaves and stems, especially where growth is crowded or air movement is poor.",
+}
+
+LEGACY_PROBLEM_DESCRIPTIONS = {
+    "Aphids": "Small sap-feeding insects that often gather on soft new growth and beneath leaves. Identification and organic management guidance will be expanded here.",
+    "Powdery mildew": "A group of fungal diseases that can produce pale, powder-like patches on leaves and stems. Crop-specific prevention and management guidance will be expanded here.",
+}
+
+APHID_HOST_PREFIXES = (
+    "broccoli",
+    "bunching-onion",
+    "eggplant",
+    "lettuce",
+    "pea-",
+    "sunflower",
+    "sweet-corn",
+    "tomato",
+    "zinnia",
+)
+SLUG_HOST_PREFIXES = (
+    "alyssum",
+    "basil",
+    "bergamot",
+    "broccoli",
+    "lettuce",
+    "marigold",
+    "pea-",
+    "radish",
+    "sunflower",
+    "zinnia",
+)
+
+
+def suggested_pests(slug):
+    """Conservative starter links for the AI-assisted catalogue seed."""
+    pests = []
+    if slug.startswith(APHID_HOST_PREFIXES):
+        pests.append("Aphids")
+    if slug.startswith(SLUG_HOST_PREFIXES):
+        pests.append("Slugs and snails")
+    return pests
 
 
 def garden_wording(value):
@@ -42,6 +87,15 @@ def refresh_garden_wording():
             cleaned = garden_wording(value)
             if cleaned != value:
                 setattr(plant, key, cleaned)
+                changed += 1
+    for model in (Pest, Disease):
+        for record in model.query.all():
+            description = PROBLEM_DESCRIPTIONS.get(record.name)
+            if description and (
+                not record.description
+                or record.description == LEGACY_PROBLEM_DESCRIPTIONS.get(record.name)
+            ):
+                record.description = description
                 changed += 1
     db.session.commit()
     return changed
