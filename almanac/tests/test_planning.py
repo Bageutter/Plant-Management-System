@@ -12,7 +12,7 @@ from app import create_app
 from extensions import db
 from import_notion import import_notion, seed_estimates
 from models import Disease, PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
-from planning import calculate, parse_details
+from planning import parse_details
 
 
 @pytest.fixture
@@ -35,19 +35,14 @@ def app(tmp_path):
         yield app
 
 
-def test_calculator_rounds_up_and_uses_both_spacings(app):
-    plant = PlantReference.query.first()
-    plant.yield_qty, plant.yield_unit = 1.5, "kg"
-    plant.in_row_spacing_cm, plant.row_spacing_cm = 25, 40
-    result = calculate(plant, "10", "kg")
-    assert result["plants"] == 7
-    assert result["area_m2"] == pytest.approx(0.7)
-    for amount, unit in [("0", "kg"), ("NaN", "kg"), ("inf", "kg"), ("10", "fruit")]:
-        with pytest.raises(ValueError):
-            calculate(plant, amount, unit)
-    plant.row_spacing_cm = None
-    with pytest.raises(ValueError, match="both"):
-        calculate(plant, "10", "kg")
+def test_harvest_space_calculator_is_not_exposed(app):
+    client = app.test_client()
+    page = client.get("/plants/lettuce")
+    assert page.status_code == 200
+    assert b"How much growing space?" not in page.data
+    assert b"Target harvest" not in page.data
+    assert b"Soil &amp; care" in page.data or b"Soil & care" in page.data
+    assert client.get("/plants/lettuce/calculate?amount=10&unit=head").status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -113,10 +108,8 @@ def test_form_api_and_guild_round_trip(app):
     assert payload["yield_qty"] == 1.5
     assert sorted(payload["uses"]) == ["culinary", "ornamental"]
     assert payload["pests"] == ["Aphids"]
-    assert payload["plants_per_m2"] == 10
+    assert "plants_per_m2" not in payload
     assert client.get("/plants/test-crop/edit").status_code == 200
-    assert b"7" in client.get("/plants/test-crop/calculate?amount=10&unit=kg").data
-    assert client.get("/plants/test-crop/calculate?amount=10&unit=fruit").status_code == 400
     companion = PlantReference.query.filter_by(slug="tomato").one()
     function = PlantFunctionTag.query.first()
     assert (

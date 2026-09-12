@@ -56,9 +56,9 @@ TEXT = {
 FIELD_HELP = {
     "yield_wording": "How the crop is harvested: all at once, or in several pickings. Use this with the quantity and harvest window below.",
     "yield_qty": "The total harvest from one established plant over its harvest window. For example, 8 fruit or 1.5 kg. Actual harvests vary with growing conditions.",
-    "yield_unit": "What the harvest quantity counts or weighs, such as kg, heads, roots or fruit. Use the same unit in the calculator.",
+    "yield_unit": "What the recorded harvest quantity counts or weighs, such as kg, heads, roots or fruit.",
     "in_row_spacing_cm": "Distance from the centre of one plant to the next along a row, measured in centimetres.",
-    "row_spacing_cm": "Distance between the centres of neighbouring rows, in centimetres. Both spacings are used to calculate growing area; paths are extra.",
+    "row_spacing_cm": "Distance between the centres of neighbouring rows, in centimetres. Allow additional room for paths and access.",
     "succession_interval_days": "How many days to wait before sowing another small batch, so harvests arrive at different times within the growing season.",
     "harvest_window_weeks": "How long a planting can be picked from once harvest begins. A one-week root or head crop is picked once; a longer window can include repeated pickings. This is not time from sowing to maturity.",
     "feeder_type": "Heavy feeders need more nutrients. Light feeders need less. Nitrogen fixers work with root bacteria to capture nitrogen; this does not mean they immediately feed nearby plants.",
