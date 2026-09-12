@@ -25,6 +25,7 @@ REVIEW_MODEL = "llama3.1:8b"
 MAX_CONTEXT_CHARS = 16_000
 
 SCOPES = {
+    "mcp": ("MCP tool integration", ("almanac/",)),
     "frontend": ("Frontend", ("shared/frontend/",)),
     "vgarden": ("Virtual Garden", ("vgarden/",)),
     "almanac": ("Plant Almanac", ("almanac/",)),
@@ -476,6 +477,10 @@ def write_review_files(
 def main() -> int:
     args = parse_args()
     repo = repository_root()
+    if args.scope == "mcp":
+        return subprocess.run(
+            [sys.executable, str(repo / "almanac" / "mcp_review.py"), "--review"], cwd=repo
+        ).returncode
     target = SCOPES[args.scope][0]
     objective = ARCHITECTURE_OBJECTIVE if args.scope == "architecture" else FEATURE_OBJECTIVE
     models = {"finding": FINDING_MODEL, "review": REVIEW_MODEL}

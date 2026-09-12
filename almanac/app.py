@@ -40,6 +40,8 @@ from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
 from planning import parse_details, apply_details
 from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
+from catalogue_api import catalogue_api
+from mcp_ui import mcp_ui
 
 try:
     import ai_loop
@@ -274,6 +276,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     )
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("SECRET_KEY", "dev-almanac-secret-key-change-me"),
+        MCP_ENABLED=os.environ.get("MCP_ENABLED", "true").lower() in ("true", "1", "yes", "on"),
+        MCP_ALMANAC_BASE_URL=os.environ.get("MCP_ALMANAC_BASE_URL", "http://127.0.0.1:5000"),
         SQLALCHEMY_DATABASE_URI=os.environ.get(
             "DATABASE_URL",
             "sqlite:///" + os.path.join(BASE_DIR, "instance", "almanac.db"),
@@ -310,6 +314,8 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     db.init_app(app)
     csrf.init_app(app)
+    app.register_blueprint(catalogue_api)
+    app.register_blueprint(mcp_ui)
     app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])
     app.extensions["almanac_ai"] = OllamaAlmanacAI(
         base_url=app.config["OLLAMA_URL"],

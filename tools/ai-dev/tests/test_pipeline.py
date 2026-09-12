@@ -6,6 +6,8 @@ These tests use fake data. They do not call Ollama or change project files.
 import importlib.util
 import tempfile
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 from pathlib import Path
 
 
@@ -33,6 +35,23 @@ def example_finding(path="vgarden/app.py"):
 
 
 class PipelineTests(unittest.TestCase):
+    def test_mcp_scope_dispatches_without_human_prompt_or_code_review(self):
+        repo = Path("/example/repository")
+        with (
+            patch.object(pipeline, "parse_args", return_value=SimpleNamespace(scope="mcp")),
+            patch.object(pipeline, "repository_root", return_value=repo),
+            patch.object(
+                pipeline.subprocess, "run", return_value=SimpleNamespace(returncode=1)
+            ) as run,
+            patch.object(
+                pipeline, "ask_human_decision", side_effect=AssertionError("Unexpected prompt")
+            ),
+        ):
+            self.assertEqual(pipeline.main(), 1)
+        run.assert_called_once_with(
+            [pipeline.sys.executable, str(repo / "almanac" / "mcp_review.py"), "--review"], cwd=repo
+        )
+
     def test_uses_the_expected_models(self):
         self.assertEqual(pipeline.FINDING_MODEL, "qwen3:4b-instruct")
         self.assertEqual(pipeline.REVIEW_MODEL, "llama3.1:8b")
@@ -46,21 +65,15 @@ class PipelineTests(unittest.TestCase):
     def test_only_reads_the_selected_feature(self):
         self.assertTrue(pipeline.path_in_scope("almanac/app.py", "almanac"))
         self.assertFalse(pipeline.path_in_scope("vgarden/app.py", "almanac"))
-        self.assertTrue(
-            pipeline.path_in_scope("docker-compose.yml", "architecture")
-        )
+        self.assertTrue(pipeline.path_in_scope("docker-compose.yml", "architecture"))
 
     def test_accept_and_reject_allow_notes(self):
         accepted_answers = iter(["a", "Looks useful."])
-        accepted = pipeline.ask_human_decision(
-            lambda _: next(accepted_answers), interactive=True
-        )
+        accepted = pipeline.ask_human_decision(lambda _: next(accepted_answers), interactive=True)
         self.assertEqual(accepted, {"decision": "accepted", "note": "Looks useful."})
 
         rejected_answers = iter(["r", "Not supported."])
-        rejected = pipeline.ask_human_decision(
-            lambda _: next(rejected_answers), interactive=True
-        )
+        rejected = pipeline.ask_human_decision(lambda _: next(rejected_answers), interactive=True)
         self.assertEqual(rejected, {"decision": "rejected", "note": "Not supported."})
 
     def test_index_links_to_separate_reports(self):
@@ -82,15 +95,11 @@ class PipelineTests(unittest.TestCase):
             first_id, log_path, first_report = pipeline.create_output_paths(
                 repo, "Virtual Garden", "Amy Z"
             )
-            pipeline.write_review_files(
-                first_id, log_path, first_report, **values
-            )
+            pipeline.write_review_files(first_id, log_path, first_report, **values)
             second_id, _, second_report = pipeline.create_output_paths(
                 repo, "Virtual Garden", "Amy Z"
             )
-            pipeline.write_review_files(
-                second_id, log_path, second_report, **values
-            )
+            pipeline.write_review_files(second_id, log_path, second_report, **values)
 
             log = log_path.read_text(encoding="utf-8")
             self.assertIn("| 1 | Virtual Garden | Amy Z |", log)
