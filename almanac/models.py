@@ -79,8 +79,8 @@ class PlantReference(db.Model):
     estimated_fields = db.Column(db.JSON, nullable=True)
     rotation_group_id = db.Column(db.Integer, db.ForeignKey("rotation_groups.id"), nullable=True)
     rotation_group = db.relationship("RotationGroup")
-    pests = db.relationship("Pest", secondary="plant_pests")
-    diseases = db.relationship("Disease", secondary="plant_diseases")
+    pests = db.relationship("Pest", secondary="plant_pests", back_populates="plants")
+    diseases = db.relationship("Disease", secondary="plant_diseases", back_populates="plants")
     function_tags = db.relationship("PlantFunctionTag", secondary="plant_function_tags")
     uses = db.relationship("PlantUse", secondary="plant_uses")
     guild_links = db.relationship(
@@ -267,6 +267,7 @@ class Pest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
+    plants = db.relationship("PlantReference", secondary="plant_pests", back_populates="pests")
 
 
 plant_pests = db.Table(
@@ -288,6 +289,9 @@ class Disease(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
+    plants = db.relationship(
+        "PlantReference", secondary="plant_diseases", back_populates="diseases"
+    )
 
 
 plant_diseases = db.Table(

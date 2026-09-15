@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from catalogue import ROTATION_GROUPS, FUNCTIONS, USES
 from extensions import db
-from garden_data import garden_wording
+from garden_data import garden_wording, suggested_pests
 from models import PlantReference, RotationGroup, PlantFunctionTag, PlantUse
 
 
@@ -95,6 +95,10 @@ def seed_estimates():
             continue
         inferred = []
         for key, value in values.items():
+            if key == "pests":
+                value = suggested_pests(plant.slug)
+                if not value:
+                    continue
             if key == "rotation_group":
                 if plant.rotation_group is None:
                     plant.rotation_group = RotationGroup.query.filter_by(name=value).one()
