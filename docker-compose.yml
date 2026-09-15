@@ -99,6 +99,10 @@ services:
       - OLLAMA_REVIEW_MODEL=llama3.1:8b
       - AI_LOOP_MAX_ITERATIONS=2
       - AI_LOOP_LOG_DIR=/app/ai_loop_logs
+      # Copy the public My Garden catalogue only when the Almanac database is empty.
+      # Imported records become local data; app edits never write back to GitHub.
+      - LOAD_MY_GARDEN_SEED=${LOAD_MY_GARDEN_SEED:-true}
+      - MY_GARDEN_SEED_URL=${MY_GARDEN_SEED_URL:-https://raw.githubusercontent.com/0melette/my_garden/main/snapshots/almanac-catalogue.json}
     volumes:
       - ./almanac:/app
       - ./shared/templates:/app/shared_templates

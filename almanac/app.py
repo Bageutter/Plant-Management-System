@@ -36,6 +36,7 @@ from models import AIChatMessage, AILoopRun, PlantImage, PlantingMonth, PlantRef
 from seed_data import seed_reference_data
 from schema import upgrade_schema
 from import_notion import seed_lookups, import_notion, seed_estimates
+from public_seed import fetch_snapshot, import_snapshot
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
 from planning import parse_details, apply_details
 from models import RotationGroup, PlantFunctionTag, PlantUse, PlantCompanion
@@ -289,6 +290,12 @@ def create_app(test_config: dict | None = None) -> Flask:
         PLANT_IMAGE_FOLDER=os.environ.get(
             "PLANT_IMAGE_FOLDER", os.path.join(BASE_DIR, "instance", "plant_images")
         ),
+        LOAD_MY_GARDEN_SEED=os.environ.get("LOAD_MY_GARDEN_SEED", "false").lower() == "true",
+        MY_GARDEN_SEED_URL=os.environ.get(
+            "MY_GARDEN_SEED_URL",
+            "https://raw.githubusercontent.com/0melette/my_garden/main/snapshots/almanac-catalogue.json",
+        ),
+        MY_GARDEN_SEED_TIMEOUT=int(os.environ.get("MY_GARDEN_SEED_TIMEOUT", "10")),
     )
     if test_config:
         app.config.update(test_config)
@@ -692,7 +699,20 @@ def create_app(test_config: dict | None = None) -> Flask:
         upgrade_schema()
         seed_lookups()
         if not PlantReference.query.first():
-            seed_reference_data()
+            imported = 0
+            if app.config["LOAD_MY_GARDEN_SEED"]:
+                try:
+                    imported = import_snapshot(
+                        fetch_snapshot(
+                            app.config["MY_GARDEN_SEED_URL"],
+                            app.config["MY_GARDEN_SEED_TIMEOUT"],
+                        )
+                    )
+                except Exception as exc:
+                    db.session.rollback()
+                    app.logger.warning("Could not load My Garden starter data: %s", exc)
+            if not imported:
+                seed_reference_data()
 
     @app.cli.command("import-notion")
     def import_notion_command():

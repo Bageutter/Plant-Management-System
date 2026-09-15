@@ -27,6 +27,21 @@ docker compose exec almanac python -m flask --app app refresh-garden
 
 The seed commands are repeatable. `refresh-garden` cleans imported/estimated wording and adds starter companion links; it retains existing link notes. It runs only when explicitly invoked, so removed suggestions stay removed during normal browsing. The source snapshot contains 27 Notion plants; against the standard eight-plant seed it adds 26 and links Lettuce, resulting in 34 records. Existing descriptions, planting months and images remain intact. New sowing timing is retained verbatim in source notes rather than converting ambiguous seasonal wording into exact months.
 
+### Optional public starter dataset
+
+Docker Compose enables `LOAD_MY_GARDEN_SEED=true` for local development. On the
+first start of a brand-new Almanac database, the service downloads the public
+[`0melette/my_garden`](https://github.com/0melette/my_garden) catalogue snapshot
+and copies its plants, planting months, pests, diseases, functions, uses, and
+companion relationships into the local database. Application edits never write
+back to the public repository, and later restarts never re-import or overwrite
+an existing catalogue.
+
+Set `LOAD_MY_GARDEN_SEED=false` to use only the eight built-in starter plants.
+`MY_GARDEN_SEED_URL` can point to a specific commit or release for reproducible
+development. If the public snapshot cannot be reached during a fresh start, the
+service logs a warning and falls back to the eight built-in plants.
+
 ## Use it
 
 1. Open the Almanac and choose **Lettuce** (direct preview: `/plants/lettuce`).

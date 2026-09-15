@@ -13,6 +13,49 @@ from extensions import db
 from import_notion import import_notion, seed_estimates
 from models import PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
 from planning import parse_details
+from public_seed import import_snapshot
+
+
+def _public_snapshot():
+    return {
+        "snapshot_format": 1,
+        "tables": {
+            "rotation_groups": [
+                {"id": 1, "name": "Solanums", "feeder_weight": "heavy", "is_rotation_exempt": 0}
+            ],
+            "pests": [{"id": 1, "name": "Aphids", "description": "Sap-feeding insects."}],
+            "diseases": [{"id": 1, "name": "Wilt", "description": "A test disease."}],
+            "function_tags": [
+                {"id": 1, "name": "pollinator", "description": "Supports pollinators."}
+            ],
+            "uses": [{"id": 1, "name": "culinary", "description": "Used as food."}],
+            "plant_references": [
+                {
+                    "id": 10, "slug": "test-tomato", "common_name": "Test Tomato",
+                    "scientific_name": "Solanum test", "family": "Solanaceae",
+                    "summary": "A public test plant.", "rotation_group_id": 1,
+                    "estimated_fields": ["yield_qty"],
+                },
+                {
+                    "id": 11, "slug": "test-basil", "common_name": "Test Basil",
+                    "scientific_name": "Ocimum test", "family": "Lamiaceae",
+                    "summary": "A companion test plant.", "rotation_group_id": None,
+                    "estimated_fields": None,
+                },
+            ],
+            "planting_months": [
+                {"plant_reference_id": 10, "month_number": 9},
+                {"plant_reference_id": 11, "month_number": 10},
+            ],
+            "plant_pests": [{"plant_id": 10, "tag_id": 1}],
+            "plant_diseases": [{"plant_id": 10, "tag_id": 1}],
+            "plant_function_tags": [{"plant_id": 11, "tag_id": 1}],
+            "plant_uses": [{"plant_id": 10, "tag_id": 1}],
+            "plant_companions": [
+                {"plant_id": 10, "companion_id": 11, "function_id": 1, "notes": "Test link."}
+            ],
+        },
+    }
 
 
 @pytest.fixture
@@ -81,6 +124,48 @@ def test_import_and_estimates_preserve_source_and_user_edits(app):
         "Anywhere",
         "Perennials",
     }
+
+
+def test_public_snapshot_imports_relationships_and_never_overwrites(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.fetch_snapshot", lambda _url, _timeout: _public_snapshot())
+    seeded = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'public-seed.db'}",
+            "PLANT_IMAGE_FOLDER": str(tmp_path / "images"),
+            "LOAD_MY_GARDEN_SEED": True,
+        }
+    )
+    with seeded.app_context():
+        assert PlantReference.query.count() == 2
+        tomato = PlantReference.query.filter_by(slug="test-tomato").one()
+        assert [month.month_number for month in tomato.planting_months] == [9]
+        assert [pest.name for pest in tomato.pests] == ["Aphids"]
+        assert [disease.name for disease in tomato.diseases] == ["Wilt"]
+        assert [use.name for use in tomato.uses] == ["culinary"]
+        assert tomato.guild_links[0].companion.slug == "test-basil"
+
+        tomato.summary = "My local edit"
+        db.session.commit()
+        assert import_snapshot(_public_snapshot()) == 0
+        assert tomato.summary == "My local edit"
+
+
+def test_public_snapshot_failure_falls_back_to_builtin_seed(tmp_path, monkeypatch):
+    def unavailable(_url, _timeout):
+        raise OSError("offline")
+
+    monkeypatch.setattr("app.fetch_snapshot", unavailable)
+    seeded = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'fallback-seed.db'}",
+            "PLANT_IMAGE_FOLDER": str(tmp_path / "images"),
+            "LOAD_MY_GARDEN_SEED": True,
+        }
+    )
+    with seeded.app_context():
+        assert PlantReference.query.count() == 8
 
 
 def test_form_api_and_guild_round_trip(app):
