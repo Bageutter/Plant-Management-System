@@ -1,0 +1,33 @@
+{% from "_field_help.html" import help with context %}
+{% macro value(key) %}{{ request.form.get(key, '') if request.method == 'POST' else (plant[key] if plant and plant[key] is not none else '') }}{% endmacro %}
+{% for title, keys in [('Yield & spacing', ['yield_wording','yield_qty','yield_unit','in_row_spacing_cm','row_spacing_cm','succession_interval_days','harvest_window_weeks']), ('Soil & care', ['feeder_type','soil_ph_min','soil_ph_max','water_needs','sun_needs','care_notes','management_notes']), ('Food forest & uses', ['forest_layer','part_used','uses_notes','sowing_notes'])] %}
+<fieldset class="planning-card">
+    <legend style="font-size:1.2rem; padding:0 .4rem;">{{ title }}</legend>
+    <div class="planning-grid">
+    {% for key in keys %}
+        <div style="display:grid; gap:.4rem;">
+            <div><label class="uk-form-label" for="field-{{ key }}">{{ numeric_fields.get(key) or text_fields.get(key) or key.replace('_',' ').capitalize() }}</label> {{ help(key, numeric_fields.get(key) or text_fields.get(key) or key.replace("_"," ")) }}</div>
+            {% if key in detail_choices %}
+            <select class="uk-select" id="field-{{ key }}" name="{{ key }}"><option value="">Not recorded</option>{% for option in detail_choices[key] %}<option value="{{ option }}" {{ 'selected' if value(key)|trim == option }}>{{ option|capitalize }}</option>{% endfor %}</select>
+            {% elif key in numeric_fields %}
+            <input class="uk-input" type="number" id="field-{{ key }}" name="{{ key }}" value="{{ value(key) }}" min="{{ 0 if key.startswith('soil_ph') else 0.001 }}" {{ 'max=14' if key.startswith('soil_ph') }} step="{{ '1' if key == 'succession_interval_days' else 'any' }}">
+            {% else %}
+            <textarea class="uk-textarea" id="field-{{ key }}" name="{{ key }}" rows="2">{{ value(key) }}</textarea>
+            {% endif %}
+        </div>
+    {% endfor %}
+    </div>
+</fieldset>
+{% endfor %}
+<fieldset class="planning-card"><legend>Rotation group {{ help("rotation_group", "rotation group") }}</legend>
+<select class="uk-select" name="rotation_group_id"><option value="">Not recorded</option>{% for group in rotation_groups %}<option value="{{ group.id }}" {{ 'selected' if value('rotation_group_id')|trim == group.id|string }}>{{ group.name }} · {{ group.feeder_weight }}{{ ' · excluded from rotation' if group.is_rotation_exempt }}</option>{% endfor %}</select>
+<p class="text-muted-foreground">Choose the group you will move between beds. Anywhere crops fill gaps; perennials stay in a permanent bed.</p></fieldset>
+<fieldset class="planning-card"><legend>Pests & diseases</legend>
+{% for key in ['pests','diseases'] %}<input type="hidden" name="{{ key }}_present" value="1"><label style="display:block; margin-bottom:1rem;">{{ key|capitalize }} (comma-separated names)<input class="uk-input" name="{{ key }}" value="{{ request.form.get(key, '') if request.method == 'POST' else (plant[key]|map(attribute='name')|join(', ') if plant else '') }}"></label>{% endfor %}
+<p class="text-muted-foreground">Use a comma between names, for example Aphids, Slugs and snails.</p></fieldset>
+{% for key, options, label in [('function_tags',function_options,'Garden functions'),('uses',use_options,'Primary uses')] %}
+<fieldset class="planning-card"><legend>{{ label }} {{ help(key, label) }}</legend><input type="hidden" name="{{ key }}_present" value="1">
+{% set selected = request.form.getlist(key) if request.method == 'POST' else (plant[key]|map(attribute='name')|list if plant else []) %}
+<div style="display:flex; gap:.8rem; flex-wrap:wrap;">{% for option in options %}<label><input type="checkbox" name="{{ key }}" value="{{ option.name }}" {{ 'checked' if option.name in selected }}> {{ option.name|capitalize }}</label>{% endfor %}</div></fieldset>
+
+{% endfor %}

@@ -23,6 +23,23 @@
         {% endif %}
     </div>
 
+    {% set flowering = 'pollinator attractor' in plant.function_tags
+        or (plant.part_used == 'flower' and 'ornamental' in plant.uses) %}
+    {% set tags = (['Flowering'] if flowering else [])
+        + plant.function_tags + plant.uses
+        + ([plant.rotation_group.name] if plant.rotation_group else [])
+        + ([plant.sun_needs] if plant.sun_needs else [])
+        + ([plant.water_needs ~ ' water'] if plant.water_needs else [])
+        + ([plant.feeder_type] if plant.feeder_type else [])
+        + ([plant.forest_layer] if plant.forest_layer else []) %}
+    {% if tags %}
+    <ul aria-label="Plant tags" style="display:flex; flex-wrap:wrap; gap:0.5rem; list-style:none; padding:0; margin:0 0 1rem;">
+        {% for tag in tags|unique %}
+        <li class="tag">{{ tag|capitalize }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
     {% if plant.summary %}
     <p style="font-size:1.05rem; line-height:1.7; color:hsl(var(--foreground)); margin:0 0 2.5rem;">{{ plant.summary }}</p>
     {% endif %}
@@ -35,10 +52,13 @@
             <span class="tag">{{ month }}</span>
             {% endfor %}
         </div>
+        {% elif plant.sowing_notes %}
+        <p>{{ plant.sowing_notes }}</p>
         {% else %}
         <p class="text-muted-foreground" style="margin:0; font-size:0.9rem;">No data yet.</p>
         {% endif %}
         <p class="text-muted-foreground" style="font-size:0.75rem; margin:1rem 0 0;">Timing depends on your local climate.</p>
     </div>
+    {% include "_planning_detail.html" %}
 </div>
 {% endblock %}

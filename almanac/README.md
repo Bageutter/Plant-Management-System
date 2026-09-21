@@ -90,6 +90,7 @@ Auth's `/me`.
 | `AI_LOOP_MAX_ITERATIONS` | Maximum draft/review rounds | `2` |
 | `AI_LOOP_LOG_DIR` | Validation log and report directory | `/app/ai_loop_logs` |
 | `PLANT_IMAGE_FOLDER` | Stored plant image directory | `/app/instance/plant_images` |
+| `MY_GARDEN_IMAGE_BASE_URL` | Public image directory for the starter catalogue | `https://raw.githubusercontent.com/0melette/my_garden/main/localdata/plant_images/` |
 | `OLLAMA_TIMEOUT` | Maximum AI request time | `120` seconds by default |
 | `FLASK_DEBUG` | Development reload | `1` |
 
@@ -112,3 +113,7 @@ The tests use fake Auth and AI clients, so they do not call Ollama or require a 
 SQLite data and uploaded plant images are stored in the `almanac_data` Docker volume
 and survive container restarts. `docker compose down -v` deletes that local data and
 those images.
+
+## Yield planning and growing knowledge
+
+See [PLANNING.md](PLANNING.md) for migrations, public starter data, field explanations, companion suggestions, editing and API usage.
