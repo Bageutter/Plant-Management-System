@@ -30,7 +30,6 @@ class PlantReference(db.Model):
     uses_notes = db.Column(db.Text, nullable=True)
     sowing_notes = db.Column(db.Text, nullable=True)
     source_url = db.Column(db.Text, nullable=True)
-    notion_url = db.Column(db.Text, nullable=True)
     feeder_type = db.Column(
         db.Enum(
             *["heavy feeder", "light feeder", "nitrogen fixer"],
@@ -76,7 +75,6 @@ class PlantReference(db.Model):
         ),
         nullable=True,
     )
-    estimated_fields = db.Column(db.JSON, nullable=True)
     rotation_group_id = db.Column(db.Integer, db.ForeignKey("rotation_groups.id"), nullable=True)
     rotation_group = db.relationship("RotationGroup")
     pests = db.relationship("Pest", secondary="plant_pests")
@@ -120,9 +118,8 @@ class PlantReference(db.Model):
         return {
             **{
                 key: getattr(self, key)
-                for key in [*NUMERIC, *TEXT, *CHOICES, "source_url", "notion_url"]
+                for key in [*NUMERIC, *TEXT, *CHOICES, "source_url"]
             },
-            "estimated_fields": self.estimated_fields or [],
             "rotation_group": self.rotation_group.to_dict() if self.rotation_group else None,
             **{
                 key: [item.name for item in getattr(self, key)]

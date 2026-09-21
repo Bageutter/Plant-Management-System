@@ -25,9 +25,8 @@ PLANT_FIELDS = (
     "yield_qty", "in_row_spacing_cm", "row_spacing_cm",
     "succession_interval_days", "harvest_window_weeks", "soil_ph_min",
     "soil_ph_max", "yield_wording", "yield_unit", "management_notes",
-    "care_notes", "uses_notes", "sowing_notes", "source_url", "notion_url",
+    "care_notes", "uses_notes", "sowing_notes", "source_url",
     "feeder_type", "water_needs", "sun_needs", "forest_layer", "part_used",
-    "estimated_fields",
 )
 
 

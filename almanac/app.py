@@ -35,7 +35,7 @@ from extensions import csrf, db
 from models import AIChatMessage, AILoopRun, PlantImage, PlantingMonth, PlantReference
 from seed_data import seed_reference_data
 from schema import upgrade_schema
-from import_notion import seed_lookups, import_notion, seed_estimates
+from garden_data import seed_lookups
 from public_seed import fetch_snapshot, import_snapshot
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
 from planning import parse_details, apply_details
@@ -714,22 +714,11 @@ def create_app(test_config: dict | None = None) -> Flask:
             if not imported:
                 seed_reference_data()
 
-    @app.cli.command("import-notion")
-    def import_notion_command():
-        """Import the versioned Notion snapshot, preserving existing edits."""
-        added, linked = import_notion()
-        print(f"Imported {added} plants; linked {linked} existing plants.")
-
     @app.cli.command("refresh-garden")
     def refresh_garden_command():
         """Refresh seeded wording and add starter companion suggestions."""
         from garden_data import refresh_garden_wording, seed_guilds
         print(f"Updated {refresh_garden_wording()} text fields; added {seed_guilds()} companion links.")
-
-    @app.cli.command("seed-estimates")
-    def seed_estimates_command():
-        """Fill missing fields using labelled AI planning estimates."""
-        print(f"Estimated missing fields for {seed_estimates()} plants.")
 
     return app
 

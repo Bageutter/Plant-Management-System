@@ -1,4 +1,4 @@
-"""Track estimated fields and preserve/map optional legacy rotation wording."""
+"""Preserve and map optional legacy rotation wording."""
 
 from alembic import op
 import sqlalchemy as sa
@@ -10,7 +10,6 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column("plant_references", sa.Column("estimated_fields", sa.JSON(), nullable=True))
     groups = [
         ("Alliums", "medium", False),
         ("Brassicas", "heavy", False),

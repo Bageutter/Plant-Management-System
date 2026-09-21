@@ -10,7 +10,6 @@ from werkzeug.datastructures import MultiDict
 
 from app import create_app
 from extensions import db
-from import_notion import import_notion, seed_estimates
 from models import PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
 from planning import parse_details
 from public_seed import import_snapshot
@@ -34,13 +33,11 @@ def _public_snapshot():
                     "id": 10, "slug": "test-tomato", "common_name": "Test Tomato",
                     "scientific_name": "Solanum test", "family": "Solanaceae",
                     "summary": "A public test plant.", "rotation_group_id": 1,
-                    "estimated_fields": ["yield_qty"],
                 },
                 {
                     "id": 11, "slug": "test-basil", "common_name": "Test Basil",
                     "scientific_name": "Ocimum test", "family": "Lamiaceae",
                     "summary": "A companion test plant.", "rotation_group_id": None,
-                    "estimated_fields": None,
                 },
             ],
             "planting_months": [
@@ -106,19 +103,7 @@ def test_invalid_details_rejected(app, fields):
         parse_details(MultiDict(fields))
 
 
-def test_import_and_estimates_preserve_source_and_user_edits(app):
-    assert import_notion() == (26, 1)
-    assert seed_estimates() == 27
-    lettuce = PlantReference.query.filter_by(slug="lettuce").one()
-    assert lettuce.in_row_spacing_cm == 30
-    assert lettuce.yield_qty == 1
-    assert "yield_qty" in lettuce.estimated_fields
-    assert "in_row_spacing_cm" not in lettuce.estimated_fields
-    lettuce.yield_qty = 2
-    db.session.commit()
-    assert import_notion() == (0, 0)
-    assert seed_estimates() == 0
-    assert lettuce.yield_qty == 2
+def test_controlled_vocabulary_is_seeded(app):
     assert RotationGroup.query.count() == 8
     assert {g.name for g in RotationGroup.query.filter_by(is_rotation_exempt=True)} == {
         "Anywhere",
@@ -283,9 +268,34 @@ def test_api_partial_update_preserves_and_validates_details(app):
 def test_guild_seed_is_repeatable_and_keeps_edited_links(app):
     from garden_data import seed_guilds
 
-    import_notion()
+    db.session.add_all(
+        [
+            PlantReference(
+                slug="bunching-onion-test",
+                common_name="Test onion",
+                scientific_name="Allium test",
+                family="Amaryllidaceae",
+                summary="Test onion.",
+            ),
+            PlantReference(
+                slug="alyssum",
+                common_name="Alyssum",
+                scientific_name="Lobularia maritima",
+                family="Brassicaceae",
+                summary="Test companion.",
+            ),
+            PlantReference(
+                slug="marigold-french-marigold",
+                common_name="French marigold",
+                scientific_name="Tagetes patula",
+                family="Asteraceae",
+                summary="Test companion.",
+            ),
+        ]
+    )
+    db.session.commit()
     assert seed_guilds() > 0
-    onion = PlantReference.query.filter_by(slug="bunching-onion-winter-ishikura").one()
+    onion = PlantReference.query.filter_by(slug="bunching-onion-test").one()
     assert {link.companion.slug for link in onion.guild_links} == {
         "alyssum",
         "marigold-french-marigold",

@@ -125,7 +125,6 @@ def upgrade():
         batch_op.add_column(sa.Column("uses_notes", sa.Text(), nullable=True))
         batch_op.add_column(sa.Column("sowing_notes", sa.Text(), nullable=True))
         batch_op.add_column(sa.Column("source_url", sa.Text(), nullable=True))
-        batch_op.add_column(sa.Column("notion_url", sa.Text(), nullable=True))
         batch_op.add_column(
             sa.Column(
                 "feeder_type",
