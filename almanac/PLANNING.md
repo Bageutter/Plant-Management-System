@@ -33,9 +33,13 @@ companion relationships into the local database. Application edits never write
 back to the public repository, and later restarts never re-import or overwrite
 an existing catalogue.
 
+The imported plant photos use public URLs from the same repository, so the
+Almanac can display them without copying image files into its local database.
+
 Set `LOAD_MY_GARDEN_SEED=false` to use only the eight built-in starter plants.
 `MY_GARDEN_SEED_URL` can point to a specific commit or release for reproducible
-development. If the public snapshot cannot be reached during a fresh start, the
+development; set `MY_GARDEN_IMAGE_BASE_URL` to the matching image directory when
+you pin the snapshot. If the public snapshot cannot be reached during a fresh start, the
 service logs a warning and falls back to the eight built-in plants.
 
 ## Use it

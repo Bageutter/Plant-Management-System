@@ -10,6 +10,7 @@ from models import (
     Disease,
     Pest,
     PlantCompanion,
+    PlantImage,
     PlantFunctionTag,
     PlantReference,
     PlantUse,
@@ -50,7 +51,7 @@ def _named_records(rows: list[dict], model, fields: tuple[str, ...]) -> dict[int
     return records
 
 
-def import_snapshot(snapshot: dict) -> int:
+def import_snapshot(snapshot: dict, public_image_base_url: str | None = None) -> int:
     """Copy a public snapshot into an empty database without later overwrites."""
     if PlantReference.query.first() is not None:
         return 0
@@ -101,6 +102,16 @@ def import_snapshot(snapshot: dict) -> int:
                 notes=row.get("notes"),
             )
         )
+
+    if public_image_base_url:
+        for row in tables.get("plant_images", []):
+            filename = row.get("filename")
+            plant = plants.get(row.get("plant_reference_id"))
+            if plant is not None and isinstance(filename, str) and filename:
+                plant.image = PlantImage(
+                    filename=filename,
+                    public_url=f"{public_image_base_url.rstrip('/')}/{filename}",
+                )
 
     db.session.commit()
     return len(plants)

@@ -51,6 +51,9 @@ def _public_snapshot():
             "plant_companions": [
                 {"plant_id": 10, "companion_id": 11, "function_id": 1, "notes": "Test link."}
             ],
+            "plant_images": [
+                {"plant_reference_id": 10, "filename": "test-tomato.jpg"},
+            ],
         },
     }
 
@@ -119,6 +122,7 @@ def test_public_snapshot_imports_relationships_and_never_overwrites(tmp_path, mo
             "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'public-seed.db'}",
             "PLANT_IMAGE_FOLDER": str(tmp_path / "images"),
             "LOAD_MY_GARDEN_SEED": True,
+            "MY_GARDEN_IMAGE_BASE_URL": "https://images.example/",
         }
     )
     with seeded.app_context():
@@ -129,10 +133,12 @@ def test_public_snapshot_imports_relationships_and_never_overwrites(tmp_path, mo
         assert [disease.name for disease in tomato.diseases] == ["Wilt"]
         assert [use.name for use in tomato.uses] == ["culinary"]
         assert tomato.guild_links[0].companion.slug == "test-basil"
+        assert tomato.image.public_url == "https://images.example/test-tomato.jpg"
+        assert b"https://images.example/test-tomato.jpg" in seeded.test_client().get("/").data
 
         tomato.summary = "My local edit"
         db.session.commit()
-        assert import_snapshot(_public_snapshot()) == 0
+        assert import_snapshot(_public_snapshot(), "https://images.example/") == 0
         assert tomato.summary == "My local edit"
 
 
@@ -230,7 +236,7 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
         assert plant.yield_qty is None
         assert plant.image.filename == "original.png"
         assert plant.planting_months[0].month_number == 3
-        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "003"
+        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "004"
         assert any(
             c["name"] == "ck_yield_qty_positive"
             for c in inspect(db.engine).get_check_constraints("plant_references")

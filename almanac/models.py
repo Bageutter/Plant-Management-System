@@ -181,6 +181,7 @@ class PlantImage(db.Model):
         unique=True,
     )
     filename = db.Column(db.String(80), nullable=False, unique=True)
+    public_url = db.Column(db.Text, nullable=True)
 
     plant = db.relationship("PlantReference", back_populates="image")
 

@@ -205,7 +205,11 @@ def _delete_image_file(filename: str | None) -> None:
 def _plant_payload(plant: PlantReference) -> dict:
     payload = plant.to_dict()
     payload["image_url"] = (
-        url_for("plant_image_file", filename=plant.image.filename) if plant.image else None
+        plant.image.public_url
+        if plant.image and plant.image.public_url
+        else url_for("plant_image_file", filename=plant.image.filename)
+        if plant.image
+        else None
     )
     return payload
 
@@ -294,6 +298,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         MY_GARDEN_SEED_URL=os.environ.get(
             "MY_GARDEN_SEED_URL",
             "https://raw.githubusercontent.com/0melette/my_garden/main/snapshots/almanac-catalogue.json",
+        ),
+        MY_GARDEN_IMAGE_BASE_URL=os.environ.get(
+            "MY_GARDEN_IMAGE_BASE_URL",
+            "https://raw.githubusercontent.com/0melette/my_garden/main/localdata/plant_images/",
         ),
         MY_GARDEN_SEED_TIMEOUT=int(os.environ.get("MY_GARDEN_SEED_TIMEOUT", "10")),
     )
@@ -467,12 +475,13 @@ def create_app(test_config: dict | None = None) -> Flask:
         old_filename = None
         if image_filename:
             if plant.image:
-                old_filename = plant.image.filename
+                old_filename = None if plant.image.public_url else plant.image.filename
                 plant.image.filename = image_filename
+                plant.image.public_url = None
             else:
                 plant.image = PlantImage(filename=image_filename)
         elif request.form.get("remove_image") == "1" and plant.image:
-            old_filename = plant.image.filename
+            old_filename = None if plant.image.public_url else plant.image.filename
             plant.image = None
         try:
             db.session.commit()
@@ -493,7 +502,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         if plant is None:
             return render_template("404.html"), 404
         name = plant.common_name
-        image_filename = plant.image.filename if plant.image else None
+        image_filename = plant.image.filename if plant.image and not plant.image.public_url else None
         PlantCompanion.query.filter_by(companion_id=plant.id).delete()
         db.session.delete(plant)
         db.session.commit()
@@ -575,7 +584,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         plant = PlantReference.query.filter_by(slug=slug).first()
         if plant is None:
             return jsonify({"error": "plant reference not found"}), 404
-        image_filename = plant.image.filename if plant.image else None
+        image_filename = plant.image.filename if plant.image and not plant.image.public_url else None
         PlantCompanion.query.filter_by(companion_id=plant.id).delete()
         db.session.delete(plant)
         db.session.commit()
@@ -706,7 +715,8 @@ def create_app(test_config: dict | None = None) -> Flask:
                         fetch_snapshot(
                             app.config["MY_GARDEN_SEED_URL"],
                             app.config["MY_GARDEN_SEED_TIMEOUT"],
-                        )
+                        ),
+                        app.config["MY_GARDEN_IMAGE_BASE_URL"],
                     )
                 except Exception as exc:
                     db.session.rollback()
