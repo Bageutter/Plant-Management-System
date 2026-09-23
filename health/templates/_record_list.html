@@ -1,7 +1,7 @@
 {% set labels = {"healthy": "Healthy", "at_risk": "At risk", "unhealthy": "Unhealthy", "unknown": "Unknown"} %}
 <ul class="uk-list record-list">
     {% for item in recent %}
-        <li>
+        <li class="record-item">
             <a class="record-row" href="{{ url_for('health.view_assessment', assessment_id=item.id) }}">
                 <span class="record-thumb">
                     {% if item.has_image %}
@@ -29,6 +29,13 @@
                     {{ item.created_at.strftime("%d %b %Y, %H:%M") }}
                 </span>
             </a>
+            <button class="record-delete" type="button"
+                    aria-label="Delete the record for {{ item.plant_ref or item.plant_identification or 'this plant' }}"
+                    hx-delete="{{ url_for('health.delete_assessment', assessment_id=item.id) }}"
+                    hx-target="closest li" hx-swap="outerHTML swap:200ms"
+                    hx-confirm="Delete this record permanently? This cannot be undone.">
+                &times;
+            </button>
         </li>
     {% endfor %}
 </ul>

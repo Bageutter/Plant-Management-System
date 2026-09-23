@@ -124,6 +124,10 @@ def stream_assessment():
     except ValueError as exc:
         return _sse_error(str(exc))
 
+    return _stream(plant_ref, description, image_b64, image_mime)
+
+
+def _stream(plant_ref, description, image_b64, image_mime) -> Response:
     client = _client()
     app = current_app._get_current_object()
 
@@ -209,6 +213,35 @@ def get_assessment(assessment_id):
     return jsonify(assessment.to_dict())
 
 
+@bp.route("/assessments/<int:assessment_id>", methods=["PATCH", "PUT"])
+def update_assessment(assessment_id):
+    """Edit the plant name/reference and description recorded against a report.
+
+    The AI verdict itself is never rewritten — it is the output of a past model
+    run and editing it would misrepresent what the model actually said. Only the
+    caller-supplied context is editable; use ``/regenerate`` to get a fresh
+    verdict from the corrected context.
+    """
+
+    wants_html = _wants_html()
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None:
+        return _error("assessment not found", 404, wants_html)
+
+    try:
+        changes = _read_edit_input(replace=request.method == "PUT")
+    except ValueError as exc:
+        return _error(str(exc), 400, wants_html)
+
+    for field, value in changes.items():
+        setattr(assessment, field, value)
+    db.session.commit()
+
+    if wants_html:
+        return render_template("_submission.html", assessment=assessment)
+    return jsonify(assessment.to_dict())
+
+
 @bp.route("/assessments/<int:assessment_id>", methods=["DELETE"])
 def delete_assessment(assessment_id):
     assessment = db.session.get(Assessment, assessment_id)
@@ -217,7 +250,94 @@ def delete_assessment(assessment_id):
 
     db.session.delete(assessment)
     db.session.commit()
+
+    if request.headers.get("HX-Request") == "true":
+        # htmx never swaps a 204, so an empty 200 is what removes the row.
+        return ""
     return "", 204
+
+
+@bp.route("/assessments/<int:assessment_id>/regenerate", methods=["POST"])
+def regenerate_assessment(assessment_id):
+    """Re-run the model over an existing record's photo and description.
+
+    The original report is kept: a second opinion is a new record, so the two
+    runs can be compared rather than one silently replacing the other.
+    """
+
+    wants_html = _wants_html()
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None:
+        return _error("assessment not found", 404, wants_html)
+
+    try:
+        plant_ref, description, image_b64, image_mime = _source_input(assessment)
+    except ValueError as exc:
+        return _error(str(exc), 400, wants_html)
+
+    client = _client()
+    try:
+        result = client.assess(
+            description=description, image_b64=image_b64, plant_ref=plant_ref
+        )
+    except AIUnavailableError as exc:
+        return _error(str(exc), 503, wants_html)
+
+    repeat = _persist(result, client, plant_ref, description, image_b64, image_mime)
+
+    if wants_html:
+        return render_template("_assessment.html", assessment=repeat)
+    return jsonify(repeat.to_dict()), 201
+
+
+@bp.route("/assessments/<int:assessment_id>/regenerate/stream", methods=["POST"])
+def stream_regenerate_assessment(assessment_id):
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None:
+        return _sse_error("assessment not found")
+
+    try:
+        plant_ref, description, image_b64, image_mime = _source_input(assessment)
+    except ValueError as exc:
+        return _sse_error(str(exc))
+
+    return _stream(plant_ref, description, image_b64, image_mime)
+
+
+def _source_input(assessment: Assessment):
+    """The inputs to feed the model when reassessing an existing record."""
+
+    image_b64 = to_base64(assessment.image_data) if assessment.image_data else None
+    if not assessment.description and not image_b64:
+        raise ValueError(
+            "This record has neither a description nor a stored photo, so it cannot "
+            "be assessed again. Submit a new assessment instead."
+        )
+    return assessment.plant_ref, assessment.description, image_b64, assessment.image_mime
+
+
+def _read_edit_input(*, replace: bool) -> dict:
+    """Return the editable fields supplied by the caller.
+
+    With ``replace`` (PUT) every editable field is set, so an omitted field is
+    cleared. Otherwise (PATCH, and the UI's edit form) only supplied fields move.
+    """
+
+    source = request.get_json(silent=True) or {} if request.is_json else request.form
+    limits = {"plant_ref": MAX_PLANT_REF_CHARS, "description": MAX_DESCRIPTION_CHARS}
+
+    changes = {}
+    for field, limit in limits.items():
+        if field in source:
+            changes[field] = _clean(source.get(field), limit, field)
+        elif replace:
+            changes[field] = None
+
+    if not changes:
+        raise ValueError(
+            f"Provide at least one field to update: {', '.join(sorted(limits))}."
+        )
+    return changes
 
 
 def _wants_html() -> bool:

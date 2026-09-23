@@ -1,0 +1,65 @@
+{# The caller-supplied context for a record, with inline editing.
+
+   Rendered inside detail.html and returned on its own by a successful PATCH, so
+   the edited values are swapped straight back in. #}
+<section id="submission" class="border border-border rounded-lg p-6 mb-8" x-data="{ editing: false }">
+    <header class="flex items-center justify-between gap-4 mb-4">
+        <h2 class="text-lg m-0">What was submitted</h2>
+        <button class="uk-btn uk-btn-default uk-btn-sm" type="button"
+                x-show="!editing" @click="editing = true">
+            Edit details
+        </button>
+    </header>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div>
+            <p class="uk-text-meta mb-1">Photo</p>
+            {% if assessment.has_image %}
+                <a href="{{ url_for('health.assessment_image', assessment_id=assessment.id) }}" target="_blank" rel="noopener">
+                    <img class="submitted-image"
+                         src="{{ url_for('health.assessment_image', assessment_id=assessment.id) }}"
+                         alt="Photo submitted for this assessment">
+                </a>
+                <p class="text-xs text-muted-foreground mt-1">
+                    Stored at reduced resolution ({{ assessment.image_mime }}). Click to open full size.
+                </p>
+            {% else %}
+                <p class="text-sm text-muted-foreground">No photo was uploaded.</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <div x-show="!editing">
+                <p class="uk-text-meta mb-1">Plant name / reference</p>
+                <p class="mb-4">{{ assessment.plant_ref or "—" }}</p>
+
+                <p class="uk-text-meta mb-1">Description</p>
+                <p class="whitespace-pre-line">{{ assessment.description or "—" }}</p>
+            </div>
+
+            <form x-show="editing" x-cloak
+                  hx-patch="{{ url_for('health.update_assessment', assessment_id=assessment.id) }}"
+                  hx-target="#submission" hx-swap="outerHTML">
+                <label class="uk-form-label" for="edit_plant_ref">Plant name / reference</label>
+                <input class="uk-input mb-4" type="text" id="edit_plant_ref" name="plant_ref"
+                       maxlength="200" value="{{ assessment.plant_ref or '' }}">
+
+                <label class="uk-form-label" for="edit_description">Description</label>
+                <textarea class="uk-textarea mb-4" id="edit_description" name="description"
+                          rows="5" maxlength="4000">{{ assessment.description or '' }}</textarea>
+
+                <div class="flex items-center gap-2">
+                    <button class="uk-btn uk-btn-primary uk-btn-sm" type="submit">Save changes</button>
+                    <button class="uk-btn uk-btn-default uk-btn-sm" type="button" @click="editing = false">
+                        Cancel
+                    </button>
+                </div>
+                <p class="text-xs text-muted-foreground mt-3 mb-0">
+                    Editing the name or description does not change the assessment below — it was
+                    written by the model from the original wording. Generate the report again to
+                    have the model read the corrected details.
+                </p>
+            </form>
+        </div>
+    </div>
+</section>
