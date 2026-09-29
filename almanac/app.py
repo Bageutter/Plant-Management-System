@@ -38,7 +38,7 @@ from schema import upgrade_schema
 from garden_data import seed_lookups
 from public_seed import fetch_snapshot, import_snapshot
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
-from planning import parse_details, apply_details
+from growing_details import parse_details, apply_details
 from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 
