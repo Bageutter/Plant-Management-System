@@ -8,24 +8,39 @@ From the repository root, install the Almanac requirements into your environment
 
 ```sh
 python -m pip install -r almanac/requirements-dev.txt
-PYTHONPATH=almanac python -m flask --app app import-notion
-PYTHONPATH=almanac python -m flask --app app seed-estimates
 PYTHONPATH=almanac python -m flask --app app refresh-garden
 PYTHONPATH=almanac python -m flask --app app run --port 5513
 ```
 
-`DATABASE_URL` chooses the database (SQLite by default; PostgreSQL requires a matching driver, such as psycopg, installed in the deployment environment). The application applies Alembic migrations at startup. Start one instance to complete migrations before bringing up additional workers. Existing unversioned databases are adopted at baseline 001; revision 002 adds nullable fields and linked tables; revision 003 records estimate provenance and maps optional legacy rotation wording. No database reset is required. Downgrades intentionally require restoring a backup, rather than silently deleting plant knowledge.
+`DATABASE_URL` chooses the database (SQLite by default; PostgreSQL requires a matching driver, such as psycopg, installed in the deployment environment). The application applies Alembic migrations at startup. Start one instance to complete migrations before bringing up additional workers. Existing unversioned databases are adopted at baseline 001; revision 002 adds nullable fields and linked tables; revision 003 maps optional legacy rotation wording. No database reset is required. Downgrades intentionally require restoring a backup, rather than silently deleting plant knowledge.
 
-For Docker, rebuild the Almanac image and run the three seed commands inside that service:
+For Docker, rebuild the Almanac image and run the optional garden refresh inside that service:
 
 ```sh
 docker compose up -d --build almanac
-docker compose exec almanac python -m flask --app app import-notion
-docker compose exec almanac python -m flask --app app seed-estimates
 docker compose exec almanac python -m flask --app app refresh-garden
 ```
 
-The seed commands are repeatable. `refresh-garden` cleans imported/estimated wording and adds starter companion links; it retains existing link notes. It runs only when explicitly invoked, so removed suggestions stay removed during normal browsing. The source snapshot contains 27 Notion plants; against the standard eight-plant seed it adds 26 and links Lettuce, resulting in 34 records. Existing descriptions, planting months and images remain intact. New sowing timing is retained verbatim in source notes rather than converting ambiguous seasonal wording into exact months.
+`refresh-garden` updates legacy demo wording and adds starter companion links while retaining existing link notes. It runs only when explicitly invoked, so removed suggestions stay removed during normal browsing.
+
+### Optional public starter dataset
+
+Docker Compose enables `LOAD_MY_GARDEN_SEED=true` for local development. On the
+first start of a brand-new Almanac database, the service downloads the public
+[`0melette/my_garden`](https://github.com/0melette/my_garden) catalogue snapshot
+and copies its plants, planting months, pests, diseases, functions, uses, and
+companion relationships into the local database. Application edits never write
+back to the public repository, and later restarts never re-import or overwrite
+an existing catalogue.
+
+The imported plant photos use public URLs from the same repository, so the
+Almanac can display them without copying image files into its local database.
+
+Set `LOAD_MY_GARDEN_SEED=false` to use only the eight built-in starter plants.
+`MY_GARDEN_SEED_URL` can point to a specific commit or release for reproducible
+development; set `MY_GARDEN_IMAGE_BASE_URL` to the matching image directory when
+you pin the snapshot. If the public snapshot cannot be reached during a fresh start, the
+service logs a warning and falls back to the eight built-in plants.
 
 ## Use it
 
@@ -37,15 +52,7 @@ The seed commands are repeatable. `refresh-garden` cleans imported/estimated wor
 6. Hover, focus or tap a **?** beside a field to read a short explanation. Press Escape or click outside to dismiss it. Rotation guidance explains where to plant next; sowing notes appear under **When to Plant**.
 7. Select a pest or disease on a plant to open its placeholder reference page. `/pests` and `/diseases` list the shared records and their linked plant counts; each detail page links back to the affected plants.
 
-Harvest-to-space planning is outside this Almanac's scope. The calculator UI and endpoint have been removed. Existing yield, spacing and harvest-window records remain descriptive growing knowledge; no saved data or migrations were dropped. Recorded estimates are not guarantees of yield or continuous supply.
-
-## AI estimates and sources
-
-`data/notion_plants.json` is the selected plant-reference snapshot retrieved on 6 September 2026 from [the user's Notion catalogue](https://app.notion.com/p/3b7a295fe2fa80f08eddca230fe369ba). It omits inventory, prices, personal planting records and expiring image URLs. Synthetic/demo wording in the source is preserved.
-
-`data/ai_estimates.json` contains AI-authored home-garden assumptions, requested by the user, for missing fields. They are not measured yields or Notion facts. `estimated_fields` records their origin in the API, while the app presents garden-facing wording without source links or AI badges. Re-running does not overwrite edits or refill deliberately cleared estimated values. Internal provenance remains after editing; it is not shown in plant forms or detail pages. Uncertain tree yields, traditional medicinal uses and unsubstantiated garden functions remain blank. Lily-of-the-valley identity is explicitly an assumption with an ornamental/poisonous note, never culinary.
-
-The general approach is consistent with [RHS successional sowing](https://www.rhs.org.uk/vegetables/successional-sowing) and [RHS rotation guidance](https://www.rhs.org.uk/vegetables/crop-rotation); individual JSON numbers are AI estimates, not extracted from those references. Regional conditions and cultivars need review.
+Harvest-to-space planning is outside this Almanac's scope. The calculator UI and endpoint have been removed. Existing yield, spacing and harvest-window records remain descriptive growing knowledge; no saved data or migrations were dropped. Recorded values are not guarantees of yield or continuous supply.
 
 ## Rotation boundary
 
@@ -57,7 +64,7 @@ My Gardens should own `RotationSequence`, steps, spring/autumn restart and bed h
 
 ## API and validation
 
-`GET /api/plants/<slug>` includes the new fields, linked names, rotation metadata, guild links and estimated-field provenance. It does not derive planting density or target-based space requirements. Authenticated POST/PUT/PATCH accept numeric fields and choice strings; `pests`, `diseases`, `uses`, and `function_tags` accept JSON lists. PATCH preserves omitted values. Empty optional values clear them; yield quantity/unit must be cleared together.
+`GET /api/plants/<slug>` includes the new fields, linked names, rotation metadata and guild links. It does not derive planting density or target-based space requirements. Authenticated POST/PUT/PATCH accept numeric fields and choice strings; `pests`, `diseases`, `uses`, and `function_tags` accept JSON lists. PATCH preserves omitted values. Empty optional values clear them; yield quantity/unit must be cleared together.
 
 Validation rejects non-finite or non-positive planning numbers, fractional succession days, invalid vocabulary, missing yield units, reversed pH ranges and pH outside 0–14. Database checks and foreign keys also protect persisted records.
 

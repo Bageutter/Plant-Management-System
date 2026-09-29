@@ -1,7 +1,30 @@
 """Garden-facing wording and opt-in starter companion links."""
 
 from extensions import db
-from models import Disease, Pest, PlantReference, PlantCompanion, PlantFunctionTag
+from catalogue import FUNCTIONS, ROTATION_GROUPS, USES
+from models import (
+    Disease,
+    Pest,
+    PlantReference,
+    PlantCompanion,
+    PlantFunctionTag,
+    PlantUse,
+    RotationGroup,
+)
+
+
+def seed_lookups():
+    """Create the controlled vocabulary records used by forms and seed data."""
+    for name, weight, exempt in ROTATION_GROUPS:
+        if not RotationGroup.query.filter_by(name=name).first():
+            db.session.add(
+                RotationGroup(name=name, feeder_weight=weight, is_rotation_exempt=exempt)
+            )
+    for model, names in ((PlantFunctionTag, FUNCTIONS), (PlantUse, USES)):
+        for name in names:
+            if not model.query.filter_by(name=name).first():
+                db.session.add(model(name=name))
+    db.session.commit()
 
 # Exact wording replacements avoid rewriting a gardener's own descriptions.
 COPY_REPLACEMENTS = {
@@ -29,39 +52,6 @@ LEGACY_PROBLEM_DESCRIPTIONS = {
     "Powdery mildew": "A group of fungal diseases that can produce pale, powder-like patches on leaves and stems. Crop-specific prevention and management guidance will be expanded here.",
 }
 
-APHID_HOST_PREFIXES = (
-    "broccoli",
-    "bunching-onion",
-    "eggplant",
-    "lettuce",
-    "pea-",
-    "sunflower",
-    "sweet-corn",
-    "tomato",
-    "zinnia",
-)
-SLUG_HOST_PREFIXES = (
-    "alyssum",
-    "basil",
-    "bergamot",
-    "broccoli",
-    "lettuce",
-    "marigold",
-    "pea-",
-    "radish",
-    "sunflower",
-    "zinnia",
-)
-
-
-def suggested_pests(slug):
-    """Conservative starter links for the AI-assisted catalogue seed."""
-    pests = []
-    if slug.startswith(APHID_HOST_PREFIXES):
-        pests.append("Aphids")
-    if slug.startswith(SLUG_HOST_PREFIXES):
-        pests.append("Slugs and snails")
-    return pests
 
 
 def garden_wording(value):
@@ -69,10 +59,6 @@ def garden_wording(value):
         return value
     for old, new in COPY_REPLACEMENTS.items():
         value = value.replace(old, new)
-    for prefix in ("AI estimate: ", "AI suggestion: ", "AI identity assumption: "):
-        if value.startswith(prefix):
-            value = value[len(prefix) :]
-            value = value[0].upper() + value[1:]
     return value.replace(
         "Single destructive harvest; one plant is harvested once.",
         "Harvest each plant once during this picking period.",

@@ -35,7 +35,8 @@ from extensions import csrf, db
 from models import AIChatMessage, AILoopRun, PlantImage, PlantingMonth, PlantReference
 from seed_data import seed_reference_data
 from schema import upgrade_schema
-from import_notion import seed_lookups, import_notion, seed_estimates
+from garden_data import seed_lookups
+from public_seed import fetch_snapshot, import_snapshot
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
 from planning import parse_details, apply_details
 from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
@@ -214,7 +215,11 @@ def _plant_payload(plant: PlantReference) -> dict:
         for disease in sorted(plant.diseases, key=lambda item: item.name.casefold())
     ]
     payload["image_url"] = (
-        url_for("plant_image_file", filename=plant.image.filename) if plant.image else None
+        plant.image.public_url
+        if plant.image and plant.image.public_url
+        else url_for("plant_image_file", filename=plant.image.filename)
+        if plant.image
+        else None
     )
     return payload
 
@@ -297,6 +302,16 @@ def create_app(test_config: dict | None = None) -> Flask:
         PLANT_IMAGE_FOLDER=os.environ.get(
             "PLANT_IMAGE_FOLDER", os.path.join(BASE_DIR, "instance", "plant_images")
         ),
+        LOAD_MY_GARDEN_SEED=os.environ.get("LOAD_MY_GARDEN_SEED", "false").lower() == "true",
+        MY_GARDEN_SEED_URL=os.environ.get(
+            "MY_GARDEN_SEED_URL",
+            "https://raw.githubusercontent.com/0melette/my_garden/main/snapshots/almanac-catalogue.json",
+        ),
+        MY_GARDEN_IMAGE_BASE_URL=os.environ.get(
+            "MY_GARDEN_IMAGE_BASE_URL",
+            "https://raw.githubusercontent.com/0melette/my_garden/main/localdata/plant_images/",
+        ),
+        MY_GARDEN_SEED_TIMEOUT=int(os.environ.get("MY_GARDEN_SEED_TIMEOUT", "10")),
     )
     if test_config:
         app.config.update(test_config)
@@ -538,12 +553,13 @@ def create_app(test_config: dict | None = None) -> Flask:
         old_filename = None
         if image_filename:
             if plant.image:
-                old_filename = plant.image.filename
+                old_filename = None if plant.image.public_url else plant.image.filename
                 plant.image.filename = image_filename
+                plant.image.public_url = None
             else:
                 plant.image = PlantImage(filename=image_filename)
         elif request.form.get("remove_image") == "1" and plant.image:
-            old_filename = plant.image.filename
+            old_filename = None if plant.image.public_url else plant.image.filename
             plant.image = None
         try:
             db.session.commit()
@@ -564,7 +580,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         if plant is None:
             return render_template("404.html"), 404
         name = plant.common_name
-        image_filename = plant.image.filename if plant.image else None
+        image_filename = plant.image.filename if plant.image and not plant.image.public_url else None
         PlantCompanion.query.filter_by(companion_id=plant.id).delete()
         db.session.delete(plant)
         db.session.commit()
@@ -659,7 +675,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         plant = PlantReference.query.filter_by(slug=slug).first()
         if plant is None:
             return jsonify({"error": "plant reference not found"}), 404
-        image_filename = plant.image.filename if plant.image else None
+        image_filename = plant.image.filename if plant.image and not plant.image.public_url else None
         PlantCompanion.query.filter_by(companion_id=plant.id).delete()
         db.session.delete(plant)
         db.session.commit()
@@ -787,13 +803,21 @@ def create_app(test_config: dict | None = None) -> Flask:
         upgrade_schema()
         seed_lookups()
         if not PlantReference.query.first():
-            seed_reference_data()
-
-    @app.cli.command("import-notion")
-    def import_notion_command():
-        """Import the versioned Notion snapshot, preserving existing edits."""
-        added, linked = import_notion()
-        print(f"Imported {added} plants; linked {linked} existing plants.")
+            imported = 0
+            if app.config["LOAD_MY_GARDEN_SEED"]:
+                try:
+                    imported = import_snapshot(
+                        fetch_snapshot(
+                            app.config["MY_GARDEN_SEED_URL"],
+                            app.config["MY_GARDEN_SEED_TIMEOUT"],
+                        ),
+                        app.config["MY_GARDEN_IMAGE_BASE_URL"],
+                    )
+                except Exception as exc:
+                    db.session.rollback()
+                    app.logger.warning("Could not load My Garden starter data: %s", exc)
+            if not imported:
+                seed_reference_data()
 
     @app.cli.command("refresh-garden")
     def refresh_garden_command():
@@ -803,11 +827,6 @@ def create_app(test_config: dict | None = None) -> Flask:
         print(
             f"Updated {refresh_garden_wording()} text fields; added {seed_guilds()} companion links."
         )
-
-    @app.cli.command("seed-estimates")
-    def seed_estimates_command():
-        """Fill missing fields using labelled AI planning estimates."""
-        print(f"Estimated missing fields for {seed_estimates()} plants.")
 
     return app
 

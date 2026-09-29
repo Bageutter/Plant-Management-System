@@ -10,9 +10,52 @@ from werkzeug.datastructures import MultiDict
 
 from app import create_app
 from extensions import db
-from import_notion import import_notion, seed_estimates
-from models import Disease, PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
+from models import Disease, Pest, PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
 from planning import parse_details
+from public_seed import import_snapshot
+
+
+def _public_snapshot():
+    return {
+        "snapshot_format": 1,
+        "tables": {
+            "rotation_groups": [
+                {"id": 1, "name": "Solanums", "feeder_weight": "heavy", "is_rotation_exempt": 0}
+            ],
+            "pests": [{"id": 1, "name": "Aphids", "description": "Sap-feeding insects."}],
+            "diseases": [{"id": 1, "name": "Wilt", "description": "A test disease."}],
+            "function_tags": [
+                {"id": 1, "name": "pollinator", "description": "Supports pollinators."}
+            ],
+            "uses": [{"id": 1, "name": "culinary", "description": "Used as food."}],
+            "plant_references": [
+                {
+                    "id": 10, "slug": "test-tomato", "common_name": "Test Tomato",
+                    "scientific_name": "Solanum test", "family": "Solanaceae",
+                    "summary": "A public test plant.", "rotation_group_id": 1,
+                },
+                {
+                    "id": 11, "slug": "test-basil", "common_name": "Test Basil",
+                    "scientific_name": "Ocimum test", "family": "Lamiaceae",
+                    "summary": "A companion test plant.", "rotation_group_id": None,
+                },
+            ],
+            "planting_months": [
+                {"plant_reference_id": 10, "month_number": 9},
+                {"plant_reference_id": 11, "month_number": 10},
+            ],
+            "plant_pests": [{"plant_id": 10, "tag_id": 1}],
+            "plant_diseases": [{"plant_id": 10, "tag_id": 1}],
+            "plant_function_tags": [{"plant_id": 11, "tag_id": 1}],
+            "plant_uses": [{"plant_id": 10, "tag_id": 1}],
+            "plant_companions": [
+                {"plant_id": 10, "companion_id": 11, "function_id": 1, "notes": "Test link."}
+            ],
+            "plant_images": [
+                {"plant_reference_id": 10, "filename": "test-tomato.jpg"},
+            ],
+        },
+    }
 
 
 @pytest.fixture
@@ -63,24 +106,57 @@ def test_invalid_details_rejected(app, fields):
         parse_details(MultiDict(fields))
 
 
-def test_import_and_estimates_preserve_source_and_user_edits(app):
-    assert import_notion() == (26, 1)
-    assert seed_estimates() == 27
-    lettuce = PlantReference.query.filter_by(slug="lettuce").one()
-    assert lettuce.in_row_spacing_cm == 30
-    assert lettuce.yield_qty == 1
-    assert "yield_qty" in lettuce.estimated_fields
-    assert "in_row_spacing_cm" not in lettuce.estimated_fields
-    lettuce.yield_qty = 2
-    db.session.commit()
-    assert import_notion() == (0, 0)
-    assert seed_estimates() == 0
-    assert lettuce.yield_qty == 2
+def test_controlled_vocabulary_is_seeded(app):
     assert RotationGroup.query.count() == 8
     assert {g.name for g in RotationGroup.query.filter_by(is_rotation_exempt=True)} == {
         "Anywhere",
         "Perennials",
     }
+
+
+def test_public_snapshot_imports_relationships_and_never_overwrites(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.fetch_snapshot", lambda _url, _timeout: _public_snapshot())
+    seeded = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'public-seed.db'}",
+            "PLANT_IMAGE_FOLDER": str(tmp_path / "images"),
+            "LOAD_MY_GARDEN_SEED": True,
+            "MY_GARDEN_IMAGE_BASE_URL": "https://images.example/",
+        }
+    )
+    with seeded.app_context():
+        assert PlantReference.query.count() == 2
+        tomato = PlantReference.query.filter_by(slug="test-tomato").one()
+        assert [month.month_number for month in tomato.planting_months] == [9]
+        assert [pest.name for pest in tomato.pests] == ["Aphids"]
+        assert [disease.name for disease in tomato.diseases] == ["Wilt"]
+        assert [use.name for use in tomato.uses] == ["culinary"]
+        assert tomato.guild_links[0].companion.slug == "test-basil"
+        assert tomato.image.public_url == "https://images.example/test-tomato.jpg"
+        assert b"https://images.example/test-tomato.jpg" in seeded.test_client().get("/").data
+
+        tomato.summary = "My local edit"
+        db.session.commit()
+        assert import_snapshot(_public_snapshot(), "https://images.example/") == 0
+        assert tomato.summary == "My local edit"
+
+
+def test_public_snapshot_failure_falls_back_to_builtin_seed(tmp_path, monkeypatch):
+    def unavailable(_url, _timeout):
+        raise OSError("offline")
+
+    monkeypatch.setattr("app.fetch_snapshot", unavailable)
+    seeded = create_app(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'fallback-seed.db'}",
+            "PLANT_IMAGE_FOLDER": str(tmp_path / "images"),
+            "LOAD_MY_GARDEN_SEED": True,
+        }
+    )
+    with seeded.app_context():
+        assert PlantReference.query.count() == 8
 
 
 def test_form_api_and_guild_round_trip(app):
@@ -160,7 +236,7 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
         assert plant.yield_qty is None
         assert plant.image.filename == "original.png"
         assert plant.planting_months[0].month_number == 3
-        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "003"
+        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "004"
         assert any(
             c["name"] == "ck_yield_qty_positive"
             for c in inspect(db.engine).get_check_constraints("plant_references")
@@ -198,9 +274,34 @@ def test_api_partial_update_preserves_and_validates_details(app):
 def test_guild_seed_is_repeatable_and_keeps_edited_links(app):
     from garden_data import seed_guilds
 
-    import_notion()
+    db.session.add_all(
+        [
+            PlantReference(
+                slug="bunching-onion-test",
+                common_name="Test onion",
+                scientific_name="Allium test",
+                family="Amaryllidaceae",
+                summary="Test onion.",
+            ),
+            PlantReference(
+                slug="alyssum",
+                common_name="Alyssum",
+                scientific_name="Lobularia maritima",
+                family="Brassicaceae",
+                summary="Test companion.",
+            ),
+            PlantReference(
+                slug="marigold-french-marigold",
+                common_name="French marigold",
+                scientific_name="Tagetes patula",
+                family="Asteraceae",
+                summary="Test companion.",
+            ),
+        ]
+    )
+    db.session.commit()
     assert seed_guilds() > 0
-    onion = PlantReference.query.filter_by(slug="bunching-onion-winter-ishikura").one()
+    onion = PlantReference.query.filter_by(slug="bunching-onion-test").one()
     assert {link.companion.slug for link in onion.guild_links} == {
         "alyssum",
         "marigold-french-marigold",
@@ -216,8 +317,24 @@ def test_guild_seed_is_repeatable_and_keeps_edited_links(app):
 def test_pest_and_disease_pages_link_back_to_plants(app):
     from garden_data import refresh_garden_wording
 
-    import_notion()
-    seed_estimates()
+    tomato = PlantReference.query.filter_by(slug="tomato").one()
+    lettuce = PlantReference.query.filter_by(slug="lettuce").one()
+    alyssum = PlantReference(
+        slug="alyssum",
+        common_name="Sweet Alyssum",
+        scientific_name="Lobularia maritima",
+        family="Brassicaceae",
+        summary="A flowering plant for garden edges.",
+    )
+    aphids = Pest(name="Aphids")
+    slugs = Pest(name="Slugs and snails")
+    mildew = Disease(name="Powdery mildew")
+    db.session.add_all([alyssum, aphids, slugs, mildew])
+    tomato.pests.append(aphids)
+    lettuce.pests.extend([aphids, slugs])
+    tomato.diseases.append(mildew)
+    db.session.commit()
+
     refresh_garden_wording()
     client = app.test_client()
 
@@ -231,9 +348,7 @@ def test_pest_and_disease_pages_link_back_to_plants(app):
     assert b'href="/pests"' in home.data
     assert b'href="/diseases"' in home.data
 
-    plant = PlantReference.query.filter_by(slug="bunching-onion-winter-ishikura").one()
-    plant_page = client.get(f"/plants/{plant.slug}")
-    aphids = next(pest for pest in plant.pests if pest.name == "Aphids")
+    plant_page = client.get(f"/plants/{tomato.slug}")
     assert 1 < len(aphids.plants) < PlantReference.query.count()
     assert f"/pests/{aphids.id}".encode() in plant_page.data
 
@@ -244,12 +359,11 @@ def test_pest_and_disease_pages_link_back_to_plants(app):
     assert b"Nasturtium" in detail.data
     assert b"insecticidal soap" in detail.data
     assert b'href="/plants/alyssum"' in detail.data
-    assert plant.common_name.encode() in detail.data
+    assert tomato.common_name.encode() in detail.data
 
     diseases = client.get("/diseases")
     assert diseases.status_code == 200
     assert b"Powdery mildew" in diseases.data
-    mildew = Disease.query.filter_by(name="Powdery mildew").one()
     disease_detail = client.get(f"/diseases/{mildew.id}")
     assert disease_detail.status_code == 200
     assert b"Make the garden less inviting" in disease_detail.data
@@ -262,9 +376,8 @@ def test_refresh_updates_old_problem_copy_but_preserves_custom_descriptions(app)
     from garden_data import LEGACY_PROBLEM_DESCRIPTIONS, PROBLEM_DESCRIPTIONS
     from garden_data import refresh_garden_wording
 
-    import_notion()
-    seed_estimates()
-    mildew = Disease.query.filter_by(name="Powdery mildew").one()
+    mildew = Disease(name="Powdery mildew")
+    db.session.add(mildew)
     mildew.description = LEGACY_PROBLEM_DESCRIPTIONS["Powdery mildew"]
     db.session.commit()
     refresh_garden_wording()
