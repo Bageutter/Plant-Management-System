@@ -1,4 +1,4 @@
-"""Validated growing-knowledge catalogue edits."""
+"""Validated plant growing-detail edits."""
 
 import math
 from catalogue import CHOICES, NUMERIC, TEXT

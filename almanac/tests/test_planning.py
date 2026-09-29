@@ -11,7 +11,7 @@ from werkzeug.datastructures import MultiDict
 from app import create_app
 from extensions import db
 from models import Disease, Pest, PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
-from planning import parse_details
+from growing_details import parse_details
 from public_seed import import_snapshot
 
 
