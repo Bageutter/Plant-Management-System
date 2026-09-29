@@ -2,3 +2,4 @@ Flask
 Flask-SQLAlchemy
 Flask-WTF
 Alembic>=1.13,<2
+-r requirements-mcp.txt

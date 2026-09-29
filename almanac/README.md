@@ -47,6 +47,10 @@ curl http://localhost:3000/almanac/health
 
 ## Service boundaries
 
+For public plant, pest and disease access from a local MCP host, see
+[MCP setup and demonstration](MCP.md). The adapter includes read-only tools,
+reference resources, an inspection prompt, and optional local HTTP transport.
+
 | Dependency | How the Almanac uses it |
 | --- | --- |
 | Auth | Forwards the browser login cookie to Auth's `/me` API; never reads Auth's database |

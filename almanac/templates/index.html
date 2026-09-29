@@ -117,6 +117,7 @@
 <div style="max-width:56rem; margin:0 auto;">
     <div style="margin-bottom:2.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
         <h1 style="font-size:2.25rem; font-weight:700; margin:0;">Plant Almanac</h1>
+        <a href="{{ url_for('mcp_ui.index') }}" class="uk-btn uk-btn-default uk-btn-sm">Explore with tools →</a>
         {% if auth_user %}
         <a href="{{ url_for('new_plant') }}" class="uk-btn uk-btn-primary uk-btn-sm">+ Add a plant</a>
         {% endif %}
