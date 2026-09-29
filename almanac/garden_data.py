@@ -2,7 +2,15 @@
 
 from extensions import db
 from catalogue import FUNCTIONS, ROTATION_GROUPS, USES
-from models import PlantReference, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
+from models import (
+    Disease,
+    Pest,
+    PlantReference,
+    PlantCompanion,
+    PlantFunctionTag,
+    PlantUse,
+    RotationGroup,
+)
 
 
 def seed_lookups():
@@ -33,6 +41,18 @@ COPY_REPLACEMENTS = {
     "Canopy and anchor crop in the synthetic Tomato Edge Guild.": "Tall summer crop; keep lower-growing companions outside its main root and shade area.",
 }
 
+PROBLEM_DESCRIPTIONS = {
+    "Aphids": "Small sap-feeding insects that often gather on soft new growth and beneath leaves. Learn to recognise colonies and start with gentle, targeted control.",
+    "Slugs and snails": "Soft-bodied garden pests that chew seedlings and leaves, often feeding overnight or after rain. Identification and organic management guidance will be expanded here.",
+    "Powdery mildew": "A group of fungal diseases that produce pale, flour-like patches on leaves and stems, especially where growth is crowded or air movement is poor.",
+}
+
+LEGACY_PROBLEM_DESCRIPTIONS = {
+    "Aphids": "Small sap-feeding insects that often gather on soft new growth and beneath leaves. Identification and organic management guidance will be expanded here.",
+    "Powdery mildew": "A group of fungal diseases that can produce pale, powder-like patches on leaves and stems. Crop-specific prevention and management guidance will be expanded here.",
+}
+
+
 
 def garden_wording(value):
     if not isinstance(value, str):
@@ -53,6 +73,15 @@ def refresh_garden_wording():
             cleaned = garden_wording(value)
             if cleaned != value:
                 setattr(plant, key, cleaned)
+                changed += 1
+    for model in (Pest, Disease):
+        for record in model.query.all():
+            description = PROBLEM_DESCRIPTIONS.get(record.name)
+            if description and (
+                not record.description
+                or record.description == LEGACY_PROBLEM_DESCRIPTIONS.get(record.name)
+            ):
+                record.description = description
                 changed += 1
     db.session.commit()
     return changed

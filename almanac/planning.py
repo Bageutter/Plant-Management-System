@@ -75,12 +75,13 @@ def apply_details(plant, fields):
         if key in RELATIONS:
             model = RELATIONS[key]
             records = []
-            for name in value:
-                record = model.query.filter(db.func.lower(model.name) == name.lower()).first()
-                if record is None:
-                    record = model(name=name)
-                    db.session.add(record)
-                records.append(record)
+            with db.session.no_autoflush:
+                for name in value:
+                    record = model.query.filter(db.func.lower(model.name) == name.lower()).first()
+                    if record is None:
+                        record = model(name=name)
+                        db.session.add(record)
+                    records.append(record)
             setattr(plant, key, records)
         else:
             setattr(plant, key, value)
