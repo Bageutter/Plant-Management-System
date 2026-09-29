@@ -10,7 +10,7 @@ from werkzeug.datastructures import MultiDict
 
 from app import create_app
 from extensions import db
-from models import PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
+from models import Disease, Pest, PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
 from planning import parse_details
 from public_seed import import_snapshot
 
@@ -312,3 +312,78 @@ def test_guild_seed_is_repeatable_and_keeps_edited_links(app):
     assert seed_guilds() == 0
     assert link.notes == "My own planting notes"
     assert all(link.plant_id != link.companion_id for link in PlantCompanion.query.all())
+
+
+def test_pest_and_disease_pages_link_back_to_plants(app):
+    from garden_data import refresh_garden_wording
+
+    tomato = PlantReference.query.filter_by(slug="tomato").one()
+    lettuce = PlantReference.query.filter_by(slug="lettuce").one()
+    alyssum = PlantReference(
+        slug="alyssum",
+        common_name="Sweet Alyssum",
+        scientific_name="Lobularia maritima",
+        family="Brassicaceae",
+        summary="A flowering plant for garden edges.",
+    )
+    aphids = Pest(name="Aphids")
+    slugs = Pest(name="Slugs and snails")
+    mildew = Disease(name="Powdery mildew")
+    db.session.add_all([alyssum, aphids, slugs, mildew])
+    tomato.pests.append(aphids)
+    lettuce.pests.extend([aphids, slugs])
+    tomato.diseases.append(mildew)
+    db.session.commit()
+
+    refresh_garden_wording()
+    client = app.test_client()
+
+    pests = client.get("/pests")
+    assert pests.status_code == 200
+    assert b"Aphids" in pests.data
+    assert b"Slugs and snails" in pests.data
+
+    home = client.get("/")
+    assert b"Plant problem library" in home.data
+    assert b'href="/pests"' in home.data
+    assert b'href="/diseases"' in home.data
+
+    plant_page = client.get(f"/plants/{tomato.slug}")
+    assert 1 < len(aphids.plants) < PlantReference.query.count()
+    assert f"/pests/{aphids.id}".encode() in plant_page.data
+
+    detail = client.get(f"/pests/{aphids.id}")
+    assert detail.status_code == 200
+    assert b"Use the lightest effective response" in detail.data
+    assert b"Sweet Alyssum" in detail.data
+    assert b"Nasturtium" in detail.data
+    assert b"insecticidal soap" in detail.data
+    assert b'href="/plants/alyssum"' in detail.data
+    assert tomato.common_name.encode() in detail.data
+
+    diseases = client.get("/diseases")
+    assert diseases.status_code == 200
+    assert b"Powdery mildew" in diseases.data
+    disease_detail = client.get(f"/diseases/{mildew.id}")
+    assert disease_detail.status_code == 200
+    assert b"Make the garden less inviting" in disease_detail.data
+    assert b"Choose a labelled treatment" in disease_detail.data
+    assert b"horticultural oil" in disease_detail.data
+    assert client.get("/pests/999999").status_code == 404
+
+
+def test_refresh_updates_old_problem_copy_but_preserves_custom_descriptions(app):
+    from garden_data import LEGACY_PROBLEM_DESCRIPTIONS, PROBLEM_DESCRIPTIONS
+    from garden_data import refresh_garden_wording
+
+    mildew = Disease(name="Powdery mildew")
+    db.session.add(mildew)
+    mildew.description = LEGACY_PROBLEM_DESCRIPTIONS["Powdery mildew"]
+    db.session.commit()
+    refresh_garden_wording()
+    assert mildew.description == PROBLEM_DESCRIPTIONS["Powdery mildew"]
+    mildew.description = "My local observations and management notes"
+    db.session.commit()
+    refresh_garden_wording()
+    assert mildew.description == "My local observations and management notes"
+    assert refresh_garden_wording() == 0
