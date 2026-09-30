@@ -146,6 +146,24 @@
         }
 
         .record-list > li + li { border-top: 1px solid hsl(var(--border)); }
+        .record-item { display: flex; align-items: center; gap: 0.25rem; }
+        .record-item .record-row { flex: 1 1 auto; min-width: 0; }
+        .record-delete {
+            flex: 0 0 auto;
+            width: 2rem;
+            height: 2rem;
+            border: 1px solid transparent;
+            border-radius: var(--uk-global-radius-s);
+            background: none;
+            color: hsl(var(--muted-foreground));
+            font-size: 1.25rem;
+            line-height: 1;
+        }
+        .record-delete:hover {
+            border-color: hsl(var(--border));
+            color: hsl(var(--destructive));
+        }
+        .record-item.htmx-swapping { opacity: 0; transition: opacity 200ms ease-out; }
         .record-row {
             display: flex;
             align-items: center;

@@ -3,54 +3,174 @@
 {% block title %}{{ assessment.plant_ref or assessment.plant_identification or "Assessment" }} — Plant Health{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto">
+<div class="max-w-3xl mx-auto" x-data="recordActions()">
     <a href="{{ url_for('health.index') }}" class="text-sm text-primary hover:underline">&larr; Back to plant health records</a>
 
-    <h1 class="text-2xl mt-3 mb-1">
-        {{ assessment.plant_ref or assessment.plant_identification or "Plant assessment" }}
-    </h1>
-    <p class="text-sm text-muted-foreground mb-8">
-        Recorded {{ assessment.created_at.strftime("%d %B %Y at %H:%M") }} UTC
-    </p>
-
-    <section class="border border-border rounded-lg p-6 mb-8">
-        <h2 class="text-lg mb-4">What was submitted</h2>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div>
-                <p class="uk-text-meta mb-1">Photo</p>
-                {% if assessment.has_image %}
-                    <a href="{{ url_for('health.assessment_image', assessment_id=assessment.id) }}" target="_blank" rel="noopener">
-                        <img class="submitted-image"
-                             src="{{ url_for('health.assessment_image', assessment_id=assessment.id) }}"
-                             alt="Photo submitted for this assessment">
-                    </a>
-                    <p class="text-xs text-muted-foreground mt-1">
-                        Stored at reduced resolution ({{ assessment.image_mime }}). Click to open full size.
-                    </p>
-                {% else %}
-                    <p class="text-sm text-muted-foreground">No photo was uploaded.</p>
-                {% endif %}
-            </div>
-
-            <div>
-                <p class="uk-text-meta mb-1">Plant name / reference</p>
-                <p class="mb-4">{{ assessment.plant_ref or "—" }}</p>
-
-                <p class="uk-text-meta mb-1">Description</p>
-                <p class="whitespace-pre-line">{{ assessment.description or "—" }}</p>
-            </div>
+    <div class="flex items-start justify-between gap-4 flex-wrap mt-3 mb-8">
+        <div>
+            <h1 class="text-2xl mb-1">
+                {{ assessment.plant_ref or assessment.plant_identification or "Plant assessment" }}
+            </h1>
+            <p class="text-sm text-muted-foreground m-0">
+                Recorded {{ assessment.created_at.strftime("%d %B %Y at %H:%M") }} UTC
+            </p>
         </div>
-    </section>
+        <button class="uk-btn uk-btn-default uk-btn-sm text-destructive" type="button"
+                @click="remove()" :disabled="deleting">
+            <span x-show="!deleting">Delete record</span>
+            <span x-show="deleting" x-cloak>Deleting…</span>
+        </button>
+    </div>
+
+    {% include "_submission.html" %}
 
     <h2 class="text-lg mb-4">Assessment</h2>
     {% with detail_view = True %}
         {% include "_assessment.html" %}
     {% endwith %}
 
+    <!-- Repeat runs over the same photo and description, newest last -->
+    <template x-for="(html, index) in repeats" :key="index">
+        <div class="mt-6" x-html="html"></div>
+    </template>
+
+    <div x-show="busy" x-cloak class="border border-border rounded-lg p-6 mt-6 bg-muted"
+         role="status" aria-live="polite">
+        <div class="flex items-center gap-3 mb-3">
+            <span class="spinner spinner-lg" aria-hidden="true"></span>
+            <div>
+                <p class="font-semibold m-0" x-text="stage"></p>
+                <p class="text-sm text-muted-foreground m-0">
+                    <span x-text="(elapsed / 1000).toFixed(1)"></span>s elapsed
+                    <template x-if="chars > 0">
+                        <span> · <span x-text="chars"></span> characters written</span>
+                    </template>
+                </p>
+            </div>
+        </div>
+        <template x-if="liveSummary">
+            <p class="live-summary" x-text="liveSummary"></p>
+        </template>
+    </div>
+
+    <div x-show="error" x-cloak
+         class="uk-alert border border-border rounded-lg p-4 mt-6 text-destructive">
+        <strong>Something went wrong.</strong>
+        <p class="mt-1 mb-0 text-sm" x-text="error"></p>
+    </div>
+
+    <div class="mt-6">
+        <button class="uk-btn uk-btn-default" type="button" @click="regenerate()" :disabled="busy">
+            <span x-show="!busy">Generate report again</span>
+            <span x-show="busy" x-cloak class="flex items-center gap-2">
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Analysing…</span>
+            </span>
+        </button>
+        <p class="text-xs text-muted-foreground mt-2 mb-0">
+            Runs the model again over the same photo and description, including any edits made
+            above. The report already recorded is kept, so the two opinions can be compared.
+        </p>
+    </div>
+
     {% if recent %}
         <h2 class="text-lg mt-12 mb-3">Other records</h2>
         {% include "_record_list.html" %}
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function recordActions() {
+    return {
+        busy: false,
+        deleting: false,
+        stage: "Starting the local model…",
+        liveSummary: "",
+        chars: 0,
+        elapsed: 0,
+        error: "",
+        repeats: [],
+        _timer: null,
+
+        async remove() {
+            if (this.deleting) return;
+            if (!confirm("Delete this record permanently? This cannot be undone.")) return;
+
+            this.deleting = true;
+            this.error = "";
+            try {
+                const response = await fetch(
+                    "{{ url_for('health.delete_assessment', assessment_id=assessment.id) }}",
+                    { method: "DELETE" });
+                if (!response.ok) throw new Error("The record could not be deleted.");
+                window.location.href = "{{ url_for('health.index') }}";
+            } catch (err) {
+                this.error = err.message;
+                this.deleting = false;
+            }
+        },
+
+        async regenerate() {
+            if (this.busy) return;
+            this.busy = true;
+            this.error = "";
+            this.stage = "Starting the local model…";
+            this.liveSummary = "";
+            this.chars = 0;
+            this.elapsed = 0;
+
+            const started = Date.now();
+            this._timer = setInterval(() => { this.elapsed = Date.now() - started; }, 100);
+
+            try {
+                const response = await fetch(
+                    "{{ url_for('health.stream_regenerate_assessment', assessment_id=assessment.id) }}",
+                    { method: "POST" });
+
+                if (!response.body) throw new Error("Streaming is not supported by this browser.");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split("\n\n");
+                    buffer = parts.pop();
+
+                    for (const part of parts) {
+                        const line = part.split("\n").find(l => l.startsWith("data: "));
+                        if (!line) continue;
+                        this.handle(JSON.parse(line.slice(6)));
+                    }
+                }
+            } catch (err) {
+                this.error = err.message;
+            } finally {
+                clearInterval(this._timer);
+                this.busy = false;
+            }
+        },
+
+        handle(event) {
+            if (event.type === "progress") {
+                if (event.field) this.stage = event.field + "…";
+                if (event.summary) this.liveSummary = event.summary;
+                this.chars = event.chars || 0;
+            } else if (event.type === "done") {
+                this.repeats.push(event.html);
+                // Let Franken UI pick up tooltips inside the newly inserted markup.
+                this.$nextTick(() => window.UIkit && window.UIkit.update());
+            } else if (event.type === "error") {
+                this.error = event.message;
+            }
+        },
+    };
+}
+</script>
 {% endblock %}
