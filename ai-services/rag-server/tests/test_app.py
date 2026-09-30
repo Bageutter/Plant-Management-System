@@ -53,10 +53,10 @@ def test_sources_lists_every_known_source_as_unindexed(client):
     body = client.get("/rag/sources").get_json()
     assert [row["source"] for row in body] == ["health", "almanac", "vgarden"]
     assert all(row["chunks"] == 0 for row in body)
-    assert [row["implemented"] for row in body] == [True, False, False]
+    assert [row["implemented"] for row in body] == [True, True, False]
 
 
-@pytest.mark.parametrize("source", ["almanac", "vgarden"])
+@pytest.mark.parametrize("source", ["vgarden"])
 def test_ingest_stubs_answer_501_and_name_the_tracking_reference(client, source):
     response = client.post(f"/rag/ingest/{source}")
     assert response.status_code == 501
