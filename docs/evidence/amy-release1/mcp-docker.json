@@ -1,5 +1,5 @@
 {
-  "run_id": "validate-mcp-20260930-140158-6315a0",
+  "run_id": "validate-mcp-20260930-141638-99aa8b",
   "mode": "mcp",
   "base_url": "http://localhost:3000/almanac",
   "passed": true,
@@ -19,14 +19,22 @@
               "name": "Tomato",
               "path": "/almanac/plants/tomato",
               "uri": "almanac://plants/tomato"
+            },
+            {
+              "id": 33,
+              "key": "tomato-black-krim",
+              "kind": "plant",
+              "name": "Tomato - Black Krim",
+              "path": "/almanac/plants/tomato-black-krim",
+              "uri": "almanac://plants/tomato-black-krim"
             }
           ],
           "limit": 5,
           "next_offset": null,
           "offset": 0,
-          "total": 1
+          "total": 2
         },
-        "text": "{\n  \"items\": [\n    {\n      \"kind\": \"plant\",\n      \"id\": 1,\n      \"key\": \"tomato\",\n      \"name\": \"Tomato\",\n      \"uri\": \"almanac://plants/tomato\",\n      \"path\": \"/almanac/plants/tomato\"\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 5,\n  \"offset\": 0,\n  \"next_offset\": null\n}",
+        "text": "{\n  \"items\": [\n    {\n      \"kind\": \"plant\",\n      \"id\": 1,\n      \"key\": \"tomato\",\n      \"name\": \"Tomato\",\n      \"uri\": \"almanac://plants/tomato\",\n      \"path\": \"/almanac/plants/tomato\"\n    },\n    {\n      \"kind\": \"plant\",\n      \"id\": 33,\n      \"key\": \"tomato-black-krim\",\n      \"name\": \"Tomato - Black Krim\",\n      \"uri\": \"almanac://plants/tomato-black-krim\",\n      \"path\": \"/almanac/plants/tomato-black-krim\"\n    }\n  ],\n  \"total\": 2,\n  \"limit\": 5,\n  \"offset\": 0,\n  \"next_offset\": null\n}",
         "tool": "search_almanac_catalogue"
       }
     },
@@ -57,6 +65,6 @@
       }
     }
   },
-  "transcript": "/Users/amyzhou/Documents/Plant-Management-System/tools/ai-loop/logs/reports/almanac/validate-mcp-20260930-140158-6315a0.md",
+  "transcript": "/Users/amyzhou/Documents/Plant-Management-System/tools/ai-loop/logs/reports/almanac/validate-mcp-20260930-141638-99aa8b.md",
   "scope": "Live backend response validation; answer factual accuracy still needs review."
 }

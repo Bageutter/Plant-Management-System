@@ -1,5 +1,5 @@
 {
-  "run_id": "validate-rag-20260930-140158-70dd82",
+  "run_id": "validate-rag-20260930-141638-f74b97",
   "mode": "rag",
   "base_url": "http://localhost:3000/almanac",
   "passed": true,
@@ -9,7 +9,7 @@
       "attempts": 1,
       "issues": [],
       "response": {
-        "answer": "Giving plants breathing room by spacing and pruning them to improve airflow helps prevent powdery mildew. This reduces the still, humid microclimate where the disease commonly builds up. Additionally, choosing resistant plant varieties helps prevent powdery mildew, especially when the disease returns annually.",
+        "answer": "Giving plants breathing room by spacing and pruning to improve airflow helps prevent powdery mildew. This reduces the still, humid microclimate where the disease commonly builds up. Additionally, choosing resistant plant varieties and clearing affected plant debris at the end of the season can help prevent recurrence.",
         "citations": [
           {
             "chunk_id": "almanac:disease:1:record",
@@ -24,15 +24,15 @@
         ],
         "confidence": "medium",
         "confidence_reason": "1 cited passage, top relevance 85%; model rated its evidence strong, but only one passage was cited, so confidence stays at medium.",
-        "duration_ms": 6366,
+        "duration_ms": 8690,
         "insufficient_context": false,
         "model": "qwen3:4b-instruct",
         "model_confidence": "strong",
         "note": null,
         "question": "What helps prevent powdery mildew?",
         "retrieval": {
-          "candidates": 1,
-          "considered": 11,
+          "candidates": 5,
+          "considered": 37,
           "mode": "lexical",
           "query_terms": [
             "help",
@@ -56,7 +56,7 @@
         "citations": [],
         "confidence": "insufficient",
         "confidence_reason": "No indexed passage passed the relevance gate, so the model was not consulted.",
-        "duration_ms": 1,
+        "duration_ms": 4,
         "insufficient_context": true,
         "model": null,
         "model_confidence": null,
@@ -64,7 +64,7 @@
         "question": "Who won the 1986 FIFA World Cup?",
         "retrieval": {
           "candidates": 0,
-          "considered": 11,
+          "considered": 37,
           "mode": "lexical",
           "query_terms": [
             "won",
@@ -81,6 +81,6 @@
       }
     }
   },
-  "transcript": "/Users/amyzhou/Documents/Plant-Management-System/tools/ai-loop/logs/reports/almanac/validate-rag-20260930-140158-70dd82.md",
+  "transcript": "/Users/amyzhou/Documents/Plant-Management-System/tools/ai-loop/logs/reports/almanac/validate-rag-20260930-141638-f74b97.md",
   "scope": "Live backend response validation; answer factual accuracy still needs review."
 }

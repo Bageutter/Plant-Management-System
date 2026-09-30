@@ -45,6 +45,13 @@ login and CSRF token. A failed refresh keeps the previous index.
 
 ## Run and demonstrate
 
+The catalogue source is [0melette/my_garden](https://github.com/0melette/my_garden).
+An empty Almanac imports its public snapshot automatically. An existing database
+needs the explicit `import-my-garden` command documented in
+[the Almanac README](../almanac/README.md#import-my-garden-into-an-existing-database).
+This adds missing records and fills blank fields while keeping existing values.
+The app does not automatically publish edits back to the source repository.
+
 Use Python 3.12 and the existing group application. Install the feature and shared
 server requirements in a local environment:
 
@@ -113,17 +120,27 @@ All five application images rebuilt successfully and all seven Compose container
 started. The app runs from the normal `Plant-Management-System` checkout on
 `amy/almanac-release1`.
 
-The existing local catalogue held eight plants and no pest or disease records.
-After a SQLite backup, the three missing public references were added without
-replacing existing records. The shared RAG server indexed these 11 local records.
-Both validation modes then passed through `http://localhost:3000/almanac`:
+The existing local catalogue held only eight starter plants. The explicit import
+from [My Garden commit `4cfa214`](https://github.com/0melette/my_garden/commit/4cfa214fb657f669cd5fd186b17d03af0d8fccd6)
+added the 26 missing plants and filled blank details and missing relationships.
+The database now has all 34 source plants, 34 images, 59 companion links, two pests
+and one disease. My Garden's three pest/disease descriptions and source notes were
+also published in that commit.
+
+The old Docker database still required fields removed from the current models.
+Migration 005 makes those obsolete fields optional while keeping their values.
+A comparison against the SQLite backup confirmed that every pre-import record and
+nonblank value survived; foreign keys are valid. A second import added zero plants.
+
+The shared RAG server indexed all 37 local references. Both validation modes
+then passed through `http://localhost:3000/almanac`:
 MCP returned plant and disease results, RAG answered with a disease citation and
 confidence explanation, and the unrelated question was refused. Ollama, MCP and
 RAG remained local host processes; the container reached them through
 `host.docker.internal` while their listeners stayed on loopback.
 
 The browser confirmed the disease guide no longer shows the requested Sources
-card. AI answer citations are still shown. All 61 Almanac tests passed again with
+card. AI answer citations are still shown. All 65 Almanac tests passed again with
 MCP and RAG disabled.
 
 Evidence: [Docker MCP JSON](evidence/amy-release1/mcp-docker.json),
@@ -132,6 +149,8 @@ Evidence: [Docker MCP JSON](evidence/amy-release1/mcp-docker.json),
 [RAG transcript](evidence/amy-release1/rag-docker-transcript.md).
 
 ![Updated disease page](evidence/amy-release1/disease-docker.png)
+
+![My Garden catalogue in Docker](evidence/amy-release1/catalogue-docker.png)
 
 Amy's existing assigned workflow is `.github/workflows/plant_almanac.yml` (see
 `.github/README.md`), now labelled **Plant Almanac (Amy)**. It runs on Amy branches
@@ -151,6 +170,8 @@ in the report. A GitHub run must be cited separately from local test results.
 | `3f5de7f` | Almanac host-service connection settings in Compose |
 | `a062b00` | Shared local validation modes and Amy's CI configuration |
 | `a05643c` | Removed the Sources card from pest and disease guides |
+| `ee89935` | Fixed an intermittent pipe error in the existing integration smoke check |
+| `ef85a35`, `7f574b1` | Safe explicit catalogue import, legacy database compatibility and preservation tests |
 
 ## Report paragraph to append — Amy only
 
