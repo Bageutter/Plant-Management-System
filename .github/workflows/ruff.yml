@@ -35,4 +35,4 @@ jobs:
           args: check --output-format=github
 
       - name: Compile-check Python files
-        run: python -m compileall -q auth shared vgarden almanac
+        run: python -m compileall -q auth shared vgarden almanac health ai-services
