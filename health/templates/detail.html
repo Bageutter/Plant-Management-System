@@ -129,6 +129,14 @@ function recordActions() {
                     "{{ url_for('health.stream_regenerate_assessment', assessment_id=assessment.id) }}",
                     { method: "POST" });
 
+                if (!response.ok) {
+                    let message = "The server answered with status " + response.status + ".";
+                    try {
+                        const parsed = JSON.parse(await response.text());
+                        message = parsed.error || parsed.message || message;
+                    } catch (err) { /* keep the status-based message */ }
+                    throw new Error(message);
+                }
                 if (!response.body) throw new Error("Streaming is not supported by this browser.");
 
                 const reader = response.body.getReader();

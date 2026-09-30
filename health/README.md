@@ -96,7 +96,7 @@ python app.py
 | `OLLAMA_KEEP_ALIVE` | `30m` | How long the model stays loaded between requests |
 | `OLLAMA_NUM_PREDICT` | `700` | Maximum generated tokens |
 | `OLLAMA_NUM_CTX` | `4096` | Context window |
-| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size |
+| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `nginx.conf` above it) |
 | `IMAGE_MAX_EDGE` | `896` | Photos are downscaled to this longest edge before inference |
 
 ## How the health score works
@@ -196,6 +196,20 @@ or `high`.
 
 Errors: `400` for invalid/missing input, `413` when the image exceeds the size limit,
 `503` when the local AI instance is unreachable or the model cannot be pulled.
+
+A `413` carries the reason and the limit: `{"error": "The upload is larger than the 12 MB
+limit. ...", "limit_bytes": 12582912}`. On the streaming endpoint the same reason is sent
+as a single `error` event, so a stream consumer sees it too.
+
+### Oversized photos
+
+`MAX_UPLOAD_BYTES` (12 MiB) is the app's limit, and `nginx.conf` allows `13m` on the
+`/health/` route so the app — not the proxy — is the one that answers. The upload form
+states the limit under the file picker, shows the chosen photo's size, and when a photo is
+over the limit it re-encodes it in the browser to `IMAGE_MAX_EDGE` pixels (the resolution
+the server downscales to anyway) before sending. A response that is not an event stream
+(the app's or the proxy's `413`, an error page) is turned into a visible message rather
+than being read as an empty stream. Nothing is sent anywhere but this service.
 
 ### `POST /plant-health-records/assessments/stream`
 

@@ -1,15 +1,23 @@
+import json
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify
+from flask import Flask, Response, jsonify, request
 from jinja2 import ChoiceLoader, FileSystemLoader
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Keep imports at module top; delay importing `Config` until after loading env vars
 from ai import OllamaClient
 from extensions import db
+from images import format_bytes, upload_limit_message
 from integrations import McpToolClient, RagClient
 from schema import sync_schema
+
+
+def _sse_payload(event: dict) -> str:
+    """One server-sent event carrying ``event`` as JSON."""
+
+    return "data: " + json.dumps(event) + "\n\n"
 
 
 def create_app(config_class: type | None = None) -> Flask:
@@ -78,7 +86,17 @@ def create_app(config_class: type | None = None) -> Flask:
     @app.errorhandler(413)
     def payload_too_large(_error):
         limit = app.config["MAX_CONTENT_LENGTH"]
-        return jsonify({"error": f"Upload exceeds the {limit} byte limit"}), 413
+        message = upload_limit_message(limit)
+        if request.path.endswith("/stream"):
+            # The streaming endpoints are consumed as server-sent events, so answer
+            # in that shape too: a naive SSE reader then still sees the reason.
+            return Response(
+                _sse_payload({"type": "error", "message": message, "limit_bytes": limit}),
+                status=413,
+                mimetype="text/event-stream",
+                headers={"Cache-Control": "no-cache"},
+            )
+        return jsonify({"error": message, "limit_bytes": limit}), 413
 
     @app.context_processor
     def inject_template_globals():
@@ -97,6 +115,11 @@ def create_app(config_class: type | None = None) -> Flask:
                 "ALMANAC_PUBLIC_URL", "http://localhost:5004/"
             ),
             "ai_model": app.config["OLLAMA_MODEL"],
+            # The upload form tells the user the limit up front and shrinks
+            # oversized photos in the browser before they are sent.
+            "max_upload_bytes": app.config["MAX_CONTENT_LENGTH"],
+            "max_upload_label": format_bytes(app.config["MAX_CONTENT_LENGTH"]),
+            "image_max_edge": app.config["IMAGE_MAX_EDGE"],
             "score_explanation": SCORE_EXPLANATION,
             "confidence_explanation": CONFIDENCE_EXPLANATION,
         }

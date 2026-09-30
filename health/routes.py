@@ -23,7 +23,7 @@ from integrations import (
     IntegrationUnavailable,
     coerce_tool_args,
 )
-from images import downscale_image, to_base64
+from images import downscale_image, to_base64, upload_limit_message
 from models import Assessment
 
 # User-facing pages and the assessment API live under a descriptive prefix.
@@ -440,7 +440,7 @@ def _read_json_image(data: dict) -> tuple[str | None, str | None]:
     if not decoded:
         raise ValueError("image_base64 decoded to an empty image")
     if len(decoded) > current_app.config["MAX_CONTENT_LENGTH"]:
-        raise ValueError("Image is too large")
+        raise ValueError(upload_limit_message(current_app.config["MAX_CONTENT_LENGTH"]))
 
     allowed = current_app.config["ALLOWED_IMAGE_TYPES"]
     if mime is not None and mime not in allowed:
