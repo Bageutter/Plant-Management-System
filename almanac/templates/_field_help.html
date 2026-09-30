@@ -1,0 +1,8 @@
+{% macro help(key, label) -%}
+{% if field_help.get(key) %}
+<span class="field-help" x-data="{open:false, left:0, top:0}" x-effect="if(open) $nextTick(() => { const r=$refs.trigger.getBoundingClientRect(); left=Math.max(12, Math.min(r.left, window.innerWidth-$refs.tip.offsetWidth-12)); top=Math.max(12, Math.min(r.bottom+8, window.innerHeight-$refs.tip.offsetHeight-12)); })" @scroll.window="open=false" @resize.window="open=false" @mouseenter="open=true" @mouseleave="open=false" @focusout="open=false" @keydown.escape.stop="open=false" @click.outside="open=false">
+    <button type="button" class="help-button" x-ref="trigger" aria-label="About {{ label }}" aria-describedby="help-{{ key }}" :aria-expanded="open" @click.prevent.stop="open=true" @focus="open=true">?</button>
+    <span id="help-{{ key }}" class="help-popover" x-ref="tip" :style="{left:left+'px', top:top+'px'}" role="tooltip" x-show="open" x-cloak>{{ field_help[key] }}</span>
+</span>
+{% endif %}
+{%- endmacro %}

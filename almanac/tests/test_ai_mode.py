@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from ai import AIUnavailableError
 from app import create_app
@@ -78,10 +79,11 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.assertIn(b"Ask the Almanac", response.data)
         self.assertIn(b"ai-chat-launcher", response.data)
         self.assertIn(b"ai-chat-panel", response.data)
+        self.assertIn(b"ai-chat-resize-corner", response.data)
         self.assertIn(b"pendingQuestion", response.data)
 
     def test_existing_plant_api_still_lists_every_record(self):
-        self.assertEqual(self.client.get("/api/plants").get_json()["count"], 6)
+        self.assertEqual(self.client.get("/api/plants").get_json()["count"], 8)
 
     def test_logged_out_user_cannot_use_chat(self):
         self.auth.user = None
@@ -103,7 +105,11 @@ class AlmanacAIModeTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"January and September to December", response.data)
-        self.assertIn(b"Plan \xe2\x86\x92 Act \xe2\x86\x92 Observe \xe2\x86\x92 Adapt", response.data)
+        self.assertIn(b"Answer checked", response.data)
+        self.assertIn(b"View validation report", response.data)
+        self.assertIn(b"data-validation-report", response.data)
+        self.assertNotIn(b"Plan \xc2\xb7 Evidence selected", response.data)
+        self.assertNotIn(b"Reviewer approved this draft", response.data)
 
         call = fake.calls[0]
         self.assertEqual(call["question"], "When should I plant tomatoes?")
@@ -113,6 +119,7 @@ class AlmanacAIModeTests(unittest.TestCase):
         page = self.client.get("/")
         self.assertIn(b"When should I plant tomatoes?", page.data)
         self.assertIn(b'href="/plants/tomato"', page.data)  # source derived from the answer text
+        self.assertIn(b'id="validation-report-dialog"', page.data)
 
         with self.app.app_context():
             self.assertEqual(AIChatMessage.query.count(), 2)
@@ -144,6 +151,39 @@ class AlmanacAIModeTests(unittest.TestCase):
             run = AILoopRun.query.one()
             self.assertEqual(run.iterations, 2)
             self.assertEqual(run.verdict, "revised_capped")
+
+    def test_current_month_list_is_complete_and_not_repeated(self):
+        fake = self._set_ai(
+            FakeAlmanacAI(
+                "You should plant basil, carrot, lettuce, tomato, and zucchini now. "
+                "Specifically, plant basil, carrot, lettuce, tomato, and zucchini."
+            )
+        )
+        self.app.extensions["ai_loop_reviewer"] = None
+
+        with patch("app.datetime") as clock:
+            clock.now.return_value.strftime.return_value = "September"
+            response = self.client.post(
+                "/ai/ask", data={"question": "what should i plant niw"}
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"In September, you can plant", response.data)
+        self.assertIn(b"Lebanese Cucumber", response.data)
+        self.assertIn(b"Telegraph Improved Cucumber", response.data)
+        self.assertEqual(len(fake.calls), 1)
+        self.assertEqual(
+            fake.calls[0]["grounding"]["required_answer_items"],
+            [
+                "Basil",
+                "Carrot",
+                "Lebanese Cucumber",
+                "Lettuce",
+                "Telegraph Improved Cucumber",
+                "Tomato",
+                "Zucchini",
+            ],
+        )
 
     def test_ai_question_rejects_empty_input(self):
         response = self.client.post("/ai/ask", data={"question": "   "})
@@ -178,22 +218,42 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.auth.user = {"id": 2, "email": "other@example.com"}
         self.assertNotIn(b"Tomato answer", self.client.get("/").data)
 
-    def test_clear_chat_removes_only_current_user_history(self):
+    def test_chat_header_offers_new_chat_instead_of_clear_chat(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"New chat", response.data)
+        self.assertIn(b'hx-post="/ai/clear"', response.data)
+        self.assertIn(b"Start a new chat?", response.data)
+        self.assertNotIn(b"Clear chat", response.data)
+
+    def test_new_chat_removes_only_current_user_history(self):
         self._set_ai(FakeAlmanacAI("Tomato answer"))
         self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
         self.auth.user = {"id": 2, "email": "other@example.com"}
         self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
         self.auth.user = {"id": 1, "email": "amy@example.com"}
 
-        self.client.post("/ai/clear")
+        response = self.client.post("/ai/clear")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Ask a question to start your Almanac chat", response.data)
 
         with self.app.app_context():
-            self.assertTrue(
-                all(m.owner_key == "user:2" for m in db.session.query(AIChatMessage).all())
-            )
-            self.assertTrue(
-                all(r.owner_key == "user:2" for r in db.session.query(AILoopRun).all())
-            )
+            messages = db.session.query(AIChatMessage).all()
+            runs = db.session.query(AILoopRun).all()
+            self.assertEqual(len(messages), 2)
+            self.assertEqual(len(runs), 1)
+            self.assertTrue(all(message.owner_key == "user:2" for message in messages))
+            self.assertEqual(runs[0].owner_key, "user:2")
+
+    def test_new_chat_gives_the_next_question_empty_context(self):
+        fake = self._set_ai(FakeAlmanacAI("Tomato answer"))
+        self.client.post("/ai/ask", data={"question": "Tell me about tomato"})
+
+        self.client.post("/ai/clear")
+        self.client.post("/ai/ask", data={"question": "Tell me about basil"})
+
+        self.assertEqual(fake.calls[1]["grounding"]["conversation"], [])
 
     def test_loop_trace_page_is_owner_scoped(self):
         self._set_ai(FakeAlmanacAI("trace me"))
@@ -201,7 +261,17 @@ class AlmanacAIModeTests(unittest.TestCase):
         with self.app.app_context():
             run_id = AILoopRun.query.one().id
 
-        self.assertEqual(self.client.get(f"/ai/loop/{run_id}").status_code, 200)
+        response = self.client.get(f"/ai/loop/{run_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Answer validation report", response.data)
+        self.assertIn(b"process summary, not private model reasoning", response.data)
+        self.assertIn(b"How the answer was checked", response.data)
+        self.assertIn(b"Understand the question and select the relevant plant records", response.data)
+        self.assertIn(b"A second AI model checks whether the answer is supported", response.data)
+        self.assertNotIn(b"Timeline", response.data)
+        self.assertNotIn(b"Phase duration", response.data)
+        self.assertNotIn(b"Also logged to", response.data)
+        self.assertNotIn(b"\xe2\x86\x90 Plant Almanac", response.data)
         self.auth.user = {"id": 2, "email": "other@example.com"}
         self.assertEqual(self.client.get(f"/ai/loop/{run_id}").status_code, 404)
 
