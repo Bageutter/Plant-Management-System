@@ -208,7 +208,8 @@
         nav_links=[
             {"label": "My Gardens", "url": auth_public_url ~ "/account"},
             {"label": "Plant Health", "url": health_public_url},
-            {"label": "Almanac", "url": url_for('index')}
+            {"label": "Almanac", "url": url_for('index')},
+            {"label": "Reference tools", "url": url_for('integrations.index')}
         ],
         cta=none if auth_user else {"label": "Log in", "url": auth_public_url ~ "/login"}
     ) }}

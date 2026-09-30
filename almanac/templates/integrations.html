@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Reference tools · Plant Almanac{% endblock %}
+{% block content %}
+<div style="max-width:64rem; margin:auto;">
+    <a class="text-primary" href="{{ url_for('index') }}">← Plant Almanac</a>
+    <h1 style="font-size:2.6rem; margin:1rem 0 .6rem;">Explore the Almanac</h1>
+    <p class="text-muted-foreground" style="max-width:42rem; line-height:1.7;">Find plants, pests and diseases, or ask a question using the saved references. These tools read the catalogue; they do not change your plants.</p>
+    <div class="problem-columns" style="margin-top:2rem;">
+        <section class="guide-section" aria-labelledby="lookup-title">
+            <span class="tag">MCP · Catalogue tools</span>
+            <h2 id="lookup-title" style="margin-top:1rem;">Find a reference</h2>
+            {% if not mcp_enabled %}<p role="status">Catalogue tools are disabled in this environment.</p>{% endif %}
+            <form method="post" action="{{ url_for('integrations.mcp') }}" hx-post="{{ url_for('integrations.mcp') }}" hx-target="#mcp-result" hx-disabled-elt="find button" hx-indicator="#mcp-wait" style="display:grid; gap:.8rem;">
+                <input type="hidden" name="tool" value="search_almanac_catalogue">
+                <label for="query">Plant or problem name</label>
+                <input class="uk-input" id="query" name="query" maxlength="120" placeholder="For example, tomato or powdery mildew">
+                <label for="kind">Reference type</label>
+                <select class="uk-select" id="kind" name="kind"><option value="all">All references</option><option value="plant">Plants</option><option value="pest">Pests</option><option value="disease">Diseases</option></select>
+                <button class="uk-btn uk-btn-primary" {% if not mcp_enabled %}disabled{% endif %}>Search catalogue</button>
+                <span id="mcp-wait" class="htmx-indicator" role="status">Looking up references…</span>
+            </form>
+            <div id="mcp-result" aria-live="polite" style="margin-top:1rem;"></div>
+        </section>
+        <section class="guide-section" aria-labelledby="question-title">
+            <span class="tag">RAG · Saved sources</span>
+            <h2 id="question-title" style="margin-top:1rem;">Ask with sources</h2>
+            <p class="text-muted-foreground" style="font-size:.9rem; line-height:1.6;">Answers link to the references used and show how well the evidence supports them. Missing information will be shown clearly.</p>
+            {% if not rag_enabled %}<p role="status">Answers with sources are disabled in this environment.</p>{% endif %}
+            <form method="post" action="{{ url_for('integrations.rag') }}" hx-post="{{ url_for('integrations.rag') }}" hx-target="#rag-result" hx-disabled-elt="find button" hx-indicator="#rag-wait" style="display:grid; gap:.8rem; margin-top:1rem;">
+                <label for="question">Your question</label>
+                <textarea class="uk-textarea" id="question" name="question" rows="4" required maxlength="500" placeholder="What helps prevent powdery mildew?"></textarea>
+                <button class="uk-btn uk-btn-primary" {% if not rag_enabled %}disabled{% endif %}>Ask with sources</button>
+                <span id="rag-wait" class="htmx-indicator" role="status">Reading the references and preparing an answer…</span>
+            </form>
+            <div id="rag-result" aria-live="polite" style="margin-top:1rem;"></div>
+            {% if auth_user %}
+            <details style="margin-top:1.5rem;"><summary>Updated the catalogue?</summary>
+                <p style="margin:.8rem 0;">Refresh the index so answers use your latest references.</p>
+                <form method="post" action="{{ url_for('integrations.sync') }}" hx-post="{{ url_for('integrations.sync') }}" hx-target="#sync-result" hx-disabled-elt="find button">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="uk-btn uk-btn-default" {% if not rag_enabled %}disabled{% endif %}>Refresh references</button>
+                </form><div id="sync-result" aria-live="polite"></div>
+            </details>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

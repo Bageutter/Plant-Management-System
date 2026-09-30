@@ -42,6 +42,7 @@ from growing_details import parse_details, apply_details
 from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 from catalogue_api import catalogue_api
+from integrations import integrations
 
 try:
     import ai_loop
@@ -294,6 +295,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         OLLAMA_MODEL=os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
         OLLAMA_TIMEOUT=int(os.environ.get("OLLAMA_TIMEOUT", "120")),
         OLLAMA_AUTO_PULL=os.environ.get("OLLAMA_AUTO_PULL", "false").lower() == "true",
+        MCP_ENABLED=os.environ.get("MCP_ENABLED", "true").lower() == "true",
+        MCP_SERVER_URL=os.environ.get("MCP_SERVER_URL", "http://127.0.0.1:5105/mcp"),
+        RAG_ENABLED=os.environ.get("RAG_ENABLED", "true").lower() == "true",
+        RAG_SERVER_URL=os.environ.get("RAG_SERVER_URL", "http://127.0.0.1:5106"),
         # Agentic loop (Plan -> Act -> Observe -> Adapt); see docs/agentic-ai-workflow.md.
         OLLAMA_REVIEW_MODEL=os.environ.get("OLLAMA_REVIEW_MODEL", "llama3.1:8b"),
         AI_LOOP_MAX_ITERATIONS=int(os.environ.get("AI_LOOP_MAX_ITERATIONS", "2")),
@@ -327,6 +332,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     db.init_app(app)
     csrf.init_app(app)
     app.register_blueprint(catalogue_api)
+    app.register_blueprint(integrations)
     app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])
     app.extensions["almanac_ai"] = OllamaAlmanacAI(
         base_url=app.config["OLLAMA_URL"],
