@@ -8,10 +8,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Keep imports at module top; delay importing `Config` until after loading env vars
 from ai import OllamaClient
-from extensions import db
+from db_upgrade import upgrade_database
+from extensions import db, migrate
 from images import format_bytes, upload_limit_message
 from integrations import McpToolClient, RagClient
-from schema import sync_schema
 
 
 def _sse_payload(event: dict) -> str:
@@ -52,6 +52,7 @@ def create_app(config_class: type | None = None) -> Flask:
         os.makedirs(os.path.dirname(db_uri.removeprefix("sqlite:///")), exist_ok=True)
 
     db.init_app(app)
+    migrate.init_app(app, db, directory=os.path.join(here, "migrations"))
 
     app.extensions["ollama"] = OllamaClient(
         base_url=app.config["OLLAMA_URL"],
@@ -131,13 +132,12 @@ def create_app(config_class: type | None = None) -> Flask:
             "confidence_explanation": CONFIDENCE_EXPLANATION,
         }
 
-    with app.app_context():
-        # Import models so create_all() and the schema sync see every table.
-        import models  # noqa: F401
+    # Import models so the metadata Alembic compares against is complete.
+    import models  # noqa: F401
 
-        db.create_all()
-        # create_all() does not alter existing tables, so reconcile added columns.
-        sync_schema(db)
+    # Schema is versioned (Flask-Migrate); see db_upgrade.py and migrations/.
+    if app.config.get("AUTO_MIGRATE", True):
+        upgrade_database(app)
 
     return app
 

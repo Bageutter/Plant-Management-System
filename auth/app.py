@@ -8,7 +8,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 load_dotenv()
 
 from config import Config
-from extensions import csrf, db, login_manager
+from db_upgrade import upgrade_database
+from extensions import csrf, db, login_manager, migrate
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -32,6 +33,7 @@ def create_app(config_class: type = Config) -> Flask:
         os.makedirs(os.path.dirname(db_uri.removeprefix("sqlite:///")), exist_ok=True)
 
     db.init_app(app)
+    migrate.init_app(app, db, directory=os.path.join(here, "migrations"))
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
     csrf.init_app(app)
@@ -57,8 +59,9 @@ def create_app(config_class: type = Config) -> Flask:
             ),
         }
 
-    with app.app_context():
-        db.create_all()
+    # Schema is versioned (Flask-Migrate); see db_upgrade.py and migrations/.
+    if app.config.get("AUTO_MIGRATE", True):
+        upgrade_database(app)
 
     return app
 

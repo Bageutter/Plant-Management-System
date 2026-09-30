@@ -15,7 +15,8 @@ if os.path.isdir(_SHARED) and _SHARED not in sys.path:
     sys.path.insert(0, _SHARED)
 
 from config import Config
-from extensions import csrf, db
+from db_upgrade import upgrade_database
+from extensions import csrf, db, migrate
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -39,6 +40,7 @@ def create_app(config_class: type = Config) -> Flask:
         os.makedirs(os.path.dirname(db_uri.removeprefix("sqlite:///")), exist_ok=True)
 
     db.init_app(app)
+    migrate.init_app(app, db, directory=os.path.join(here, "migrations"))
     csrf.init_app(app)
 
     from ai import OllamaGardenAI
@@ -93,8 +95,10 @@ def create_app(config_class: type = Config) -> Flask:
             ),
         }
 
-    with app.app_context():
-        db.create_all()
+    # Schema is versioned (Flask-Migrate); see db_upgrade.py and migrations/.
+    # Models are imported above (via the blueprints) so the metadata is complete.
+    if app.config.get("AUTO_MIGRATE", True):
+        upgrade_database(app)
 
     return app
 

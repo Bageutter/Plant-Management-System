@@ -219,7 +219,7 @@ class GardenChatMessage(db.Model):
 class GardenAILoopRun(db.Model):
     """Evidence of one Plan -> Act -> Observe -> Adapt run behind an assistant answer.
 
-    New table (no ALTER on garden_chat_messages) so db.create_all() is enough.
+    Part of the 0001 baseline migration (vgarden/migrations/versions).
     """
 
     __tablename__ = "garden_ai_loop_runs"
