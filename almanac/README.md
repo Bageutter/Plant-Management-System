@@ -10,7 +10,7 @@ Open **Reference tools** for read-only MCP catalogue search and RAG answers with
 
 ## What it currently does
 
-* Displays eight seeded plant references and their planting months.
+* Loads plant references and their planting months from the public My Garden catalogue; eight starter plants are a fallback when the source is unavailable.
 * Full CRUD on plant references (browser forms + JSON API), gated by Auth login.
 * Accepts JPEG, PNG, GIF, and WebP plant images by choosing, dropping, or pasting a
   file. Large browser uploads are compressed automatically before submission.
@@ -31,8 +31,8 @@ and chat history.
 Run commands from the repository root:
 
 ```bash
-docker compose up -d --build proxy auth ollama almanac
-docker compose exec ollama ollama pull qwen3:4b-instruct  # first run only
+ollama pull qwen3:4b-instruct  # host Ollama, first run only
+docker compose up -d --build proxy auth almanac
 ```
 
 Then:
@@ -48,6 +48,21 @@ docker compose ps almanac
 docker compose logs -f almanac
 curl http://localhost:3000/almanac/health
 ```
+
+### Import My Garden into an existing database
+
+The public source is [0melette/my_garden](https://github.com/0melette/my_garden).
+Startup only seeds an empty database. If this checkout already has the older
+starter plants, back up its database and explicitly import missing source data:
+
+```bash
+docker compose exec almanac python -m flask --app app import-my-garden
+```
+
+This adds missing plants, fills blank fields and adds missing relationships and
+images. It preserves existing values, notes and images; running it again does not
+duplicate records. It does not publish app edits back to My Garden. After an
+import, refresh the shared RAG index with `POST /rag/ingest/almanac`.
 
 ## Service boundaries
 
@@ -88,7 +103,7 @@ Auth's `/me`.
 | `DATABASE_URL` | Almanac-owned database | `sqlite:////app/instance/almanac.db` |
 | `AUTH_URL` | Internal Auth service URL | `http://auth:5000` |
 | `AUTH_PUBLIC_URL` | Browser-facing Auth URL | `http://localhost:3000/auth` |
-| `OLLAMA_URL` | Internal Ollama API | `http://ollama:11434` |
+| `OLLAMA_URL` | Host Ollama API | `http://host.docker.internal:11434` |
 | `OLLAMA_MODEL` | Chat model | `qwen3:4b-instruct` |
 | `OLLAMA_REVIEW_MODEL` | Validation reviewer model | `llama3.1:8b` |
 | `AI_LOOP_MAX_ITERATIONS` | Maximum draft/review rounds | `2` |

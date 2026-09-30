@@ -10,7 +10,10 @@ from werkzeug.datastructures import MultiDict
 
 from app import create_app
 from extensions import db
-from models import Disease, Pest, PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
+from models import (
+    Disease, Pest, PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag,
+    PlantImage, PlantUse, PlantingMonth,
+)
 from growing_details import parse_details
 from public_seed import import_snapshot
 
@@ -157,6 +160,128 @@ def test_public_snapshot_failure_falls_back_to_builtin_seed(tmp_path, monkeypatc
     )
     with seeded.app_context():
         assert PlantReference.query.count() == 8
+
+
+def test_add_missing_preserves_local_records_and_remaps_snapshot_ids(app):
+    basil = PlantReference.query.filter_by(slug="basil").one()
+    basil.summary = "My own basil notes"
+    basil.water_needs = "low"
+    basil.soil_ph_min = 0
+    basil.care_notes = None
+    basil.uses_notes = ""
+    basil.image = PlantImage(filename="local-basil.jpg", public_url=None)
+    local_pest = Pest(name="Local beetle", description="My observation")
+    basil.pests = [local_pest]
+    aphids = Pest(name="Aphids", description="My edited aphid description")
+    wilt = Disease(name="Wilt", description="My edited wilt description")
+    function = PlantFunctionTag(name="pollinator", description="My edited function")
+    culinary = PlantUse.query.filter_by(name="culinary").one()
+    culinary.description = "My edited use"
+    group = RotationGroup.query.filter_by(name="Solanums").one()
+    group.feeder_weight = "light"
+    basil.rotation_group = group
+    db.session.add_all([aphids, wilt, function])
+    db.session.flush()
+    basil.guild_links.append(PlantCompanion(
+        companion_id=PlantReference.query.filter_by(slug="carrot").one().id,
+        function_id=function.id, notes="My saved companion",
+    ))
+    db.session.commit()
+    original_values = {
+        column.name: getattr(basil, column.name) for column in PlantReference.__table__.columns
+        if getattr(basil, column.name) not in (None, "")
+    }
+    original_months = [(month.id, month.month_number) for month in basil.planting_months]
+    original_image_id = basil.image.id
+
+    snapshot = _public_snapshot()
+    tables = snapshot["tables"]
+    tables["plant_references"][1].update(
+        slug="basil", water_needs="high", soil_ph_min=6, soil_ph_max=7,
+        care_notes="Public care guidance", uses_notes="Public use guidance",
+    )
+    tables["rotation_groups"][0]["is_rotation_exempt"] = 1
+    tables["planting_months"].append({"plant_reference_id": 11, "month_number": 3})
+    for table in ("plant_pests", "plant_diseases", "plant_function_tags", "plant_uses"):
+        tables[table].append({"plant_id": 11, "tag_id": 1})
+    tables["plant_companions"].append({
+        "plant_id": 11, "companion_id": 10, "function_id": 1, "notes": "Imported companion",
+    })
+    tables["plant_images"].append({
+        "plant_reference_id": 11, "filename": "replacement-basil.jpg",
+    })
+
+    assert import_snapshot(snapshot, "https://images.example/", add_missing=True) == 1
+    assert PlantReference.query.count() == 9
+    assert all(getattr(basil, field) == value for field, value in original_values.items())
+    assert basil.care_notes == "Public care guidance"
+    assert basil.uses_notes == "Public use guidance"
+    assert basil.soil_ph_min == 0 and basil.soil_ph_max == 7
+    assert set(original_months) <= {(m.id, m.month_number) for m in basil.planting_months}
+    assert 3 in [m.month_number for m in basil.planting_months]
+    assert {pest.name for pest in basil.pests} == {"Local beetle", "Aphids"}
+    assert basil.diseases == [wilt]
+    assert basil.function_tags == [function]
+    assert basil.uses == [culinary]
+    assert {(link.companion.slug, link.notes) for link in basil.guild_links} == {
+        ("carrot", "My saved companion"), ("test-tomato", "Imported companion"),
+    }
+    assert basil.image.id == original_image_id
+    assert basil.image.filename == "local-basil.jpg"
+    assert basil.image.public_url is None
+    assert aphids.description == "My edited aphid description"
+    assert wilt.description == "My edited wilt description"
+    assert function.description == "My edited function"
+    assert culinary.description == "My edited use"
+
+    tomato = PlantReference.query.filter_by(slug="test-tomato").one()
+    assert tomato.id != 10 and basil.id != 11
+    assert tomato.rotation_group_id == group.id and group.id != 1
+    assert tomato.rotation_group.feeder_weight == "light"
+    assert tomato.rotation_group.is_rotation_exempt is False
+    assert tomato.pests == [aphids]
+    assert tomato.diseases == [wilt]
+    assert tomato.uses == [culinary]
+    assert [month.month_number for month in tomato.planting_months] == [9]
+    assert tomato.guild_links[0].companion_id == basil.id
+    assert tomato.guild_links[0].function_id == function.id
+    assert tomato.image.public_url == "https://images.example/test-tomato.jpg"
+
+    counts = [model.query.count() for model in (
+        PlantReference, PlantingMonth, PlantCompanion, PlantImage, Pest, Disease,
+        PlantFunctionTag, PlantUse, RotationGroup,
+    )]
+    merged_basil = basil.to_dict()
+    tables["plant_companions"][-1]["notes"] = "Do not overwrite existing notes"
+    assert import_snapshot(snapshot, "https://images.example/", add_missing=True) == 0
+    assert counts == [model.query.count() for model in (
+        PlantReference, PlantingMonth, PlantCompanion, PlantImage, Pest, Disease,
+        PlantFunctionTag, PlantUse, RotationGroup,
+    )]
+    assert basil.to_dict() == merged_basil
+    assert len(tomato.pests) == len(tomato.diseases) == len(tomato.uses) == 1
+
+
+def test_import_my_garden_cli_uses_configured_source_and_is_repeatable(app, monkeypatch):
+    calls = []
+
+    def snapshot(url, timeout):
+        calls.append((url, timeout))
+        return _public_snapshot()
+
+    monkeypatch.setattr("app.fetch_snapshot", snapshot)
+    app.config.update(MY_GARDEN_SEED_URL="https://example.test/catalogue.json",
+                      MY_GARDEN_SEED_TIMEOUT=7)
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["import-my-garden"])
+    assert result.exit_code == 0, result.output
+    assert "Added 2 My Garden plants" in result.output
+    assert calls == [("https://example.test/catalogue.json", 7)]
+    assert PlantReference.query.count() == 10
+    result = runner.invoke(args=["import-my-garden"])
+    assert result.exit_code == 0
+    assert "Added 0 My Garden plants" in result.output
+    assert PlantReference.query.count() == 10
 
 
 def test_form_api_and_guild_round_trip(app):

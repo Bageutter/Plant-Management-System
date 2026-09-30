@@ -827,6 +827,25 @@ def create_app(test_config: dict | None = None) -> Flask:
             if not imported:
                 seed_reference_data()
 
+    @app.cli.command("import-my-garden")
+    def import_my_garden_command():
+        """Add public My Garden plants and fill gaps while preserving local values."""
+        import click
+
+        try:
+            imported = import_snapshot(
+                fetch_snapshot(
+                    app.config["MY_GARDEN_SEED_URL"],
+                    app.config["MY_GARDEN_SEED_TIMEOUT"],
+                ),
+                app.config["MY_GARDEN_IMAGE_BASE_URL"],
+                add_missing=True,
+            )
+        except Exception as exc:
+            db.session.rollback()
+            raise click.ClickException(f"Could not import My Garden plants: {exc}") from exc
+        click.echo(f"Added {imported} My Garden plants and filled missing details. Local values were preserved.")
+
     @app.cli.command("refresh-garden")
     def refresh_garden_command():
         """Refresh seeded wording and add starter companion suggestions."""
