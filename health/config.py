@@ -37,6 +37,16 @@ class Config:
     OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "700"))
     OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
 
+    # Release 1: shared local MCP + RAG servers. Both run OUTSIDE docker compose; from
+    # inside the health container they are reached via host.docker.internal (see
+    # docker-compose.yml). CI sets both *_ENABLED flags to false.
+    MCP_ENABLED = _as_bool(os.environ.get("MCP_ENABLED"), True)
+    MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://127.0.0.1:5105/mcp")
+    RAG_ENABLED = _as_bool(os.environ.get("RAG_ENABLED"), True)
+    RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://127.0.0.1:5106").rstrip("/")
+    # Per-call timeout for the shared servers (a RAG answer includes a model call).
+    INTEGRATION_TIMEOUT = int(os.environ.get("INTEGRATION_TIMEOUT", "180"))
+
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_BYTES", str(12 * 1024 * 1024)))
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     # Longest edge, in pixels, that an uploaded photo is scaled down to before

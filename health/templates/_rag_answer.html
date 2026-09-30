@@ -1,0 +1,40 @@
+{# A grounded answer from the shared RAG server, via this backend. #}
+{% set conf_labels = {"high": "High confidence", "medium": "Medium confidence", "low": "Low confidence", "insufficient": "Insufficient context"} %}
+<article class="border border-border rounded-lg p-5 bg-muted" data-confidence="{{ answer.confidence }}">
+    <header class="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <h3 class="text-lg m-0">{{ answer.question }}</h3>
+        <span class="badge {{ 'conf-' ~ answer.confidence if answer.confidence != 'insufficient' else 'status-unhealthy' }} help"
+              uk-tooltip="title: Confidence is derived from how relevant the cited records were and how directly the model judged they answer the question. Insufficient means nothing relevant was indexed.; pos: bottom"
+              tabindex="0">{{ conf_labels.get(answer.confidence, answer.confidence) }}</span>
+    </header>
+
+    {% if answer.insufficient_context %}
+        <p class="m-0">
+            <strong>Not enough relevant context</strong> was found in your indexed health records to answer this,
+            so no answer was generated. Try “Sync records to the knowledge base”, or ask about a plant you have assessed.
+        </p>
+    {% else %}
+        <p class="m-0">{{ answer.answer }}</p>
+
+        {% if answer.citations %}
+        <h4 class="text-sm font-semibold mt-4 mb-1">Sources</h4>
+        <ol class="uk-list uk-list-decimal text-sm">
+            {% for c in answer.citations %}
+            <li class="py-1">
+                {% if c.url %}<a class="text-primary hover:underline" href="{{ c.url }}">{{ c.title }}</a>{% else %}<strong>{{ c.title }}</strong>{% endif %}
+                <span class="text-xs text-muted-foreground">· {{ c.chunk_id }}{% if c.score is not none %} · relevance {{ (c.score * 100) | round | int }}%{% endif %}</span>
+                {% if c.excerpt %}<br><span class="text-muted-foreground">{{ c.excerpt }}</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ol>
+        {% endif %}
+    {% endif %}
+
+    <footer class="mt-4 text-xs text-muted-foreground">
+        Retrieval {{ answer.retrieval.mode }} · {{ answer.retrieval.candidates }} relevant of {{ answer.retrieval.considered }} indexed passages
+        {%- if answer.model %} · answered locally by {{ answer.model }}{% endif %}
+        {%- if answer.duration_ms %} in {{ (answer.duration_ms / 1000) | round(1) }}s{% endif %}.
+        {% if answer.note %}{{ answer.note }}{% endif %}
+        AI guidance is advisory only.
+    </footer>
+</article>

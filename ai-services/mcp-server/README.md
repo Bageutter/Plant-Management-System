@@ -49,20 +49,21 @@ For a desktop MCP host use `--transport stdio`:
 | `ALMANAC_SERVICE_URL` | `http://127.0.0.1:3000/almanac` | reserved for the Almanac tools |
 | `VGARDEN_SERVICE_URL` | `http://127.0.0.1:3000/vgarden` | reserved for the Virtual Garden tools |
 | `SERVICE_TIMEOUT` | `10` | seconds per outbound call |
+| `ASSESS_TIMEOUT` | `200` | seconds allowed for `assess_plant_health` (it runs the vision model) |
 
 ## Registered tools
 
 | Tool | Feature | Status | Boundary |
 | --- | --- | --- | --- |
-| `health_service_status` | Plant Health | stub → next PR | read-only |
-| `list_health_assessments` | Plant Health | stub → next PR | read-only, no image bytes |
-| `get_health_assessment` | Plant Health | stub → next PR | read-only |
-| `summarise_plant_health_history` | Plant Health | stub → next PR | read-only, computed in code |
-| `assess_plant_health` | Plant Health | stub → next PR | **creates** one record; text only |
-| `search_almanac_catalogue` | Plant Almanac | stub — tracking issue | read-only |
-| `get_almanac_plant` | Plant Almanac | stub — tracking issue | read-only |
-| `get_garden_snapshot` | Virtual Garden | stub — tracking issue | read-only |
-| `list_garden_plantings` | Virtual Garden | stub — tracking issue | read-only |
+| `health_service_status` | Plant Health | **implemented** | read-only |
+| `list_health_assessments` | Plant Health | **implemented** | read-only, no image bytes; filters `plant_ref`, `status`, `limit ≤ 50` |
+| `get_health_assessment` | Plant Health | **implemented** | read-only |
+| `summarise_plant_health_history` | Plant Health | **implemented** | read-only, aggregated in code (no model call) |
+| `assess_plant_health` | Plant Health | **implemented** | **creates** one record via the health service's local model; text only |
+| `search_almanac_catalogue` | Plant Almanac | stub — issue #41 | read-only |
+| `get_almanac_plant` | Plant Almanac | stub — issue #41 | read-only |
+| `get_garden_snapshot` | Virtual Garden | stub — issue #42 | read-only |
+| `list_garden_plantings` | Virtual Garden | stub — issue #42 | read-only |
 
 Resources: `pms://about`, `health://assessments/{assessment_id}`.
 Prompt: `review_plant_health_history(plant_ref)`.
@@ -101,6 +102,7 @@ python -m pytest -q
 ```
 
 The suite covers discovery (names, schemas, annotations, resources, prompt), input
-validation, the `MCP_ENABLED=false` switch, honest stub errors, and a real
-streamable-http listener including the `Host` header check. No model or feature
-service is required.
+validation, the `MCP_ENABLED=false` switch, honest stub errors, a real
+streamable-http listener including the `Host` header check, and every Plant Health
+tool against a fake health API (filters, aggregation, 404/503/redirect/offline
+handling). No model or feature service is required.

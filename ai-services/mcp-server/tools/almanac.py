@@ -16,7 +16,7 @@ from tools.common import READ_ONLY, guard, not_implemented
 from tools.schemas import AlmanacPlantDetail, AlmanacSearchPage, Limit, Query, Slug
 
 FEATURE = "Plant Almanac"
-TRACKING = "the Almanac MCP tracking issue (see ai-services/mcp-server/README.md)"
+TRACKING = "GitHub issue #41 (Bageutter/Plant-Management-System)"
 
 Kind = Literal["all", "plant", "pest", "disease"]
 

@@ -37,12 +37,8 @@ EXPECTED_TOOLS = {
     "list_garden_plantings",
 }
 
+# Tools whose behaviour is still a registered stub (tracked in issues #41 / #42).
 STUB_CALLS = [
-    ("health_service_status", {}),
-    ("list_health_assessments", {"limit": 5}),
-    ("get_health_assessment", {"assessment_id": 1}),
-    ("summarise_plant_health_history", {"plant_ref": "Tomato"}),
-    ("assess_plant_health", {"description": "Yellow lower leaves, soil stays wet."}),
     ("search_almanac_catalogue", {"query": "tomato"}),
     ("get_almanac_plant", {"slug": "tomato"}),
     ("get_garden_snapshot", {"garden_id": 1}),
@@ -98,6 +94,7 @@ def test_stubs_return_an_honest_not_implemented_error(name, args):
             assert result.is_error
             message = result.content[0].text
             assert "not implemented" in message and "No data was returned" in message
+            assert "issue #4" in message
             assert result.structured_content in (None, {})
 
     run(check())
@@ -132,7 +129,7 @@ def test_disabled_server_still_discovers_but_refuses_every_call():
     async def check():
         async with Client(server) as client:
             assert {t.name for t in (await client.list_tools()).tools} == EXPECTED_TOOLS
-            for name, args in STUB_CALLS:
+            for name, args in STUB_CALLS + [("list_health_assessments", {}), ("health_service_status", {})]:
                 result = await client.call_tool(name, args)
                 assert result.is_error
                 assert "disabled" in result.content[0].text
@@ -209,8 +206,9 @@ def test_streamable_http_listener_serves_healthz_and_protocol(tmp_path):
         async def check():
             async with Client(f"http://127.0.0.1:{port}/mcp", read_timeout_seconds=10) as client:
                 assert {t.name for t in (await client.list_tools()).tools} == EXPECTED_TOOLS
+                # No health service is running on :3000 in the test: the tool must say so.
                 result = await client.call_tool("health_service_status", {})
-                assert result.is_error and "not implemented" in result.content[0].text
+                assert result.is_error and "unavailable" in result.content[0].text
 
         run(check())
     finally:

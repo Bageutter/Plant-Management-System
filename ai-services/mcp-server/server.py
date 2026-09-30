@@ -42,11 +42,12 @@ INSTRUCTIONS = (
 )
 
 
-def create_server(settings: Settings | None = None) -> MCPServer:
+def create_server(settings: Settings | None = None, *, transport=None) -> MCPServer:
+    """Build the server. ``transport`` lets tests route the health client to a fake API."""
     settings = settings or Settings.from_env()
     server = MCPServer(SERVER_NAME, instructions=INSTRUCTIONS, version=VERSION)
 
-    health.register(server, settings)
+    health.register(server, settings, transport=transport)
     almanac.register(server, settings)
     vgarden.register(server, settings)
 
