@@ -41,6 +41,7 @@ from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
 from growing_details import parse_details, apply_details
 from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
+from catalogue_api import catalogue_api
 
 try:
     import ai_loop
@@ -325,6 +326,7 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     db.init_app(app)
     csrf.init_app(app)
+    app.register_blueprint(catalogue_api)
     app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])
     app.extensions["almanac_ai"] = OllamaAlmanacAI(
         base_url=app.config["OLLAMA_URL"],
