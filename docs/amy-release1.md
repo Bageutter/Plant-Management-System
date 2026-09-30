@@ -93,18 +93,45 @@ restrictions. Do not expose these unauthenticated development servers publicly.
 | Live MCP through backend | Plant and disease searches passed; structured records returned |
 | Live RAG through backend | 37 public records indexed; local `qwen3:4b-instruct` answer with source links and confidence; unrelated question refused |
 | Browser | Disease search, sourced answer, refusal and disease-link navigation verified; screenshot below |
-| Local Docker build | Blocked: Docker VM reported `no space left on device`; no containers, images or volumes were deleted |
+| Local Docker build | Initially blocked by full storage; resolved in the 1 October follow-up below |
 
 Live checks used a separate native Almanac on `127.0.0.1:15004`, MCP on `15105`,
 and RAG on `15106`, with a new database seeded from the public My Garden catalogue.
-They did not change the running group application's database. This is evidence of
-the native end-to-end flow, **not proof of a rebuilt Docker deployment**.
+They did not change the running group application's database. These original
+files record the native flow; the separate follow-up records the Docker run.
 
 Evidence: [MCP JSON](evidence/amy-release1/mcp-live.json),
 [RAG JSON](evidence/amy-release1/rag-live.json). The JSON identifies the model,
 retrieval mode, returned citations and actual validation result.
 
 ![Almanac browser evidence](evidence/amy-release1/browser.png)
+
+### Docker follow-up — 1 October 2026
+
+The local Docker disk was increased from 20 GB to 60 GB without deleting volumes.
+All five application images rebuilt successfully and all seven Compose containers
+started. The app runs from the normal `Plant-Management-System` checkout on
+`amy/almanac-release1`.
+
+The existing local catalogue held eight plants and no pest or disease records.
+After a SQLite backup, the three missing public references were added without
+replacing existing records. The shared RAG server indexed these 11 local records.
+Both validation modes then passed through `http://localhost:3000/almanac`:
+MCP returned plant and disease results, RAG answered with a disease citation and
+confidence explanation, and the unrelated question was refused. Ollama, MCP and
+RAG remained local host processes; the container reached them through
+`host.docker.internal` while their listeners stayed on loopback.
+
+The browser confirmed the disease guide no longer shows the requested Sources
+card. AI answer citations are still shown. All 61 Almanac tests passed again with
+MCP and RAG disabled.
+
+Evidence: [Docker MCP JSON](evidence/amy-release1/mcp-docker.json),
+[Docker RAG JSON](evidence/amy-release1/rag-docker.json),
+[MCP transcript](evidence/amy-release1/mcp-docker-transcript.md),
+[RAG transcript](evidence/amy-release1/rag-docker-transcript.md).
+
+![Updated disease page](evidence/amy-release1/disease-docker.png)
 
 Amy's existing assigned workflow is `.github/workflows/plant_almanac.yml` (see
 `.github/README.md`), now labelled **Plant Almanac (Amy)**. It runs on Amy branches
@@ -123,6 +150,7 @@ in the report. A GitHub run must be cited separately from local test results.
 | `c4fb8df` | Frontend forms, backend connections, visible errors, citations and confidence |
 | `3f5de7f` | Almanac host-service connection settings in Compose |
 | `a062b00` | Shared local validation modes and Amy's CI configuration |
+| `a05643c` | Removed the Sources card from pest and disease guides |
 
 ## Report paragraph to append — Amy only
 
@@ -140,16 +168,15 @@ each entry and includes limitations such as missing guidance. The UI displays th
 answer, source links, confidence category and confidence explanation. When no
 relevant context is found, it displays an insufficient-context response.
 
-Native end-to-end validation returned valid MCP plant and disease results and a
+Native and Docker end-to-end validation returned valid MCP plant and disease results and a
 RAG answer about powdery mildew using the local model. An unrelated football
 question was refused. The shared validation runner records Plan, Act, Observe and
 Adapt in separate MCP and RAG modes. Automated tests cover existing Almanac
 behaviour and the new service boundaries. My workflow keeps external MCP and RAG
 calls disabled during CI while retaining the integrations in the application.
 
-The remaining evidence must be stated honestly: the local Docker rebuild was
-blocked by full Docker storage, and a complete integrated Compose demonstration
-still needs recording. The inherited group Compose file still defines Ollama as
+The full Docker disk was expanded and the local rebuild and Almanac integration
+checks passed. The inherited group Compose file still defines Ollama as
 a container for other features, although Almanac now uses host Ollama. Removing
 that group-level mismatch with the non-containerised AI requirement, finishing
 Virtual Garden's shared adapters, confirming the workflow-name convention and

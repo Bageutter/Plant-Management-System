@@ -1,0 +1,62 @@
+{
+  "run_id": "validate-mcp-20260930-140158-6315a0",
+  "mode": "mcp",
+  "base_url": "http://localhost:3000/almanac",
+  "passed": true,
+  "checks": {
+    "plant_search": {
+      "passed": true,
+      "attempts": 1,
+      "issues": [],
+      "response": {
+        "is_error": false,
+        "structured_content": {
+          "items": [
+            {
+              "id": 1,
+              "key": "tomato",
+              "kind": "plant",
+              "name": "Tomato",
+              "path": "/almanac/plants/tomato",
+              "uri": "almanac://plants/tomato"
+            }
+          ],
+          "limit": 5,
+          "next_offset": null,
+          "offset": 0,
+          "total": 1
+        },
+        "text": "{\n  \"items\": [\n    {\n      \"kind\": \"plant\",\n      \"id\": 1,\n      \"key\": \"tomato\",\n      \"name\": \"Tomato\",\n      \"uri\": \"almanac://plants/tomato\",\n      \"path\": \"/almanac/plants/tomato\"\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 5,\n  \"offset\": 0,\n  \"next_offset\": null\n}",
+        "tool": "search_almanac_catalogue"
+      }
+    },
+    "disease_search": {
+      "passed": true,
+      "attempts": 1,
+      "issues": [],
+      "response": {
+        "is_error": false,
+        "structured_content": {
+          "items": [
+            {
+              "id": 1,
+              "key": "1",
+              "kind": "disease",
+              "name": "Powdery mildew",
+              "path": "/almanac/diseases/1",
+              "uri": "almanac://diseases/1"
+            }
+          ],
+          "limit": 5,
+          "next_offset": null,
+          "offset": 0,
+          "total": 1
+        },
+        "text": "{\n  \"items\": [\n    {\n      \"kind\": \"disease\",\n      \"id\": 1,\n      \"key\": \"1\",\n      \"name\": \"Powdery mildew\",\n      \"uri\": \"almanac://diseases/1\",\n      \"path\": \"/almanac/diseases/1\"\n    }\n  ],\n  \"total\": 1,\n  \"limit\": 5,\n  \"offset\": 0,\n  \"next_offset\": null\n}",
+        "tool": "search_almanac_catalogue"
+      }
+    }
+  },
+  "transcript": "/Users/amyzhou/Documents/Plant-Management-System/tools/ai-loop/logs/reports/almanac/validate-mcp-20260930-140158-6315a0.md",
+  "scope": "Live backend response validation; answer factual accuracy still needs review."
+}
