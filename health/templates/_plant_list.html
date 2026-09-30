@@ -1,0 +1,35 @@
+{# The plant titles, with how many assessments each has. Returned on its own by
+   a successful HTMX POST so the new name appears without a reload. #}
+<section id="plant-list">
+    {% if plants %}
+        <ul class="uk-list record-list" data-plant-count="{{ plants | length }}">
+            {% for plant in plants %}
+                <li class="record-item" data-plant-id="{{ plant.id }}">
+                    <span class="record-row">
+                        <span class="record-body">
+                            <strong>{{ plant.name }}</strong>
+                            <span class="text-sm text-muted-foreground">
+                                {% set n = plant.assessment_count %}
+                                {{ n }} assessment{{ '' if n == 1 else 's' }}
+                            </span>
+                        </span>
+                        <span class="text-xs text-muted-foreground whitespace-nowrap">
+                            added {{ plant.created_at.strftime("%d %b %Y") if plant.created_at else "—" }}
+                        </span>
+                    </span>
+                    <button class="record-delete" type="button"
+                            aria-label="Remove the plant name {{ plant.name }}"
+                            hx-delete="{{ url_for('health.delete_plant', plant_id=plant.id) }}"
+                            hx-target="closest li" hx-swap="outerHTML swap:200ms"
+                            hx-confirm="Remove '{{ plant.name }}' from the list of plant names? Its assessments are kept.">
+                        &times;
+                    </button>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="text-muted-foreground" data-plant-count="0">
+            No plant names yet. Add one above, or name a plant when you submit an assessment.
+        </p>
+    {% endif %}
+</section>

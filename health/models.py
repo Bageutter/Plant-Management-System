@@ -1,8 +1,62 @@
 import json
 from datetime import datetime, timezone
 
+from sqlalchemy import func
+
 from ai import CONFIDENCE_LEVELS
 from extensions import db
+
+
+class Plant(db.Model):
+    """A plant name the gardener has used, offered as a choice on the form.
+
+    Titles are registered the first time a name is used on an assessment (or
+    added on the plant names page). An assessment keeps its own ``plant_ref``
+    text rather than a foreign key, so removing a title never alters or hides a
+    record: it only stops the name being offered for new assessments.
+    """
+
+    __tablename__ = "plants"
+    __table_args__ = (db.UniqueConstraint("name", name="uq_plants_name"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    @classmethod
+    def find(cls, name: str) -> "Plant | None":
+        """Case-insensitive lookup by name."""
+
+        return cls.query.filter(func.lower(cls.name) == name.strip().lower()).first()
+
+    @classmethod
+    def register(cls, name: str | None) -> "Plant | None":
+        """Return the title for ``name``, creating it if new. The caller commits."""
+
+        if not name or not name.strip():
+            return None
+        existing = cls.find(name)
+        if existing is not None:
+            return existing
+        plant = cls(name=name.strip())
+        db.session.add(plant)
+        return plant
+
+    @classmethod
+    def ordered(cls) -> list["Plant"]:
+        return cls.query.order_by(func.lower(cls.name)).all()
+
+    @property
+    def assessment_count(self) -> int:
+        return Assessment.query.filter(func.lower(Assessment.plant_ref) == self.name.lower()).count()
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "assessments": self.assessment_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class Assessment(db.Model):

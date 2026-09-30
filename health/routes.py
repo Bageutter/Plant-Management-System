@@ -24,7 +24,7 @@ from integrations import (
     coerce_tool_args,
 )
 from images import downscale_image, to_base64, upload_limit_message
-from models import Assessment
+from models import Assessment, Plant
 
 # User-facing pages and the assessment API live under a descriptive prefix.
 URL_PREFIX = "/plant-health-records"
@@ -68,7 +68,7 @@ def healthz():
 
 @bp.route("/")
 def index():
-    return render_template("index.html", recent=_recent())
+    return render_template("index.html", recent=_recent(), plants=Plant.ordered())
 
 
 @bp.route("/<int:assessment_id>")
@@ -77,7 +77,10 @@ def view_assessment(assessment_id):
     if assessment is None:
         abort(404)
     return render_template(
-        "detail.html", assessment=assessment, recent=_recent(exclude_id=assessment_id)
+        "detail.html",
+        assessment=assessment,
+        recent=_recent(exclude_id=assessment_id),
+        plants=Plant.ordered(),
     )
 
 
@@ -198,6 +201,8 @@ def _persist(result, client, plant_ref, description, image_b64, image_mime) -> A
         image_data=base64.b64decode(image_b64) if image_b64 else None,
     )
     db.session.add(assessment)
+    # A name used for the first time becomes a title offered on the form.
+    Plant.register(plant_ref)
     db.session.commit()
     return assessment
 
@@ -274,10 +279,11 @@ def update_assessment(assessment_id):
 
     for field, value in changes.items():
         setattr(assessment, field, value)
+    Plant.register(changes.get("plant_ref"))
     db.session.commit()
 
     if wants_html:
-        return render_template("_submission.html", assessment=assessment)
+        return render_template("_submission.html", assessment=assessment, plants=Plant.ordered())
     return jsonify(assessment.to_dict())
 
 
@@ -488,6 +494,59 @@ def _clean(value, max_chars: int, field: str) -> str | None:
     if len(value) > max_chars:
         raise ValueError(f"{field} must be {max_chars} characters or fewer")
     return value
+
+
+# --------------------------------------------------------------------------- #
+# Plant names: the titles offered on the form, managed on their own page        #
+# --------------------------------------------------------------------------- #
+
+
+@bp.route("/plants", methods=["GET"])
+def list_plants():
+    """The plant names on offer. A browser gets the management page, API clients JSON."""
+
+    plants = Plant.ordered()
+    if _wants_html():
+        return render_template("plants.html", plants=plants)
+    return jsonify([p.to_dict() for p in plants])
+
+
+@bp.route("/plants", methods=["POST"])
+def create_plant():
+    """Add a plant name (JSON or form ``name``). Re-adding an existing name is a no-op."""
+
+    wants_html = _wants_html()
+    source = request.get_json(silent=True) or {} if request.is_json else request.form
+    try:
+        name = _clean(source.get("name"), MAX_PLANT_REF_CHARS, "name")
+        if not name:
+            raise ValueError("Provide a plant name.")
+    except ValueError as exc:
+        return _error(str(exc), 400, wants_html)
+
+    existed = Plant.find(name) is not None
+    plant = Plant.register(name)
+    db.session.commit()
+
+    if wants_html:
+        return render_template("_plant_list.html", plants=Plant.ordered())
+    return jsonify(plant.to_dict()), 200 if existed else 201
+
+
+@bp.route("/plants/<int:plant_id>", methods=["DELETE"])
+def delete_plant(plant_id):
+    """Remove a name from the list. Assessments recorded under it are untouched."""
+
+    plant = db.session.get(Plant, plant_id)
+    if plant is None:
+        return jsonify({"error": "plant not found"}), 404
+
+    db.session.delete(plant)
+    db.session.commit()
+
+    if request.headers.get("HX-Request") == "true":
+        return ""  # htmx never swaps a 204; an empty 200 removes the row
+    return "", 204
 
 
 # --------------------------------------------------------------------------- #
