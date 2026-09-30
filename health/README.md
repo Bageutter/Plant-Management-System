@@ -62,6 +62,14 @@ JSON for text-only requests, so it is not recommended.
 
 Other optimisations applied automatically:
 
+* **Model is preloaded at startup** — as soon as the service starts, a background
+  thread pulls the model if needed and asks Ollama to load it (a chat request with no
+  messages, Ollama's documented preload). The first assessment is therefore warm instead
+  of paying the cold load. Startup is never blocked: if Ollama is still coming up the
+  load is retried (`OLLAMA_PRELOAD_RETRIES` × a growing delay from
+  `OLLAMA_PRELOAD_RETRY_SECONDS`), and `GET /healthz` reports the state under
+  `ai.preload.status` (`pending` → `loading` → `loaded`, or `retrying` / `failed`).
+  Set `OLLAMA_PRELOAD=false` to turn it off.
 * **Model stays resident** — `OLLAMA_KEEP_ALIVE=30m` avoids a 7-40 second reload on
   each request. Cold vs warm is the difference between ~16s and ~4s.
 * **Photos are downscaled** to `IMAGE_MAX_EDGE` (896px) before inference. Vision models
@@ -96,6 +104,9 @@ python app.py
 | `OLLAMA_KEEP_ALIVE` | `30m` | How long the model stays loaded between requests |
 | `OLLAMA_NUM_PREDICT` | `700` | Maximum generated tokens |
 | `OLLAMA_NUM_CTX` | `4096` | Context window |
+| `OLLAMA_PRELOAD` | `true` | Load the model in the background at startup |
+| `OLLAMA_PRELOAD_RETRIES` | `12` | Preload attempts while Ollama is still starting |
+| `OLLAMA_PRELOAD_RETRY_SECONDS` | `5` | Initial delay between attempts (grows ×1.5, capped at 60s) |
 | `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `nginx.conf` above it) |
 | `IMAGE_MAX_EDGE` | `896` | Photos are downscaled to this longest edge before inference |
 
@@ -267,7 +278,7 @@ variant, emitting the same events as `/assessments/stream`.
 | `GET` | `/plant-health-records/` | UI: submit a plant, plus the list of past records |
 | `GET` | `/plant-health-records/<id>` | Full record: photo, name, description and assessment |
 | `GET` | `/plant-health-records/<id>/image` | The photo the assessment was based on |
-| `GET` | `/healthz` | Liveness plus local AI reachability |
+| `GET` | `/healthz` | Liveness, local AI reachability, and the model preload state |
 | `GET` | `/plant-health-records/assessments?plant_ref=&limit=` | List assessments, newest first |
 | `GET` | `/plant-health-records/assessments/<id>` | Fetch a single assessment as JSON |
 | `PATCH` | `/plant-health-records/assessments/<id>` | Edit the plant name and description |

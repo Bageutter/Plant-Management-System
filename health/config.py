@@ -36,6 +36,12 @@ class Config:
     # budget only costs time.
     OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "700"))
     OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
+    # Load the model into memory in the background as soon as the service starts,
+    # so the first assessment does not also pay the cold-load cost. Retried while
+    # Ollama itself is still coming up.
+    OLLAMA_PRELOAD = _as_bool(os.environ.get("OLLAMA_PRELOAD"), True)
+    OLLAMA_PRELOAD_RETRIES = int(os.environ.get("OLLAMA_PRELOAD_RETRIES", "12"))
+    OLLAMA_PRELOAD_RETRY_SECONDS = float(os.environ.get("OLLAMA_PRELOAD_RETRY_SECONDS", "5"))
 
     # Release 1: shared local MCP + RAG servers. Both run OUTSIDE docker compose; from
     # inside the health container they are reached via host.docker.internal (see

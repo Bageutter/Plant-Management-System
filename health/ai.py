@@ -9,7 +9,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 import time
+from datetime import datetime, timezone
 
 import requests
 
@@ -168,6 +170,9 @@ class OllamaClient:
         self.num_predict = num_predict
         self.num_ctx = num_ctx
         self._model_ready = False
+        # Startup preload (see preload()). Reported on /healthz.
+        self.preload_state: dict = {"status": "not_started", "attempts": 0, "detail": None}
+        self._preload_lock = threading.Lock()
 
     # -- infrastructure -------------------------------------------------
 
@@ -217,6 +222,72 @@ class OllamaClient:
             ) from exc
 
         self._model_ready = True
+
+    # -- startup preload -----------------------------------------------
+
+    def preload(self) -> None:
+        """Load the model into Ollama's memory so the first assessment is warm.
+
+        Ollama loads a model on the first request that names it and keeps it
+        resident for ``keep_alive``; a cold load costs several seconds to tens of
+        seconds on top of inference. Sending a chat request with no messages is
+        Ollama's documented way to trigger that load without generating anything.
+        Pulls the model first if it is missing and pulling is allowed.
+        """
+
+        self.ensure_model()
+        started = time.monotonic()
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/chat",
+                json={"model": self.model, "messages": [], "keep_alive": self.keep_alive},
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise AIUnavailableError(
+                f"Could not preload model '{self.model}' on the local AI instance: {exc}"
+            ) from exc
+        duration_ms = int((time.monotonic() - started) * 1000)
+        logger.info("model %s loaded in %sms (keep_alive=%s)", self.model, duration_ms, self.keep_alive)
+        self._set_preload(
+            "loaded",
+            detail=f"loaded in {duration_ms / 1000:.1f}s",
+            duration_ms=duration_ms,
+            loaded_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        )
+
+    def start_preload(self, *, retries: int = 12, delay: float = 5.0) -> threading.Thread:
+        """Preload in a daemon thread so startup is never blocked by the model.
+
+        Ollama may still be starting when this service comes up (compose only
+        waits for the container to exist), so failures are retried with a growing
+        delay. Every outcome is recorded in ``preload_state`` and never raised.
+        """
+
+        def run() -> None:
+            wait = delay
+            for attempt in range(1, max(1, retries) + 1):
+                self._set_preload("loading", attempts=attempt, detail=f"attempt {attempt} of {retries}")
+                try:
+                    self.preload()
+                    return
+                except (AIUnavailableError, requests.RequestException) as exc:
+                    logger.warning("model preload attempt %s/%s failed: %s", attempt, retries, exc)
+                    self._set_preload("retrying", attempts=attempt, detail=str(exc))
+                if attempt < retries:
+                    time.sleep(wait)
+                    wait = min(wait * 1.5, 60.0)
+            self._set_preload("failed", detail=f"gave up after {retries} attempt(s); the first request will load it")
+
+        self._set_preload("pending", attempts=0, detail="starting")
+        thread = threading.Thread(target=run, name="ollama-preload", daemon=True)
+        thread.start()
+        return thread
+
+    def _set_preload(self, status: str, **fields) -> None:
+        with self._preload_lock:
+            self.preload_state = {**self.preload_state, **fields, "status": status}
 
     # -- inference ------------------------------------------------------
 

@@ -29,6 +29,7 @@ class FakeOllama:
         self.model = "fake-vision-model"
         self.reachable = True
         self.calls = []
+        self.preload_state = {"status": "loaded", "attempts": 1, "detail": "fake"}
 
     def ping(self):
         return self.reachable
@@ -77,6 +78,7 @@ class TestConfig:
     OLLAMA_KEEP_ALIVE = "1m"
     OLLAMA_NUM_PREDICT = 10
     OLLAMA_NUM_CTX = 512
+    OLLAMA_PRELOAD = False  # no background thread hitting a fake URL during tests
     MAX_CONTENT_LENGTH = 1024 * 1024
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     IMAGE_MAX_EDGE = 64

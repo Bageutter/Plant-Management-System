@@ -63,6 +63,13 @@ def create_app(config_class: type | None = None) -> Flask:
         num_predict=app.config["OLLAMA_NUM_PREDICT"],
         num_ctx=app.config["OLLAMA_NUM_CTX"],
     )
+    if app.config.get("OLLAMA_PRELOAD", True):
+        # Warm the model in the background so the first assessment is fast. Never
+        # blocks startup; progress is reported on /healthz.
+        app.extensions["ollama"].start_preload(
+            retries=app.config.get("OLLAMA_PRELOAD_RETRIES", 12),
+            delay=app.config.get("OLLAMA_PRELOAD_RETRY_SECONDS", 5.0),
+        )
 
     # Release 1: clients for the shared local MCP and RAG servers. The browser only
     # ever reaches them through this backend (see routes.py).

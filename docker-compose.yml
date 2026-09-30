@@ -130,6 +130,9 @@ services:
       - OLLAMA_MODEL=qwen2.5vl:3b
       - OLLAMA_AUTO_PULL=true
       - OLLAMA_KEEP_ALIVE=30m
+      # Pull (if needed) and load the model in the background at startup, so the
+      # first assessment does not pay the cold-load cost. See /healthz.
+      - OLLAMA_PRELOAD=true
       # Release 1: shared local MCP + RAG servers. They run on the HOST, outside
       # compose (never as services here); the container reaches them through
       # host.docker.internal, like the local AI mode. CI sets both flags to false.
