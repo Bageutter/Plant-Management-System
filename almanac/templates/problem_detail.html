@@ -68,13 +68,6 @@
                 {% else %}<span>No plants linked yet.</span>{% endfor %}
                 </div>
             </section>
-            <section class="guide-section">
-                <h2>Sources</h2>
-                <p class="text-muted-foreground" style="font-size:.85rem; line-height:1.5;">General home-garden guidance. Always follow the product label and local rules.</p>
-                <ul class="source-list">
-                {% for source in guide.sources %}<li><a href="{{ source.url }}" target="_blank" rel="noopener">{{ source.label }} ↗</a></li>{% endfor %}
-                </ul>
-            </section>
         </aside>
     </div>
     {% else %}
