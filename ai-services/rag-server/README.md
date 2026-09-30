@@ -1,7 +1,7 @@
 # Shared RAG server
 
 One **local, non-containerised** Retrieval-Augmented Generation server for the whole
-Plant Management System. Feature backends (Plant Health first) send it questions from
+Plant Management System. Feature backends (Plant Health and Plant Almanac) send it questions from
 their own API routes, so the frontend reaches RAG *through* the backend — the Release 1
 requirement. It is never a `docker compose` service.
 
@@ -20,7 +20,8 @@ feature UI ─► feature backend/API ─► shared RAG server (localhost:5106) 
 | `GET /` | HTMX page: query form + indexed sources table |
 | `GET /rag/sources` | known sources with `implemented`, document and chunk counts |
 | `POST /rag/ingest/health` | **implemented**: pages `GET /plant-health-records/assessments` from the health API and indexes summary / description / issues / recommendations / missing-information passages per record (embeddings best-effort). Idempotent; deleted records disappear. |
-| `POST /rag/ingest/almanac`, `.../vgarden` | `501` stubs — issues #43, #44 |
+| `POST /rag/ingest/almanac` | Pages the public catalogue and indexes plants, pests and disease guides with source links. Refreshes replace this source only after every read succeeds. |
+| `POST /rag/ingest/vgarden` | `501` stub — issue #44 |
 | `POST /rag/query` | `400` on bad input; otherwise the grounded-answer contract below. Nothing relevant retrieved → `insufficient_context: true` **without a model call**. |
 
 ### How an answer is produced
@@ -64,7 +65,8 @@ python ai-services/rag-server/app.py
 | `RAG_HOST` / `RAG_PORT` | `127.0.0.1` / `5106` | listener; containers use `host.docker.internal:5106` |
 | `RAG_DATABASE_PATH` | `ai-services/rag-server/instance/rag.db` | SQLite chunk store |
 | `HEALTH_SERVICE_URL` | `http://127.0.0.1:3000/health` | health public API (through the proxy) |
-| `ALMANAC_SERVICE_URL`, `VGARDEN_SERVICE_URL` | via the proxy | reserved for the stub sources |
+| `ALMANAC_SERVICE_URL` / `ALMANAC_PUBLIC_URL` | `http://127.0.0.1:3000/almanac` / `http://localhost:3000/almanac` | catalogue API / browser citation links |
+| `VGARDEN_SERVICE_URL` | via the proxy | reserved for the garden source |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen3:4b-instruct` | local answering model |
 | `RAG_EMBED_MODEL` | `nomic-embed-text` | local embedding model; empty → lexical retrieval only |
 | `RAG_TOP_K` | `5` | passages handed to the model (max 10) |

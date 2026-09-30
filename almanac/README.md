@@ -4,6 +4,10 @@ The Plant Almanac is a Flask, Jinja, HTMX, Alpine.js, and SQLite service that ow
 general plant reference data. It is available at <http://localhost:3000/almanac/>
 through the shared nginx proxy.
 
+## Release 1 (Amy)
+
+Open **Reference tools** for read-only MCP catalogue search and RAG answers with source links, confidence and insufficient-context handling. Both go through this backend to the group’s shared local servers. See [setup, evidence and report section](../docs/amy-release1.md).
+
 ## What it currently does
 
 * Displays eight seeded plant references and their planting months.
