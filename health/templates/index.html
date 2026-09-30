@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto" x-data="assessmentForm()">
+<div class="max-w-3xl mx-auto"
+     x-data="assessmentForm({ maxUploadBytes: {{ max_upload_bytes }}, maxUploadLabel: '{{ max_upload_label }}', maxEdge: {{ image_max_edge }} })">
     <h1 class="text-3xl mb-2">Plant Health Records</h1>
     <p class="text-muted-foreground mb-8">
         Upload a photo of a plant, describe it in your own words, or both. The assessment runs
@@ -19,8 +20,13 @@
                   placeholder="e.g. Planted 6 weeks ago, lower leaves turning yellow, watered daily, soil stays wet."></textarea>
 
         <label class="uk-form-label" for="image">Photo (optional if a description is given)</label>
-        <input class="uk-input mb-6" type="file" id="image" name="image"
-               accept="image/jpeg,image/png,image/webp,image/gif" @change="preview($event)">
+        <input class="uk-input mb-1" type="file" id="image" name="image"
+               accept="image/jpeg,image/png,image/webp,image/gif" @change="preview($event)"
+               data-max-upload-bytes="{{ max_upload_bytes }}">
+        <p class="text-xs text-muted-foreground mb-6" id="photo-note" data-role="photo-note"
+           :class="{ 'text-destructive': fileTooBig }" x-text="fileNote">
+            Up to {{ max_upload_label }}. Larger photos are shrunk in your browser before they are sent.
+        </p>
 
         <template x-if="previewUrl">
             <div class="mb-6">
@@ -80,7 +86,8 @@
 
 {% block extra_scripts %}
 <script>
-function assessmentForm() {
+function assessmentForm(limits) {
+    const defaultNote = "Up to " + limits.maxUploadLabel + ". Larger photos are shrunk in your browser before they are sent.";
     return {
         busy: false,
         stage: "Starting the local model…",
@@ -89,12 +96,31 @@ function assessmentForm() {
         elapsed: 0,
         resultHtml: "",
         previewUrl: "",
+        file: null,
+        fileNote: defaultNote,
+        fileTooBig: false,
         _timer: null,
 
+        formatBytes(size) {
+            if (size >= 1024 * 1024) return (size / (1024 * 1024)).toFixed(1).replace(/\.0$/, "") + " MB";
+            if (size >= 1024) return Math.round(size / 1024) + " KB";
+            return size + " bytes";
+        },
+
         preview(event) {
-            const file = event.target.files[0];
+            const file = event.target.files[0] || null;
             if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
             this.previewUrl = file ? URL.createObjectURL(file) : "";
+            this.file = file;
+            this.fileTooBig = !!file && file.size > limits.maxUploadBytes;
+            if (!file) {
+                this.fileNote = defaultNote;
+            } else if (this.fileTooBig) {
+                this.fileNote = "This photo is " + this.formatBytes(file.size) + ", over the " +
+                    limits.maxUploadLabel + " limit. It will be shrunk in your browser before it is sent.";
+            } else {
+                this.fileNote = "Photo: " + this.formatBytes(file.size) + ".";
+            }
         },
 
         reset() {
@@ -103,6 +129,52 @@ function assessmentForm() {
             this.chars = 0;
             this.elapsed = 0;
             this.resultHtml = "";
+        },
+
+        // Re-encode an oversized photo to at most `maxEdge` pixels on its longest
+        // side (the resolution the server downscales to anyway), so a phone photo
+        // that nginx or the app would reject with 413 can still be assessed.
+        async shrink(file) {
+            let bitmap;
+            try {
+                bitmap = await createImageBitmap(file);
+            } catch (err) {
+                throw new Error("This photo could not be read, so it could not be shrunk. Choose a smaller photo.");
+            }
+            const scale = Math.min(1, limits.maxEdge / Math.max(bitmap.width, bitmap.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            if (bitmap.close) bitmap.close();
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
+            if (!blob || blob.size > limits.maxUploadBytes) {
+                throw new Error("This photo is still over the " + limits.maxUploadLabel +
+                    " limit after shrinking. Choose a smaller photo.");
+            }
+            return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+        },
+
+        // The stream endpoint answers with server-sent events. Anything else (the
+        // app's 413, nginx's 413, a proxy error page) must be turned into a
+        // message instead of being parsed as an empty stream and ignored.
+        async explainFailure(response) {
+            const type = response.headers.get("content-type") || "";
+            const body = await response.text().catch(() => "");
+            if (type.includes("text/event-stream") || type.includes("application/json")) {
+                try {
+                    const text = type.includes("text/event-stream")
+                        ? (body.split("\n").find(l => l.startsWith("data: ")) || "").slice(6)
+                        : body;
+                    const parsed = JSON.parse(text);
+                    if (parsed.message || parsed.error) return parsed.message || parsed.error;
+                } catch (err) { /* fall through to the status-based message */ }
+            }
+            if (response.status === 413) {
+                return "The upload is larger than the " + limits.maxUploadLabel +
+                    " limit. Choose a smaller photo.";
+            }
+            return "The server answered with status " + response.status + ". Please try again.";
         },
 
         async submit(event) {
@@ -114,11 +186,23 @@ function assessmentForm() {
             this._timer = setInterval(() => { this.elapsed = Date.now() - started; }, 100);
 
             try {
+                const form = new FormData(event.target);
+                if (this.file && this.file.size > limits.maxUploadBytes) {
+                    this.stage = "Shrinking the photo in your browser…";
+                    const smaller = await this.shrink(this.file);
+                    form.set("image", smaller, smaller.name);
+                    this.fileNote = "Photo shrunk from " + this.formatBytes(this.file.size) + " to " +
+                        this.formatBytes(smaller.size) + " before upload.";
+                    this.fileTooBig = false;
+                    this.stage = "Starting the local model…";
+                }
+
                 const response = await fetch("{{ url_for('health.stream_assessment') }}", {
                     method: "POST",
-                    body: new FormData(event.target),
+                    body: form,
                 });
 
+                if (!response.ok) throw new Error(await this.explainFailure(response));
                 if (!response.body) throw new Error("Streaming is not supported by this browser.");
 
                 const reader = response.body.getReader();

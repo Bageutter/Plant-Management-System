@@ -58,3 +58,27 @@ def downscale_image(payload: bytes, max_edge: int = 896) -> tuple[bytes, str]:
 
 def to_base64(payload: bytes) -> str:
     return base64.b64encode(payload).decode("ascii")
+
+
+def format_bytes(size: int) -> str:
+    """Human-readable size for user-facing messages (``12 MB``, ``850 KB``)."""
+
+    if size >= 1024 * 1024:
+        value = size / (1024 * 1024)
+        unit = "MB"
+    elif size >= 1024:
+        value = size / 1024
+        unit = "KB"
+    else:
+        return f"{size} bytes"
+    text = f"{value:.1f}".rstrip("0").rstrip(".")
+    return f"{text} {unit}"
+
+
+def upload_limit_message(limit: int) -> str:
+    """The one sentence shown whenever an upload is over the size limit."""
+
+    return (
+        f"The upload is larger than the {format_bytes(limit)} limit. "
+        "Choose a smaller photo, or let the page shrink it before sending."
+    )
