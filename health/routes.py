@@ -54,7 +54,14 @@ def healthz():
     body = {
         "service": "health-monitoring-service",
         "status": "ok" if ai_up else "degraded",
-        "ai": {"url": client.base_url, "model": client.model, "reachable": ai_up},
+        "ai": {
+            "url": client.base_url,
+            "model": client.model,
+            "reachable": ai_up,
+            # Startup preload progress: not_started / pending / loading / retrying /
+            # loaded / failed. "loaded" means the first assessment will be warm.
+            "preload": getattr(client, "preload_state", None),
+        },
     }
     return jsonify(body), 200 if ai_up else 503
 
