@@ -198,4 +198,4 @@ health UI shows all three, labelling the model's rating as self-reported.
 | `claude/rag-server-base` | RAG server app factory, config, store skeleton, endpoint stubs (`501`), UI shell, tests |
 | `claude/health-mcp-rag-integration` | health tools + RAG health source implemented; health backend routes, UI panels, compose connection config, health CI + smoke test; issues for the Almanac/Virtual Garden stubs and the agentic-loop validation modes |
 
-Almanac follow-up: see [Amy’s Release 1 notes](../amy-release1.md). Shared local validation modes now run from `tools/ai-loop/validate.py`. Virtual Garden tool/source implementations and final whole-group Compose compliance remain group work.
+Almanac setup is documented in [its README](../../almanac/README.md). Local MCP and RAG validation modes run from `tools/ai-loop/validate.py`. Virtual Garden tool/source implementations and final whole-group Compose compliance remain group work.

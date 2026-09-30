@@ -22,7 +22,7 @@ want_mcp=$(as_bool "${MCP_ENABLED:-true}")
 want_rag=$(as_bool "${RAG_ENABLED:-true}")
 
 echo "==> UI: $records/"
-curl "${retry[@]}" --fail "$records/" | grep "Plant Health Records" > /dev/null
+curl "${retry[@]}" --fail "$records/" | grep -q "Plant Health Records"
 
 echo "==> /healthz (200 = model reachable, 503 = degraded; both must be JSON)"
 code=$(curl "${retry[@]}" -o /tmp/healthz.json -w '%{http_code}' "$health/healthz" || true)

@@ -6,7 +6,7 @@ through the shared nginx proxy.
 
 ## Release 1 (Amy)
 
-Open **Reference tools** for read-only MCP catalogue search and RAG answers with source links, confidence and insufficient-context handling. Both go through this backend to the group’s shared local servers. See [setup, evidence and report section](../docs/amy-release1.md).
+Open **Reference tools** for read-only MCP catalogue search and RAG answers with source links, confidence and insufficient-context handling. Both go through this backend to the group’s shared local servers. See the shared [MCP setup](../ai-services/mcp-server/README.md), [RAG setup](../ai-services/rag-server/README.md), and [validation commands](../tools/ai-loop/README.md#release-1-validate-mcp-and-rag-through-the-feature).
 
 ## What it currently does
 
