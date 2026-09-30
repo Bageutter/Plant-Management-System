@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Terminal viewer for the runtime agentic loop (Plan -> Act -> Observe -> Adapt).
+"""Terminal viewer for the runtime agentic loops.
 
-The chat features in `almanac/` and `vgarden/` log every phase of every answer to
+The chat features in `almanac/` and `vgarden/` (Plan -> Act -> Observe -> Adapt)
+and the plant health assessment in `health/` (Perceive -> Reason -> Act ->
+Observe -> Repeat) log every phase of every run to
 `tools/ai-loop/logs/<service>.jsonl` (+ a markdown transcript per run). This
 replays them.
 
@@ -23,14 +25,22 @@ from collections import OrderedDict
 from pathlib import Path
 
 LOG_DIR = Path(__file__).resolve().parent / "logs"
-SERVICES = ("almanac", "vgarden")
+SERVICES = ("almanac", "vgarden", "health")
+WORKFLOWS = {
+    "almanac": "Plan -> Act -> Observe -> Adapt",
+    "vgarden": "Plan -> Act -> Observe -> Adapt",
+    "health": "Perceive -> Reason -> Act -> Observe -> Repeat",
+}
 
 BOLD, DIM, RESET = "\033[1m", "\033[2m", "\033[0m"
 PHASE_COLOR = {
     "plan": "\033[36m",      # cyan
+    "perceive": "\033[36m",  # cyan   (health)
+    "reason": "\033[33m",    # yellow (health)
     "act": "\033[33m",       # yellow
     "observe": "\033[35m",   # magenta
     "adapt": "\033[32m",     # green
+    "repeat": "\033[32m",    # green  (health)
     "fallback": "\033[31m",  # red
 }
 
@@ -75,7 +85,7 @@ def cmd_list(service: str | None, last: int) -> int:
     print(f"{BOLD}{'run_id':<34}{'phases':<22}{'result':<16}iters{RESET}")
     for run_id, events in rows:
         phases = [e["phase"] for e in events]
-        adapt = [e for e in events if e["phase"] in ("adapt", "fallback")]
+        adapt = [e for e in events if e["phase"] in ("adapt", "repeat", "fallback")]
         verdict = "?"
         if adapt:
             verdict = adapt[-1].get("decision") or adapt[-1].get("reason", "fallback")
@@ -101,7 +111,7 @@ def cmd_show(run_id: str) -> int:
     question = next((e.get("question") for e in events if e.get("question")), "")
     print(f"{BOLD}{run_id}{RESET}  {DIM}({service}){RESET}")
     print(f"{BOLD}Q:{RESET} {question}\n")
-    print(f"{DIM}Workflow: Plan -> Act -> Observe -> Adapt{RESET}\n")
+    print(f"{DIM}Workflow: {WORKFLOWS.get(service, 'Plan -> Act -> Observe -> Adapt')}{RESET}\n")
 
     for event in events:
         phase = event["phase"]

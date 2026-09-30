@@ -108,7 +108,7 @@ flowchart TD
 
     ALM[(Plant references)] -->|selected records| ALMA[almanac chat\nP -> A -> O -> A]
 
-    PHOTO[Photo / description] --> HLTH[health assessment\nsingle structured call]
+    PHOTO[Photo / description] --> HLTH[health assessment\nPerceive→Reason→Act→Observe→Repeat]
 ```
 
 ## Not built yet

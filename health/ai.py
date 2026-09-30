@@ -297,10 +297,18 @@ class OllamaClient:
         image_b64: str | None,
         plant_ref: str | None,
         stream: bool,
+        feedback: str | None = None,
+        history: list[dict] | None = None,
     ) -> dict:
         message: dict = {
             "role": "user",
-            "content": _build_prompt(description, plant_ref, has_image=bool(image_b64)),
+            "content": _build_prompt(
+                description,
+                plant_ref,
+                has_image=bool(image_b64),
+                feedback=feedback,
+                history=history,
+            ),
         }
         if image_b64:
             message["images"] = [image_b64]
@@ -324,12 +332,23 @@ class OllamaClient:
         description: str | None = None,
         image_b64: str | None = None,
         plant_ref: str | None = None,
+        feedback: str | None = None,
+        history: list[dict] | None = None,
     ) -> dict:
+        """One structured assessment.
+
+        ``feedback`` is a reviewer's guidance on a previous draft (the loop's
+        REPEAT → REASON hand-off); ``history`` lists this plant's earlier
+        assessments, given to the model as context only.
+        """
+
         if not description and not image_b64:
             raise ValueError("An image or a text description is required.")
 
         self.ensure_model()
-        payload = self._payload(description, image_b64, plant_ref, stream=False)
+        payload = self._payload(
+            description, image_b64, plant_ref, stream=False, feedback=feedback, history=history
+        )
 
         started = time.monotonic()
         try:
@@ -363,6 +382,8 @@ class OllamaClient:
         description: str | None = None,
         image_b64: str | None = None,
         plant_ref: str | None = None,
+        feedback: str | None = None,
+        history: list[dict] | None = None,
     ):
         """Yield progress events while the model composes its assessment.
 
@@ -380,7 +401,9 @@ class OllamaClient:
             yield {"type": "error", "message": str(exc)}
             return
 
-        payload = self._payload(description, image_b64, plant_ref, stream=True)
+        payload = self._payload(
+            description, image_b64, plant_ref, stream=True, feedback=feedback, history=history
+        )
         started = time.monotonic()
         content = ""
 
@@ -496,7 +519,11 @@ def _partial_string(content: str, key: str) -> str:
 
 
 def _build_prompt(
-    description: str | None, plant_ref: str | None, has_image: bool = False
+    description: str | None,
+    plant_ref: str | None,
+    has_image: bool = False,
+    feedback: str | None = None,
+    history: list[dict] | None = None,
 ) -> str:
     if has_image and description:
         evidence = "one photo and a written description"
@@ -512,10 +539,27 @@ def _build_prompt(
         parts.append(f"Gardener's description of the plant and its care:\n{description}")
     else:
         parts.append("No written description was provided; rely on the photo.")
+    if history:
+        lines = "\n".join(
+            f"- {h.get('created_at', '')}: {h.get('status', 'unknown')}"
+            + (f", score {h['health_score']}" if h.get("health_score") is not None else "")
+            + (f" — {h['summary']}" if h.get("summary") else "")
+            for h in history
+        )
+        parts.append(
+            "Earlier assessments recorded for this plant, for context only. They are not "
+            "current observations; do not repeat them as evidence, but you may note a "
+            f"change since then:\n{lines}"
+        )
     parts.append(
         "Assess the plant's health and give recommendations to improve it if needed. "
         "When explaining your confidence, refer only to the evidence listed above."
     )
+    if feedback:
+        parts.append(
+            "An independent reviewer checked your previous draft of this assessment and "
+            f"asked for the following correction. Apply it:\n{feedback}"
+        )
     return "\n\n".join(parts)
 
 

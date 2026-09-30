@@ -7,7 +7,9 @@
 
 Both AI chat features in this project — **Ask the Almanac** (`almanac/`) and **Ask
 about this garden** (`vgarden/`) — answer through an explicit agentic loop rather
-than a single model call. A second, independent model reviews every draft; the
+than a single model call. (The Plant Health assessment runs its own loop of the same
+shape, **Perceive → Reason → Act → Observe → Repeat**, described in
+[`ai/agentic-workflow.md#health`](ai/agentic-workflow.md#health).) A second, independent model reviews every draft; the
 loop revises until the reviewer approves or an iteration cap is reached. Every
 phase of every run is logged for evidence.
 
