@@ -149,7 +149,9 @@ def parse_generation(content: str) -> dict:
         "cited_chunk_ids": [
             str(c).strip() for c in (data.get("cited_chunk_ids") or []) if str(c).strip()
         ],
-        "evidence_strength": strength if strength in ("weak", "moderate", "strong") else "weak",
+        # None when the model did not supply a valid rating; the pipeline treats that as
+        # weak for categorisation but never reports it as the model's own rating.
+        "evidence_strength": strength if strength in ("weak", "moderate", "strong") else None,
         "insufficient_context": bool(data.get("insufficient_context")),
     }
 

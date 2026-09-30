@@ -1,9 +1,17 @@
 {% set conf_labels = {"high": "High confidence", "medium": "Medium confidence", "low": "Low confidence", "insufficient": "Insufficient context"} %}
 <article class="border border-border rounded-lg p-6 bg-muted" data-confidence="{{ result.confidence }}">
-    <header class="flex items-center justify-between gap-4 flex-wrap mb-4">
+    <header class="flex items-center justify-between gap-4 flex-wrap mb-2">
         <h2 class="text-xl m-0">{{ result.question }}</h2>
         <span class="badge conf-{{ result.confidence }}">{{ conf_labels.get(result.confidence, result.confidence) }}</span>
     </header>
+    {% if result.confidence_reason %}
+    <p class="text-sm text-muted-foreground mb-4">
+        <strong>Why {{ conf_labels.get(result.confidence, result.confidence) | lower }}:</strong> {{ result.confidence_reason }}
+        {% if result.model_confidence %}
+        <span data-model-confidence="{{ result.model_confidence }}">The model's own rating of its evidence was <strong>{{ result.model_confidence }}</strong> (self-reported, not a calibrated probability).</span>
+        {% endif %}
+    </p>
+    {% endif %}
 
     {% if result.insufficient_context %}
         <p class="m-0">

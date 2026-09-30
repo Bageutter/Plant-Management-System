@@ -46,7 +46,7 @@ For a desktop MCP host use `--transport stdio`:
 | `MCP_HOST` / `MCP_PORT` | `127.0.0.1` / `5105` | Listener. Containers reach it as `host.docker.internal:5105`. |
 | `MCP_ALLOWED_HOSTS` | `127.0.0.1:*,localhost:*,host.docker.internal:*` | `Host` header allow-list (DNS-rebinding protection stays on) |
 | `HEALTH_SERVICE_URL` | `http://127.0.0.1:3000/health` | Plant Health public API, via the proxy |
-| `ALMANAC_SERVICE_URL` | `http://127.0.0.1:3000/almanac` | reserved for the Almanac tools |
+| `ALMANAC_SERVICE_URL` | `http://127.0.0.1:3000/almanac` | public catalogue API |
 | `VGARDEN_SERVICE_URL` | `http://127.0.0.1:3000/vgarden` | reserved for the Virtual Garden tools |
 | `SERVICE_TIMEOUT` | `10` | seconds per outbound call |
 | `ASSESS_TIMEOUT` | `200` | seconds allowed for `assess_plant_health` (it runs the vision model) |
@@ -60,8 +60,8 @@ For a desktop MCP host use `--transport stdio`:
 | `get_health_assessment` | Plant Health | **implemented** | read-only |
 | `summarise_plant_health_history` | Plant Health | **implemented** | read-only, aggregated in code (no model call) |
 | `assess_plant_health` | Plant Health | **implemented** | **creates** one record via the health service's local model; text only |
-| `search_almanac_catalogue` | Plant Almanac | stub — issue #41 | read-only |
-| `get_almanac_plant` | Plant Almanac | stub — issue #41 | read-only |
+| `search_almanac_catalogue` | Plant Almanac | implemented | read-only |
+| `get_almanac_plant` | Plant Almanac | implemented | read-only |
 | `get_garden_snapshot` | Virtual Garden | stub — issue #42 | read-only |
 | `list_garden_plantings` | Virtual Garden | stub — issue #42 | read-only |
 

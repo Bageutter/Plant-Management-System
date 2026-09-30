@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import unittest
@@ -6,7 +7,7 @@ from unittest.mock import patch
 from ai import AIUnavailableError
 from app import create_app
 from extensions import db
-from models import AIChatMessage, AILoopRun
+from models import AIChatMessage, AILoopRun, PlantReference, PlantingMonth
 
 
 class FakeAlmanacAI:
@@ -115,6 +116,8 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.assertEqual(call["question"], "When should I plant tomatoes?")
         self.assertEqual(call["feedback"], None)
         self.assertEqual([p["slug"] for p in call["grounding"]["plant_records"]], ["tomato"])
+        self.assertIn("care_notes", call["grounding"]["plant_records"][0])
+        self.assertIn("sun_needs", call["grounding"]["plant_records"][0])
 
         page = self.client.get("/")
         self.assertIn(b"When should I plant tomatoes?", page.data)
@@ -142,15 +145,65 @@ class AlmanacAIModeTests(unittest.TestCase):
             self.assertEqual(run.verdict, "approved")
 
     def test_reviewer_never_satisfied_caps_iterations(self):
-        self._set_ai(FakeAlmanacAI("still off"))
+        unsupported = "Basil needs full sun and daily watering."
+        self._set_ai(FakeAlmanacAI(unsupported))
         self.reviewer.script = ["revise"]
 
-        self.client.post("/ai/ask", data={"question": "Tell me about basil"})
+        response = self.client.post("/ai/ask", data={"question": "Tell me about basil"})
 
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(unsupported.encode(), response.data)
+        self.assertIn(b"enough information in the Plant Almanac", response.data)
+        self.assertIn(b"Review limit reached", response.data)
         with self.app.app_context():
             run = AILoopRun.query.one()
             self.assertEqual(run.iterations, 2)
             self.assertEqual(run.verdict, "revised_capped")
+            self.assertEqual(run.final_answer, run.message.content)
+            self.assertNotIn(unsupported, run.final_answer)
+            self.assertEqual(run.message.source_slugs, [])
+
+    def test_current_month_context_stays_small_with_34_detailed_plants(self):
+        fake = self._set_ai(FakeAlmanacAI("An incomplete list."))
+        with self.app.app_context():
+            for index in range(26):
+                db.session.add(PlantReference(
+                    slug=f"extra-{index}", common_name=f"Extra plant {index}",
+                    scientific_name=f"Example species {index}", family="Example",
+                    summary="Long imported description. " * 500,
+                    care_notes="Long imported care notes. " * 500,
+                    planting_months=[PlantingMonth(month_number=9 if index % 2 else 3)],
+                ))
+            previous = AIChatMessage(
+                owner_key="user:1", role="assistant", content="Earlier advice. " * 2000,
+            )
+            db.session.add(previous)
+            db.session.commit()
+            previous_id = previous.id
+            expected = [
+                plant.common_name
+                for plant in PlantReference.query.order_by(PlantReference.common_name).all()
+                if any(month.month_number == 9 for month in plant.planting_months)
+            ]
+
+        with patch("app.datetime") as clock:
+            clock.now.return_value.strftime.return_value = "September"
+            response = self.client.post("/ai/ask", data={"question": "What can I plant now?"})
+
+        self.assertEqual(response.status_code, 200)
+        grounding = fake.calls[0]["grounding"]
+        self.assertEqual(len(grounding["plant_records"]), 34)
+        self.assertEqual(grounding["required_answer_items"], expected)
+        self.assertEqual(grounding["conversation"], [])
+        self.assertLess(len(json.dumps(grounding)), 7000)
+        self.assertTrue(all(
+            set(plant) == {"slug", "common_name", "planting_months"}
+            for plant in grounding["plant_records"]
+        ))
+        for name in expected:
+            self.assertIn(name.encode(), response.data)
+        with self.app.app_context():
+            self.assertIsNotNone(db.session.get(AIChatMessage, previous_id))
 
     def test_current_month_list_is_complete_and_not_repeated(self):
         fake = self._set_ai(

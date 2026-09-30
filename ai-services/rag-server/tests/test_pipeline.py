@@ -57,6 +57,8 @@ def test_off_topic_question_is_refused_before_any_model_call(store):
     assert result["answer"] is None and result["citations"] == []
     assert result["retrieval"]["candidates"] == 0 and result["retrieval"]["considered"] == 3
     assert answerer.groundings == []  # the model was never consulted
+    assert result["model_confidence"] is None
+    assert "model was not consulted" in result["confidence_reason"]
 
 
 def test_grounded_answer_carries_only_real_citations_and_high_confidence(store):
@@ -72,6 +74,10 @@ def test_grounded_answer_carries_only_real_citations_and_high_confidence(store):
     assert result["insufficient_context"] is False
     assert [c["chunk_id"] for c in result["citations"]] == ["health:3:summary", "health:3:recommendations"]
     assert result["confidence"] == "high"
+    assert result["model_confidence"] == "strong"
+    reason = result["confidence_reason"]
+    assert reason.startswith("2 cited passages, top relevance ") and "model rated its evidence strong" in reason
+    assert "high-confidence" in reason
     assert result["model"] == "fake-model" and result["retrieval"]["mode"] == "lexical"
     citation = result["citations"][0]
     assert citation["title"].startswith("Assessment #3") and citation["source_id"] == "3"
@@ -92,6 +98,58 @@ def test_model_insufficient_flag_is_honoured(store):
     assert result["insufficient_context"] is True and result["confidence"] == "insufficient"
     assert result["answer"] is None
     assert "did not contain enough" in result["note"]
+    # The model was consulted and declared the passages insufficient: its rating and
+    # name are kept so the UI can attribute the refusal correctly.
+    assert result["model_confidence"] == "weak" and result["model"] == "fake-model"
+    assert "judged the retrieved passages insufficient" in result["confidence_reason"]
+
+
+def test_empty_answer_without_the_flag_is_refused_with_an_honest_reason(store):
+    answerer = FakeAnswerer(
+        {"answer": "", "cited_chunk_ids": [], "evidence_strength": "strong", "insufficient_context": False}
+    )
+    result = ask(store, "Why is the tomato yellow?", answerer)
+    assert result["insufficient_context"] is True and result["model"] == "fake-model"
+    assert result["model_confidence"] == "strong"
+    assert result["confidence_reason"].startswith("The model returned no grounded answer")
+    assert "judged" not in result["confidence_reason"]
+
+
+def test_missing_model_rating_is_treated_as_weak_but_not_attributed(store):
+    answerer = FakeAnswerer(
+        {
+            "answer": "The tomato was overwatered.",
+            "cited_chunk_ids": ["health:3:summary", "health:3:recommendations"],
+            "evidence_strength": None,
+            "insufficient_context": False,
+        }
+    )
+    result = ask(store, "Why is the tomato in the back bed yellow?", answerer)
+    assert result["confidence"] == "low" and result["model_confidence"] is None
+    assert "gave no evidence rating (treated as weak)" in result["confidence_reason"]
+
+
+def test_model_declared_refusal_renders_its_rating_in_the_fragment(tmp_path, monkeypatch):
+    monkeypatch.setattr("routes._ollama_reachable", lambda: True)
+    app = create_app(
+        {"TESTING": True, "RAG_ENABLED": True, "RAG_DATABASE_PATH": os.path.join(tmp_path, "m.db")}
+    )
+    app.extensions["chunk_store"].replace_source("health", CHUNKS, documents=2)
+    monkeypatch.setattr(
+        "pipeline.build_answerer",
+        lambda config: FakeAnswerer(
+            {"answer": "", "cited_chunk_ids": [], "evidence_strength": "weak", "insufficient_context": True}
+        ),
+    )
+    monkeypatch.setattr("pipeline.build_embedder", lambda config: None)
+    response = app.test_client().post(
+        "/rag/query", data={"question": "Was the tomato fertilised?"}, headers={"HX-Request": "true"}
+    )
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert 'data-confidence="insufficient"' in html and 'data-model-confidence="weak"' in html
+    assert "Why insufficient context:" in html and "judged the retrieved passages insufficient" in html
+    app.extensions["chunk_store"].close()
 
 
 def test_uncited_answer_falls_back_to_top_passage_with_low_confidence(store):
@@ -107,6 +165,44 @@ def test_uncited_answer_falls_back_to_top_passage_with_low_confidence(store):
     assert result["confidence"] == "low"
     assert [c["chunk_id"] for c in result["citations"]] == ["health:3:summary"]
     assert "capped at low" in result["note"]
+    assert result["model_confidence"] == "strong"  # the model's rating is reported unchanged
+    assert "cited none of the passages" in result["confidence_reason"]
+
+
+def test_confidence_reason_matches_the_category_rules():
+    high = [_cand(0.9), _cand(0.7)]
+    assert pipeline.explain(high, "strong", fallback=False) == (
+        "2 cited passages, top relevance 90%; model rated its evidence strong, "
+        "meeting every high-confidence rule."
+    )
+    # medium names every unmet high-confidence rule
+    assert pipeline.explain(high, "moderate", fallback=False) == (
+        "2 cited passages, top relevance 90%; model rated its evidence moderate, "
+        "but the model did not rate its evidence strong, so confidence stays at medium."
+    )
+    assert pipeline.explain([_cand(0.9)], "strong", fallback=False).endswith(
+        "but only one passage was cited, so confidence stays at medium."
+    )
+    assert pipeline.explain([_cand(0.55), _cand(0.5)], "moderate", fallback=False).endswith(
+        "but top relevance is below 60% and the model did not rate its evidence strong, "
+        "so confidence stays at medium."
+    )
+    assert pipeline.explain([_cand(0.3)], "strong", fallback=False).endswith(
+        "but a single weakly relevant passage caps confidence at low."
+    )
+    assert pipeline.explain(high, "weak", fallback=False).endswith("which caps confidence at low.")
+    assert "cited none of the passages" in pipeline.explain(high, "strong", fallback=True)
+    assert pipeline.explain([], "strong", fallback=False) == "No passage was cited."
+    # The reason is derived from the same rules as the category, for every combination.
+    for cited in ([_cand(0.9)], [_cand(0.3)], high, [_cand(0.55), _cand(0.5)]):
+        for strength in ("weak", "moderate", "strong", None):
+            for fallback in (False, True):
+                category = pipeline.categorise(cited, strength, fallback=fallback)
+                reason = pipeline.explain(cited, strength, fallback=fallback)
+                assert category in reason or (category == "high" and "high-confidence" in reason), (
+                    category,
+                    reason,
+                )
 
 
 def test_confidence_rules():
@@ -157,7 +253,8 @@ def test_parse_generation_is_defensive():
         "evidence_strength": "strong",
         "insufficient_context": False,
     }
-    assert parse_generation("{}")["evidence_strength"] == "weak"
+    assert parse_generation("{}")["evidence_strength"] is None
+    assert parse_generation('{"evidence_strength": "certain"}')["evidence_strength"] is None
     with pytest.raises(ModelUnavailable):
         parse_generation("not json")
     with pytest.raises(ModelUnavailable):

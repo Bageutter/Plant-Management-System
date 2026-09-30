@@ -1,37 +1,40 @@
-"""Plant Almanac tools — registered stubs.
-
-The Almanac already has a working standalone MCP adapter in PR #36
-(``almanac/mcp_server.py``). These stubs reserve the same tool names and result
-shapes on the *shared* server so that adapter can be folded in without changing
-any client. Until then every call returns a "not implemented" tool error.
-"""
+"""Read-only Almanac tools on the shared server, using the public catalogue API."""
 
 from __future__ import annotations
 
 from typing import Literal
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
+from pydantic import ValidationError
 
-from tools.common import READ_ONLY, guard, not_implemented
+from tools.common import READ_ONLY, FeatureClient, guard
 from tools.schemas import AlmanacPlantDetail, AlmanacSearchPage, Limit, Query, Slug
-
-FEATURE = "Plant Almanac"
-TRACKING = "GitHub issue #41 (Bageutter/Plant-Management-System)"
 
 Kind = Literal["all", "plant", "pest", "disease"]
 
 
-def register(server: MCPServer, settings) -> None:
+def register(server: MCPServer, settings, *, transport=None) -> None:
+    api = FeatureClient("Plant Almanac", settings.almanac_url, settings.timeout, transport=transport)
+
     @server.tool(annotations=READ_ONLY)
     def search_almanac_catalogue(
         query: Query = "", kind: Kind = "all", limit: Limit = 20
     ) -> AlmanacSearchPage:
         """Find plants, pests and diseases in the Plant Almanac by name."""
         guard(settings)
-        raise not_implemented("search_almanac_catalogue", FEATURE, TRACKING)
+        payload = api.get("api/catalogue", q=query, kind=kind, limit=limit)
+        try:
+            return AlmanacSearchPage.model_validate(payload)
+        except ValidationError:
+            raise ToolError("The Plant Almanac service returned an unexpected search result.") from None
 
     @server.tool(annotations=READ_ONLY)
     def get_almanac_plant(slug: Slug) -> AlmanacPlantDetail:
         """Read a plant reference: growing facts, companions and linked problems."""
         guard(settings)
-        raise not_implemented("get_almanac_plant", FEATURE, TRACKING)
+        payload = api.get(f"api/catalogue/plant/{slug}")
+        try:
+            return AlmanacPlantDetail.model_validate(payload)
+        except ValidationError:
+            raise ToolError("The Plant Almanac service returned an unexpected plant result.") from None

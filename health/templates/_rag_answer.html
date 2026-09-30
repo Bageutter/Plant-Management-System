@@ -1,22 +1,55 @@
-{# A grounded answer from the shared RAG server, via this backend. #}
+{# A grounded answer from the shared RAG server, via this backend.
+
+   Three confidence signals are shown, in this order of trust:
+   - `confidence`        the category derived in code from retrieval evidence (the badge)
+   - `confidence_reason` why that category was chosen, in plain words
+   - `model_confidence`  the model's own self-reported rating, labelled as such #}
 {% set conf_labels = {"high": "High confidence", "medium": "Medium confidence", "low": "Low confidence", "insufficient": "Insufficient context"} %}
+{% set model_labels = {"weak": "weak evidence", "moderate": "moderate evidence", "strong": "strong evidence"} %}
+{% set model_badge = {"weak": "conf-low", "moderate": "conf-medium", "strong": "conf-high"} %}
+{% set model_consulted = answer.model is not none %}
 <article class="border border-border rounded-lg p-5 bg-muted" data-confidence="{{ answer.confidence }}">
     <header class="flex items-center justify-between gap-3 flex-wrap mb-3">
         <h3 class="text-lg m-0">{{ answer.question }}</h3>
         <span class="badge {{ 'conf-' ~ answer.confidence if answer.confidence != 'insufficient' else 'status-unhealthy' }} help"
-              uk-tooltip="title: Confidence is derived from how relevant the cited records were and how directly the model judged they answer the question. Insufficient means nothing relevant was indexed.; pos: bottom"
+              uk-tooltip="title: Confidence is derived from how relevant the cited records were and how directly the model judged they answer the question. Insufficient means nothing relevant was indexed, or the model judged the retrieved records could not answer the question.; pos: bottom"
               tabindex="0">{{ conf_labels.get(answer.confidence, answer.confidence) }}</span>
     </header>
 
     {% if answer.insufficient_context %}
-        <p class="m-0">
-            <strong>Not enough relevant context</strong> was found in your indexed health records to answer this,
-            so no answer was generated. Try “Sync records to the knowledge base”, or ask about a plant you have assessed.
-        </p>
+        {% if model_consulted %}
+            <p class="m-0" data-refusal="model">
+                <strong>Your records did not answer this.</strong>
+                {{ answer.retrieval.candidates }} related passage{{ 's were' if answer.retrieval.candidates != 1 else ' was' }} retrieved, but the model judged they do not contain the answer, so no answer was generated rather than a guess.
+            </p>
+        {% else %}
+            <p class="m-0" data-refusal="gate">
+                <strong>Not enough relevant context</strong> was found in your indexed health records to answer this,
+                so no answer was generated. Try “Sync records to the knowledge base”, or ask about a plant you have assessed.
+            </p>
+        {% endif %}
     {% else %}
         <p class="m-0">{{ answer.answer }}</p>
+    {% endif %}
 
-        {% if answer.citations %}
+    {% if answer.confidence_reason %}
+        <p class="mt-3 mb-0 text-sm text-muted-foreground" data-confidence-reason>
+            <strong class="text-foreground">Why {{ conf_labels.get(answer.confidence, answer.confidence) | lower }}:</strong>
+            {{ answer.confidence_reason }}
+        </p>
+    {% endif %}
+    {% if answer.model_confidence %}
+        <p class="mt-2 mb-0 text-sm text-muted-foreground">
+            <strong class="text-foreground">Model's own rating:</strong>
+            <span class="badge {{ model_badge.get(answer.model_confidence, 'conf-low') }} help"
+                  data-model-confidence="{{ answer.model_confidence }}"
+                  uk-tooltip="title: The local model's self-assessment of how directly the cited records answer the question. It is one input to the confidence category above, not a calibrated probability.; pos: bottom"
+                  tabindex="0">{{ model_labels.get(answer.model_confidence, answer.model_confidence) }}</span>
+            <span class="text-xs">self-reported by {{ answer.model or "the local model" }}; treat as a rough signal.</span>
+        </p>
+    {% endif %}
+
+    {% if not answer.insufficient_context and answer.citations %}
         <h4 class="text-sm font-semibold mt-4 mb-1">Sources</h4>
         <ol class="uk-list uk-list-decimal text-sm">
             {% for c in answer.citations %}
@@ -27,12 +60,11 @@
             </li>
             {% endfor %}
         </ol>
-        {% endif %}
     {% endif %}
 
     <footer class="mt-4 text-xs text-muted-foreground">
         Retrieval {{ answer.retrieval.mode }} · {{ answer.retrieval.candidates }} relevant of {{ answer.retrieval.considered }} indexed passages
-        {%- if answer.model %} · answered locally by {{ answer.model }}{% endif %}
+        {%- if answer.model %} · {{ 'answered' if not answer.insufficient_context else 'assessed' }} locally by {{ answer.model }}{% endif %}
         {%- if answer.duration_ms %} in {{ (answer.duration_ms / 1000) | round(1) }}s{% endif %}.
         {% if answer.note %}{{ answer.note }}{% endif %}
         AI guidance is advisory only.

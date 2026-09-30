@@ -17,8 +17,8 @@ and for wiring the **Plant Health** feature to both. It follows the Release 1 br
 - Feature CI workflows keep the integration but run with **MCP and RAG disabled**.
 - Every model call stays on **local Ollama** (see [`architecture.md`](architecture.md)).
 
-The scope of this design is the Plant Health service. The Almanac and Virtual Garden
-parts of the shared servers are registered as **explicit stubs** that return a
+Plant Health and Plant Almanac now implement the shared tools and sources. Virtual Garden
+parts remain **explicit stubs** that return a
 "not implemented" tool error / `501`, each tracked by a GitHub issue, so the other
 features can fill them in without changing the shared contract.
 
@@ -51,7 +51,7 @@ flowchart LR
     H -->|MCP client<br/>host.docker.internal:5105| M
     H -->|HTTP JSON<br/>host.docker.internal:5106| R
     M -->|GET/POST public API<br/>127.0.0.1:3000/health| P
-    M -.->|stub → issue| A
+    M -->|catalogue API| A
     M -.->|stub → issue| V
     R -->|ingest GET /assessments| P
     R -->|/api/embed + /api/chat| OL
@@ -86,8 +86,8 @@ desktop MCP hosts. DNS-rebinding protection stays on with an explicit allow-list
 | `get_health_assessment` | health | `assessment_id ≥ 1` | full `Assessment` (no image) | read-only |
 | `summarise_plant_health_history` | health | `plant_ref`, `limit ≤ 50` | `{plant_ref, assessments, status_counts, latest, score_trend, recurring_issues}` | read-only; computed in code, no model call |
 | `assess_plant_health` | health | `description 1..4000`, `plant_ref? ≤200` | new `Assessment` | **creates a record** (annotated non-read-only, non-destructive); text only — photos are not accepted over MCP |
-| `search_almanac_catalogue` | almanac | `query`, `kind`, `limit` | `SearchPage` | **stub** — tracked issue |
-| `get_almanac_plant` | almanac | `slug` | `PlantDetail` | **stub** — tracked issue |
+| `search_almanac_catalogue` | almanac | `query`, `kind`, `limit` | `SearchPage` | implemented |
+| `get_almanac_plant` | almanac | `slug` | `PlantDetail` | implemented |
 | `get_garden_snapshot` | vgarden | `garden_id` | garden snapshot | **stub** — tracked issue |
 | `list_garden_plantings` | vgarden | `garden_id` | plantings | **stub** — tracked issue |
 
@@ -108,7 +108,7 @@ so discovery shows the full contract while the behaviour is honest.
 | `MCP_HOST` / `MCP_PORT` | `127.0.0.1` / `5105` | Listener. Set `MCP_HOST=0.0.0.0` only if containers cannot reach the host loopback. |
 | `MCP_ALLOWED_HOSTS` | `127.0.0.1:*,localhost:*,host.docker.internal:*` | Host-header allow-list |
 | `HEALTH_SERVICE_URL` | `http://127.0.0.1:3000/health` | Public health API (through the proxy) |
-| `ALMANAC_SERVICE_URL`, `VGARDEN_SERVICE_URL` | `http://127.0.0.1:3000/almanac`, `…/vgarden` | Reserved for the stubs |
+| `ALMANAC_SERVICE_URL`, `VGARDEN_SERVICE_URL` | `http://127.0.0.1:3000/almanac`, `…/vgarden` | Almanac public catalogue API; Virtual Garden reserved |
 
 ---
 
@@ -123,7 +123,7 @@ local Ollama (`/api/chat`) with a pinned JSON schema at `temperature 0`.
 | Source | Status | How it is ingested |
 | --- | --- | --- |
 | `health` — past plant health assessments | **implemented** | `POST /rag/ingest/health` pulls `GET /plant-health-records/assessments` from the health API and chunks each record into: summary, issues, recommendations, missing information. Each chunk carries `source_id` (assessment id), a title, a URL back to the record, and the timestamp. Re-ingesting is idempotent (upsert by `source:source_id:part`). |
-| `almanac` — plant reference records | stub (`501`) | tracked issue |
+| `almanac` — plants, pests and diseases | implemented | public catalogue API, one citable passage per reference |
 | `vgarden` — garden state | stub (`501`) | tracked issue |
 
 ### Retrieval → grounding → answer
@@ -153,6 +153,11 @@ question ──► tokenise ──► BM25 over chunks ──┐
 | `medium` | otherwise, when ≥ 1 cited chunk and model strength ≥ `moderate` |
 | `low` | 1 weak citation, or model strength `weak` |
 
+The response returns the category as `confidence`, the model's own rating as
+`model_confidence` (`weak` / `moderate` / `strong`, or `null` when the gate refused before
+the model ran), and a plain-words `confidence_reason` derived from the same inputs. The
+health UI shows all three, labelling the model's rating as self-reported.
+
 ### Endpoints
 
 | Method | Path | Purpose |
@@ -178,7 +183,7 @@ question ──► tokenise ──► BM25 over chunks ──┐
 | --- | --- |
 | Config | `MCP_ENABLED`, `MCP_SERVER_URL`, `RAG_ENABLED`, `RAG_SERVER_URL` |
 | Backend/API | `GET  /plant-health-records/integrations` — status of both integrations (used by the CI smoke test to prove they are wired but disabled)<br/>`GET  /plant-health-records/tools` — tool list from the MCP server<br/>`POST /plant-health-records/tools/run` — run one whitelisted health tool; JSON or HTMX fragment<br/>`POST /plant-health-records/ask` — RAG question about the user's records; JSON or HTMX fragment with citations + confidence<br/>`POST /plant-health-records/ask/sync` — ask the RAG server to re-ingest health records |
-| Frontend | Two new panels on the records page: **Tools (MCP)** and **Ask about your records (RAG)**, HTMX-driven, rendering `_mcp_result.html` / `_rag_answer.html`. The RAG card shows the confidence badge, the cited records (linked), and the insufficient-context state. When a mode is disabled the panel says so. |
+| Frontend | Two new panels on the records page: **Tools (MCP)** and **Ask about your records (RAG)**, HTMX-driven, rendering `_mcp_result.html` / `_rag_answer.html`. The RAG card shows the confidence badge with its plain-words reason, the model's self-reported evidence rating (labelled as such), the cited records (linked), and the insufficient-context state — distinguishing "nothing relevant indexed" from "the model judged the retrieved records did not answer". When a mode is disabled the panel says so. |
 | API additions used by the servers | `GET /plant-health-records/assessments?since=&offset=` for incremental ingestion; `status=` filter for the MCP list tool |
 | Tests | `health/tests/`: CRUD e2e, MCP/RAG routes with an in-process MCP server and a fake RAG server, disabled-mode behaviour |
 | CI | `health.yml` becomes a real workflow: ruff, pytest (health + ai-services), docker build, and a compose smoke test with `MCP_ENABLED=false RAG_ENABLED=false` |
@@ -193,6 +198,4 @@ question ──► tokenise ──► BM25 over chunks ──┐
 | `claude/rag-server-base` | RAG server app factory, config, store skeleton, endpoint stubs (`501`), UI shell, tests |
 | `claude/health-mcp-rag-integration` | health tools + RAG health source implemented; health backend routes, UI panels, compose connection config, health CI + smoke test; issues for the Almanac/Virtual Garden stubs and the agentic-loop validation modes |
 
-Out of scope here (group responsibilities, tracked as issues): Almanac and Virtual
-Garden tool/source implementations, and the shared agentic loop's MCP/RAG validation
-modes in `shared/ai_loop.py` / `tools/ai-loop/`.
+Almanac setup is documented in [its README](../../almanac/README.md). Local MCP and RAG validation modes run from `tools/ai-loop/validate.py`. Virtual Garden tool/source implementations and final whole-group Compose compliance remain group work.
