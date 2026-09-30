@@ -1,0 +1,71 @@
+{# One MCP tool result, as returned by the shared server through this backend. #}
+{% set labels = {"healthy": "Healthy", "at_risk": "At risk", "unhealthy": "Unhealthy", "unknown": "Unknown"} %}
+<article class="border border-border rounded-lg p-5 bg-muted" data-tool="{{ result.tool }}" data-error="{{ 'true' if result.is_error else 'false' }}">
+    <header class="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <h3 class="text-lg m-0"><code>{{ result.tool }}</code></h3>
+        <span class="text-xs text-muted-foreground">
+            {{ 'tool error' if result.is_error else 'structured result' }} · {{ result.duration_ms }} ms via the shared MCP server
+        </span>
+    </header>
+
+    {% if result.is_error %}
+        <p class="text-destructive m-0">{{ result.text }}</p>
+    {% else %}
+        {% set data = result.structured_content or {} %}
+
+        {% if data.items is defined and data.count is defined %}
+            <p class="text-sm text-muted-foreground mb-2">{{ data.count }} assessment(s){% if data.plant_ref %} for <strong>{{ data.plant_ref }}</strong>{% endif %}.</p>
+            {% if data['items'] %}
+            <ul class="uk-list record-list">
+                {% for item in data['items'] %}
+                <li class="record-row">
+                    <span class="badge status-{{ item.status }}">{{ labels.get(item.status, item.status) }}</span>
+                    <span class="record-body">
+                        <a class="text-primary hover:underline" href="{{ item.url }}">#{{ item.id }} · {{ item.plant_ref or item.plant_identification or "Unnamed plant" }}</a>
+                        <span class="record-desc text-sm text-muted-foreground">{{ item.summary }}</span>
+                    </span>
+                    <span class="text-xs text-muted-foreground whitespace-nowrap">{% if item.health_score is not none %}{{ item.health_score }}/100{% endif %}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+        {% elif data.status_counts is defined %}
+            <p class="mb-2"><strong>{{ data.plant_ref }}</strong>: {{ data.assessments }} assessment(s).</p>
+            <p class="text-sm mb-2">
+                {% for status, n in data.status_counts.items() %}<span class="badge status-{{ status }}">{{ labels.get(status, status) }} {{ n }}</span> {% endfor %}
+            </p>
+            {% if data.score_trend %}
+            <p class="text-sm mb-2">Score trend (oldest → newest):
+                {% for p in data.score_trend %}<a class="text-primary" href="{{ url_for('health.view_assessment', assessment_id=p.assessment_id) }}">{{ p.health_score if p.health_score is not none else '–' }}</a>{% if not loop.last %} → {% endif %}{% endfor %}
+            </p>
+            {% endif %}
+            {% if data.recurring_issues %}
+            <p class="text-sm mb-0">Recurring issues:
+                {% for i in data.recurring_issues %}<span class="sev-{{ i.worst_severity }}">{{ i.name }}</span> ×{{ i.occurrences }}{% if not loop.last %}, {% endif %}{% endfor %}
+            </p>
+            {% endif %}
+
+        {% elif data.ai_reachable is defined %}
+            <p class="m-0">
+                <span class="badge {{ 'status-healthy' if data.status == 'ok' else 'status-at_risk' }}">{{ data.status }}</span>
+                {{ data.service }} · local AI {{ 'reachable' if data.ai_reachable else 'unreachable' }}{% if data.model %} ({{ data.model }}){% endif %}
+            </p>
+
+        {% elif data.id is defined and data.summary is defined %}
+            <p class="mb-1">
+                <span class="badge status-{{ data.status }}">{{ labels.get(data.status, data.status) }}</span>
+                <a class="text-primary hover:underline" href="{{ data.url }}">Assessment #{{ data.id }}</a>
+                {% if data.plant_ref %}· {{ data.plant_ref }}{% endif %}
+                {% if data.health_score is not none %}· {{ data.health_score }}/100{% endif %}
+            </p>
+            <p class="m-0">{{ data.summary }}</p>
+        {% endif %}
+
+        <details class="mt-3">
+            <summary class="text-sm text-muted-foreground cursor-pointer">Raw structured result (JSON)</summary>
+            <pre class="text-xs mt-2 whitespace-pre-wrap">{{ result.structured_content | tojson(indent=2) }}</pre>
+        </details>
+        {% if data.evidence_note %}<p class="text-xs text-muted-foreground mt-3 mb-0">{{ data.evidence_note }}</p>{% endif %}
+    {% endif %}
+</article>

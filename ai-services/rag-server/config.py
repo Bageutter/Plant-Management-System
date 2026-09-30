@@ -35,6 +35,8 @@ class Config:
 
     # Feature services, via the proxy. Only the health source is implemented.
     HEALTH_SERVICE_URL = os.environ.get("HEALTH_SERVICE_URL", "http://127.0.0.1:3000/health")
+    # Browser-facing origin used in citation links (the proxy, as the user sees it).
+    HEALTH_PUBLIC_URL = os.environ.get("HEALTH_PUBLIC_URL", "http://localhost:3000/health")
     ALMANAC_SERVICE_URL = os.environ.get("ALMANAC_SERVICE_URL", "http://127.0.0.1:3000/almanac")
     VGARDEN_SERVICE_URL = os.environ.get("VGARDEN_SERVICE_URL", "http://127.0.0.1:3000/vgarden")
     SERVICE_TIMEOUT = float(os.environ.get("SERVICE_TIMEOUT", "15"))

@@ -106,7 +106,7 @@ def sources():
         [
             {
                 "source": name,
-                "implemented": False,  # flipped per source as ingestion lands
+                "implemented": bool(getattr(SOURCE_MODULES[name], "IMPLEMENTED", False)),
                 "documents": indexed.get(name, {}).get("documents", 0),
                 "chunks": indexed.get(name, {}).get("chunks", 0),
                 "last_indexed_at": indexed.get(name, {}).get("last_indexed_at"),
@@ -150,8 +150,6 @@ def query():
             config=current_app.config,
             store=_store(),
         )
-    except pipeline.PipelineNotImplemented as exc:
-        return _error(str(exc), 501, extra={"tracking": pipeline.TRACKING})
     except pipeline.ModelUnavailable as exc:
         return _error(str(exc), 503)
 

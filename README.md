@@ -67,6 +67,44 @@ docker compose logs -f almanac  # one service
 docker compose down             # stop (keeps data)
 ```
 
+## Release 1: shared local MCP + RAG servers
+
+Release 1 adds one shared **MCP server** and one shared **RAG server**. Both are plain
+local processes — **not** compose services, by requirement — and every feature reaches
+them only through its own backend/API. The containerised services find them at
+`host.docker.internal` (configured in `docker-compose.yml`). Design and boundaries:
+[docs/ai/mcp-rag-design.md](docs/ai/mcp-rag-design.md).
+
+```bash
+python -m venv .venv
+.venv/Scripts/python -m pip install -r ai-services/mcp-server/requirements-dev.txt -r ai-services/rag-server/requirements-dev.txt   # Windows
+# .venv/bin/python -m pip install ...  on macOS / Linux
+
+python ai-services/mcp-server/server.py     # http://127.0.0.1:5105/mcp  (+ /healthz)
+python ai-services/rag-server/app.py        # http://127.0.0.1:5106      (+ /healthz, /rag/query)
+```
+
+Then, with the stack up on :3000, the **Plant Health** page has a *Tools (MCP)* panel and an
+*Ask about your records (RAG)* panel; click *Sync records to the knowledge base* first so
+the RAG server indexes your assessments. Terminal validation:
+
+```bash
+curl -s http://127.0.0.1:5105/healthz
+curl -s -X POST http://127.0.0.1:5106/rag/ingest/health
+curl -s -X POST http://127.0.0.1:5106/rag/query -H 'Content-Type: application/json' -d '{"question":"What is wrong with my tomato?"}'
+curl -s http://localhost:3000/health/plant-health-records/integrations
+```
+
+| | MCP | RAG |
+| --- | --- | --- |
+| server | [`ai-services/mcp-server/`](ai-services/mcp-server/README.md) | [`ai-services/rag-server/`](ai-services/rag-server/README.md) |
+| health backend routes | `GET /plant-health-records/tools`, `POST /plant-health-records/tools/run` | `POST /plant-health-records/ask`, `POST /plant-health-records/ask/sync` |
+| switch (CI sets `false`) | `MCP_ENABLED` | `RAG_ENABLED` |
+| status | `GET /plant-health-records/integrations` | same |
+
+Almanac / Virtual Garden tools and sources are registered stubs — see issues
+#41–#44 and #46; the agentic loop's MCP/RAG validation modes are #45.
+
 ## Agentic AI workflow
 
 The almanac and virtual-garden chat answers run through an explicit

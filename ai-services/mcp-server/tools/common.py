@@ -1,7 +1,11 @@
-"""Helpers shared by every tool group: the enable switch and honest stub errors."""
+"""Helpers shared by every tool group: the enable switch, honest stub errors, and
+the one HTTP client tools are allowed to use to reach a feature service."""
 
 from __future__ import annotations
 
+import json
+
+import httpx
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
@@ -38,3 +42,69 @@ def not_implemented(tool: str, feature: str, tracking: str) -> ToolError:
         f"{tool} is not implemented in the shared MCP server yet: the {feature} "
         f"integration is tracked in {tracking}. No data was returned."
     )
+
+
+class FeatureClient:
+    """Fixed-origin HTTP client for one feature service's *public* API.
+
+    Only tool code chooses the path; tool arguments can never supply an origin,
+    method or path. Redirects are not followed, the environment's proxy settings
+    are ignored, and every failure becomes a ``ToolError`` whose text is safe to
+    show to an AI host (no internal exception details).
+    """
+
+    def __init__(self, name: str, base_url: str, timeout: float, *, transport=None):
+        self.name = name
+        self.base_url = base_url.rstrip("/") + "/"
+        self.timeout = timeout
+        self.transport = transport
+
+    def get(self, path: str, *, ok=(200,), timeout: float | None = None, **params):
+        return self._request("GET", path, params=params or None, ok=ok, timeout=timeout)
+
+    def post(self, path: str, body: dict, *, ok=(200, 201), timeout: float | None = None):
+        return self._request("POST", path, json=body, ok=ok, timeout=timeout)
+
+    def _request(self, method, path, *, params=None, json=None, ok, timeout):
+        try:
+            with httpx.Client(
+                base_url=self.base_url,
+                timeout=timeout or self.timeout,
+                follow_redirects=False,
+                trust_env=False,
+                transport=self.transport,
+            ) as client:
+                response = client.request(method, path.lstrip("/"), params=params, json=json)
+        except httpx.HTTPError:
+            raise ToolError(
+                f"The {self.name} service is unavailable or timed out at {self.base_url}. "
+                "Start the application stack and try again."
+            ) from None
+
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+
+        if response.status_code in ok:
+            if payload is None:
+                raise ToolError(f"The {self.name} service returned a non-JSON response.")
+            return payload
+
+        detail = payload.get("error") if isinstance(payload, dict) else None
+        if response.status_code == 404:
+            raise ToolError(detail or f"The requested {self.name} record was not found.")
+        if response.status_code == 400:
+            raise ToolError(detail or f"The {self.name} service rejected the request.")
+        if response.status_code == 503:
+            raise ToolError(
+                detail or f"The {self.name} service's local AI model is currently unavailable."
+            )
+        raise ToolError(
+            f"The {self.name} service returned HTTP {response.status_code}"
+            + (f": {detail}" if detail else ".")
+        )
+
+
+def as_json(value) -> str:
+    return json.dumps(value, ensure_ascii=False)

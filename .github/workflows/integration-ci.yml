@@ -15,6 +15,9 @@ concurrency:
 
 env:
   COMPOSE_PROJECT_NAME: plant-management-integration-ci
+  # Release 1: the shared MCP/RAG servers are local processes that never run in CI.
+  MCP_ENABLED: "false"
+  RAG_ENABLED: "false"
 
 jobs:
   validate-compose:
@@ -45,6 +48,7 @@ jobs:
           curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/auth/login"
           curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/vgarden/healthz"
           curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/almanac/"
+          bash scripts/test/smoke-health.sh "$base"
 
       - name: save logs
         if: always()

@@ -10,7 +10,7 @@ from __future__ import annotations
 from sources import SourceNotImplemented
 
 SOURCE = "almanac"
-TRACKING = "the Almanac RAG tracking issue (see ai-services/rag-server/README.md)"
+TRACKING = "GitHub issue #43 (Bageutter/Plant-Management-System)"
 
 
 def ingest(config, store) -> dict:

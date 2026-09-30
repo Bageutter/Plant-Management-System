@@ -130,6 +130,16 @@ services:
       - OLLAMA_MODEL=qwen2.5vl:3b
       - OLLAMA_AUTO_PULL=true
       - OLLAMA_KEEP_ALIVE=30m
+      # Release 1: shared local MCP + RAG servers. They run on the HOST, outside
+      # compose (never as services here); the container reaches them through
+      # host.docker.internal, like the local AI mode. CI sets both flags to false.
+      - MCP_ENABLED=${MCP_ENABLED:-true}
+      - MCP_SERVER_URL=${MCP_SERVER_URL:-http://host.docker.internal:5105/mcp}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
+      - RAG_SERVER_URL=${RAG_SERVER_URL:-http://host.docker.internal:5106}
+    extra_hosts:
+      # Needed on Linux engines (incl. WSL); harmless on Docker Desktop.
+      - "host.docker.internal:host-gateway"
     depends_on:
       - ollama
 
