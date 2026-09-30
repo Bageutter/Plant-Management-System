@@ -110,6 +110,48 @@ python app.py
 | `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `nginx.conf` above it) |
 | `IMAGE_MAX_EDGE` | `896` | Photos are downscaled to this longest edge before inference |
 
+## Agentic loop: Perceive → Reason → Act → Observe → Repeat
+
+Every assessment — from the form, the API, a rerun, or the MCP `assess_plant_health` tool
+— is produced by an explicit loop ([`agentic.py`](agentic.py)) rather than one bare model
+call:
+
+| Phase | What happens |
+| --- | --- |
+| **Perceive** | Build the grounding: exactly what was supplied (photo? description? plant name?) plus this plant's last three assessments, as context only. |
+| **Reason** | The vision model (`OLLAMA_MODEL`) drafts the structured assessment. From the second pass it also receives the reviewer's guidance. |
+| **Act** | The draft becomes the candidate report: normalised, clamped, score band derived. |
+| **Observe** | Deterministic checks in code (status vs score band, a photo described when none was given, no recommendation for a plant that needs action, …) and then an independent reviewer model (`OLLAMA_REVIEW_MODEL`) that reads the candidate against the same grounding and answers `approved` / `revise` with one concrete instruction. The reviewer cannot see the photo; it checks what can be checked without it. |
+| **Repeat** | `approved` → done. `revise` → the guidance is carried into the next Reason, up to `AI_LOOP_MAX_ITERATIONS`. Cap reached → the last candidate is kept, marked `revised_capped`. |
+
+If no review model is configured or it cannot be reached, the loop still runs with the
+code checks only and the run is marked `fallback`. A reviewer outage never blocks an
+assessment.
+
+**Evidence.** Each phase is logged to stdout (`ai_loop` logger), appended to
+`tools/ai-loop/logs/health.jsonl`, and written to a per-run markdown transcript under
+`tools/ai-loop/logs/reports/health/` (via the shared `shared/ai_loop.py` logger, mounted
+into the container like the other services). The run is stored with the assessment
+(`assessment_loop_runs`) and shown in the product as a
+`🔄 Perceive → Reason → Act → Observe → Repeat · N iterations` badge on every report,
+linking to `/plant-health-records/<id>/loop` — the full trace. The streaming endpoint
+emits `phase` events so the form shows which phase is running.
+
+```bash
+python tools/ai-loop/view.py --service health          # recent runs
+python tools/ai-loop/view.py <run_id>                  # one run, phase by phase
+curl -s localhost:3000/health/plant-health-records/assessments/1/loop   # the trace as JSON
+```
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OLLAMA_REVIEW_MODEL` | `qwen3:4b-instruct` | Independent reviewer (Observe). Empty → code checks only |
+| `AI_LOOP_MAX_ITERATIONS` | `2` | Maximum Reason/Observe rounds |
+| `AI_LOOP_LOG_DIR` | `tools/ai-loop/logs` (`/app/ai_loop_logs` in compose) | JSONL + transcripts |
+
+Compose sets `OLLAMA_MAX_LOADED_MODELS=2` on the Ollama service so the vision model and
+the reviewer stay resident together instead of evicting each other on every assessment.
+
 ## How the health score works
 
 `health_score` is a 0-100 rating where 100 is a thriving plant and 0 is a dead one.
@@ -203,7 +245,8 @@ Responds `201` with:
 
 `status` is one of `healthy`, `at_risk`, `unhealthy`, `unknown`. When `status` is
 `unknown`, `health_score` and `score_band` are `null`. `confidence` is `low`, `medium`
-or `high`.
+or `high`. `loop` summarises the agentic run that produced the record:
+`{"run_id": "health-…", "iterations": 1, "verdict": "approved", "reviewed": true}`.
 
 Errors: `400` for invalid/missing input, `413` when the image exceeds the size limit,
 `503` when the local AI instance is unreachable or the model cannot be pulled.
@@ -230,7 +273,8 @@ model works. Each event is a JSON object on a `data:` line:
 | Event | Fields | Meaning |
 | --- | --- | --- |
 | `progress` | `field`, `summary`, `chars`, `elapsed_ms` | Which part of the answer is being written, and the summary text so far |
-| `done` | `id`, `html` | Finished; the rendered assessment card and its record id |
+| `phase` | `phase`, `iteration`, `detail` | The loop moved to Perceive / Reason / Observe / Repeat |
+| `done` | `id`, `html`, `loop` | Finished; the rendered assessment card, its record id, and `{iterations, verdict, reviewed}` |
 | `error` | `message` | Validation failure or the local AI being unavailable |
 
 The stream ends after exactly one `done` or `error` event. `summary` is extracted from
@@ -293,6 +337,8 @@ the **Manage plant names** page (`/plant-health-records/plants`) only stops it b
 | `GET` | `/plant-health-records/` | UI: submit a plant, plus the list of past records |
 | `GET` | `/plant-health-records/<id>` | Full record: photo, name, description and assessment |
 | `GET` | `/plant-health-records/<id>/image` | The photo the assessment was based on |
+| `GET` | `/plant-health-records/<id>/loop` | The Perceive → Reason → Act → Observe → Repeat trace behind a record |
+| `GET` | `/plant-health-records/assessments/<id>/loop` | The same trace as JSON (`run_id`, `iterations`, `verdict`, `reviewer_model`, `trace[]`) |
 | `GET` | `/healthz` | Liveness, local AI reachability, and the model preload state |
 | `GET` | `/plant-health-records/assessments?plant_ref=&limit=` | List assessments, newest first |
 | `GET` | `/plant-health-records/assessments/<id>` | Fetch a single assessment as JSON |

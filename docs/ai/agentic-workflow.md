@@ -22,7 +22,7 @@ model to review than to propose.
 |---|---|---|
 | `almanac/` chat | **Runtime P→A→O→A** | `ask_almanac()` → `ai_loop.AgenticLoop`. Falls back to single-shot if `shared/ai_loop.py` isn't mounted or the reviewer model is unreachable. |
 | `vgarden/` chat | **Runtime P→A→O→A** | `garden_ai.ask()` → same orchestrator, `service="vgarden"`. Same fallback. |
-| `health/` | **No** | One structured vision call. It is *defended* (schema + `normalise_result()` re-clamping) but it does not iterate or self-review. A reviewer pass is a plausible future addition. |
+| `health/` assessment | **Runtime Perceive → Reason → Act → Observe → Repeat** | `agentic.HealthAssessmentLoop` wraps the structured vision call: code consistency checks plus an independent text reviewer (`OLLAMA_REVIEW_MODEL`) observe each draft; guidance is carried into the next Reason. Falls back to checks-only if no reviewer is available. See [below](#health). |
 | `auth/`, `shared/frontend/` | No AI | — |
 | `tools/ai-dev/` | **Build-time P→A→O→A** | Human ADAPT. Never modifies project files. |
 | `ai-services/multi-agent-server/` | Future | The placeholder for genuine multi-agent orchestration across services. |
@@ -53,6 +53,43 @@ model to review than to propose.
 Full contract, env vars, and the reviewer-prompt tuning notes are in
 [`../agentic-ai-workflow.md`](../agentic-ai-workflow.md).
 
+<a id="health"></a>
+## The health service's loop: Perceive → Reason → Act → Observe → Repeat
+
+The plant health assessment is a *structured* draft (JSON matching a schema) from a
+vision model, so its loop (`health/agentic.py`) has the same shape as the chat loop
+but different phase contents:
+
+```
+  photo / description / plant name ─► PERCEIVE ─► REASON ─► ACT ─► OBSERVE ─► REPEAT ─┬─ approved ─► record
+  earlier assessments of the plant        │         ▲                  │                 │
+  (grounding)                             │         └── guidance ──────┘◄── revise ──────┘
+                                          └──────────────── up to AI_LOOP_MAX_ITERATIONS
+```
+
+- **PERCEIVE** — `perceive()` builds the grounding: the evidence line
+  (`one photo and a written description` …), the description, the plant name and
+  up to three earlier assessments of the same plant (context only).
+- **REASON** — `OllamaClient.assess()` / `assess_stream()` draft the assessment;
+  from iteration 2 the prompt carries the reviewer's guidance.
+- **ACT** — the draft is normalised and clamped (`ai.normalise_result`) into the
+  candidate report; the logged phase records status, score, band, confidence and
+  how many issues and recommendations it proposes.
+- **OBSERVE** — `observe_checks()` (deterministic: status/score band agreement, a
+  photo described when none was given or denied when one was, missing
+  recommendations, a "healthy" plant with a high-severity issue) and then the
+  shared `ai_loop.Reviewer` with a health-specific prompt (`REVIEW_PROMPT`). The
+  reviewer never sees the photo and is told so; it judges grounding and
+  consistency only.
+- **REPEAT** — accept, or carry `guidance` into the next REASON; cap → `revised_capped`.
+- **Fallback** — no `OLLAMA_REVIEW_MODEL`, the shared module not mounted, or the
+  reviewer unreachable → checks-only, verdict `fallback`. An assessment is always produced.
+
+Evidence: the same three sinks as the chat loop (service `health` in
+`tools/ai-loop/logs/`), a row in `assessment_loop_runs` linked to the record, the
+`🔄 … · N iterations` badge on every report, and `GET /plant-health-records/<id>/loop`.
+Tests: `health/tests/test_agentic.py` (fake vision model + scripted reviewer).
+
 ## Evidence — how to show a loop ran
 
 ```bash
@@ -64,8 +101,8 @@ docker compose logs -f vgarden               # the same phases from the service
 
 - **JSONL**: `tools/ai-loop/logs/<service>.jsonl`, one object per phase.
 - **Transcript**: `tools/ai-loop/logs/reports/<service>/<run_id>.md`.
-- **DB**: `ai_loop_runs` (almanac) / `garden_ai_loop_runs` (vgarden), linked to
-  the assistant message, with the full `trace` JSON.
+- **DB**: `ai_loop_runs` (almanac) / `garden_ai_loop_runs` (vgarden) /
+  `assessment_loop_runs` (health), linked to the answer or record, with the full `trace` JSON.
 - **In product**: the `🔄 Plan → Act → Observe → Adapt · N iterations` badge →
   `GET /…/ai/loop/<run_id>` renders the trace (owner-scoped).
 
@@ -79,4 +116,5 @@ human outcome.
 |---|---|
 | Loop mechanics (iteration counts, feedback carry-through, cap, fallback, all 3 log sinks) | `almanac/tests/test_ai_loop.py`, `vgarden/tests/test_ai_loop.py` — fake drafter + fake reviewer, no Ollama |
 | Route wiring (loop runs on `/ai/ask`, `*AILoopRun` persisted + linked, trace page owner-scoped) | `vgarden/tests/test_garden_ai.py`, `almanac/tests/test_ai_mode.py` |
+| Health loop (phase order, guidance carry-through, cap, code checks forcing a revision, checks-only fallback, three sinks, `AssessmentLoopRun` per record, `phase` SSE events, trace page) | `health/tests/test_agentic.py` |
 | Build-time pipeline | `tools/ai-dev/tests/test_pipeline.py` |

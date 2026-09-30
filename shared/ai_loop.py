@@ -119,12 +119,17 @@ class Reviewer:
         timeout: int = 120,
         auto_pull: bool = False,
         num_predict: int = 300,
+        prompt: str = PROMPT_REVIEW,
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
         self.auto_pull = auto_pull
         self.num_predict = num_predict
+        # The review instructions. The default reviews a chat answer; a feature
+        # with a different kind of draft (e.g. the health service's structured
+        # assessment) supplies its own.
+        self.prompt = prompt
         self._ready = False
 
     def ensure_ready(self) -> None:
@@ -150,7 +155,7 @@ class Reviewer:
                     "stream": False,
                     "format": "json",
                     "messages": [
-                        {"role": "system", "content": PROMPT_REVIEW},
+                        {"role": "system", "content": self.prompt},
                         {"role": "user", "content": user},
                     ],
                     "options": {"temperature": 0, "num_predict": self.num_predict},
@@ -174,10 +179,18 @@ class Reviewer:
 class LoopLogger:
     """Writes each phase to three sinks so a run can always be reconstructed."""
 
-    def __init__(self, service: str, log_dir: str, run_id: str, question: str):
+    def __init__(
+        self,
+        service: str,
+        log_dir: str,
+        run_id: str,
+        question: str,
+        workflow: str = "Plan → Act → Observe → Adapt",
+    ):
         self.service = service
         self.run_id = run_id
         self.question = question
+        self.workflow = workflow
         self.started = time.monotonic()
         self.events: list[dict] = []
 
@@ -192,7 +205,7 @@ class LoopLogger:
                 f"- **service:** {service}\n"
                 f"- **started:** {datetime.now(timezone.utc).isoformat(timespec='seconds')}\n"
                 f"- **question:** {question}\n\n"
-                "Workflow: **Plan → Act → Observe → Adapt**\n"
+                f"Workflow: **{workflow}**\n"
             )
 
     _BLOCK_KEYS = ("draft", "answer", "body")  # rendered as a code block, not a bullet

@@ -1,12 +1,20 @@
 import json
 import os
+import sys
 
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request
 from jinja2 import ChoiceLoader, FileSystemLoader
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+# The shared agentic-loop module (shared/ai_loop.py) is mounted at /app/ai_loop.py in
+# the container and lives at ../shared/ai_loop.py for local/test runs.
+_SHARED = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "shared")
+if os.path.isdir(_SHARED) and _SHARED not in sys.path:
+    sys.path.insert(0, _SHARED)
+
 # Keep imports at module top; delay importing `Config` until after loading env vars
+from agentic import HealthAssessmentLoop, build_reviewer
 from ai import OllamaClient
 from db_upgrade import upgrade_database
 from extensions import db, migrate
@@ -63,6 +71,18 @@ def create_app(config_class: type | None = None) -> Flask:
         keep_alive=app.config["OLLAMA_KEEP_ALIVE"],
         num_predict=app.config["OLLAMA_NUM_PREDICT"],
         num_ctx=app.config["OLLAMA_NUM_CTX"],
+    )
+    # Perceive -> Reason -> Act -> Observe -> Repeat around every assessment (agentic.py).
+    # The reviewer is an independent text model; None (no OLLAMA_REVIEW_MODEL, or the
+    # shared module is not mounted) means the loop runs with the code checks only.
+    app.extensions["ai_loop_reviewer"] = build_reviewer(app.config)
+    app.extensions["health_loop"] = HealthAssessmentLoop(
+        client=lambda: app.extensions["ollama"],
+        reviewer=lambda: app.extensions["ai_loop_reviewer"],
+        log_dir=app.config.get(
+            "AI_LOOP_LOG_DIR", os.path.join(here, "..", "tools", "ai-loop", "logs")
+        ),
+        max_iterations=app.config.get("AI_LOOP_MAX_ITERATIONS", 2),
     )
     if app.config.get("OLLAMA_PRELOAD", True):
         # Warm the model in the background so the first assessment is fast. Never

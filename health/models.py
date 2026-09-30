@@ -94,6 +94,18 @@ class Assessment(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     @property
+    def history_entry(self) -> dict:
+        """The compact form of this record given to the model as context."""
+
+        return {
+            "id": self.id,
+            "created_at": self.created_at.strftime("%Y-%m-%d") if self.created_at else "",
+            "status": self.status,
+            "health_score": self.health_score,
+            "summary": self.summary,
+        }
+
+    @property
     def issues(self) -> list[dict]:
         return json.loads(self.issues_json)
 
@@ -169,5 +181,76 @@ class Assessment(db.Model):
             "issues": self.issues,
             "recommendations": self.recommendations,
             "missing_information": self.missing_information,
+            "created_at": self.created_at.isoformat(),
+            "loop": self.loop_run.summary() if self.loop_run else None,
+        }
+
+
+class AssessmentLoopRun(db.Model):
+    """Evidence of the Perceive → Reason → Act → Observe → Repeat run behind an assessment."""
+
+    __tablename__ = "assessment_loop_runs"
+    __table_args__ = (db.UniqueConstraint("run_id", name="uq_assessment_loop_runs_run_id"),)
+
+    VERDICT_LABELS = {
+        "approved": "approved by the reviewer",
+        "revised_capped": "revised, iteration cap reached",
+        "fallback": "checks only (no reviewer model)",
+    }
+
+    id = db.Column(db.Integer, primary_key=True)
+    assessment_id = db.Column(
+        db.Integer, db.ForeignKey("assessments.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    run_id = db.Column(db.String(64), nullable=False)
+    reviewer_model = db.Column(db.String(120), nullable=True)
+    iterations = db.Column(db.Integer, nullable=False)
+    verdict = db.Column(db.String(24), nullable=False)  # approved | revised_capped | fallback
+    transcript_path = db.Column(db.String(255), nullable=True)
+    trace = db.Column(db.JSON, nullable=False)  # list of phase events
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    assessment = db.relationship(
+        "Assessment",
+        backref=db.backref("loop_run", uselist=False, cascade="all, delete-orphan"),
+    )
+
+    @classmethod
+    def from_outcome(cls, outcome) -> "AssessmentLoopRun":
+        return cls(
+            run_id=outcome.run_id,
+            reviewer_model=outcome.reviewer_model,
+            iterations=outcome.iterations,
+            verdict=outcome.verdict,
+            transcript_path=outcome.transcript_path or None,
+            trace=outcome.trace,
+        )
+
+    @property
+    def reviewed(self) -> bool:
+        return self.verdict != "fallback"
+
+    @property
+    def verdict_label(self) -> str:
+        return self.VERDICT_LABELS.get(self.verdict, self.verdict)
+
+    def summary(self) -> dict:
+        return {
+            "run_id": self.run_id,
+            "iterations": self.iterations,
+            "verdict": self.verdict,
+            "reviewed": self.reviewed,
+        }
+
+    def to_dict(self) -> dict:
+        from agentic import WORKFLOW
+
+        return {
+            **self.summary(),
+            "workflow": WORKFLOW,
+            "assessment_id": self.assessment_id,
+            "reviewer_model": self.reviewer_model,
+            "transcript_path": self.transcript_path,
+            "trace": self.trace,
             "created_at": self.created_at.isoformat(),
         }

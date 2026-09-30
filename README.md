@@ -128,9 +128,13 @@ Almanac / Virtual Garden tools and sources are registered stubs — see issues
 
 The almanac and virtual-garden chat answers run through an explicit
 **Plan → Act → Observe → Adapt** loop (a second model reviews each draft; the loop
-revises until approved). Every phase is logged for evidence — stdout, JSONL, and a
-per-run transcript. See **[docs/agentic-ai-workflow.md](docs/agentic-ai-workflow.md)**
-and `python tools/ai-loop/view.py`.
+revises until approved), and every plant health assessment runs through a
+**Perceive → Reason → Act → Observe → Repeat** loop of the same shape (code checks plus
+an independent reviewer model observe each draft). Every phase is logged for evidence —
+stdout, JSONL, and a per-run transcript — and each answer or report links to its trace.
+See **[docs/agentic-ai-workflow.md](docs/agentic-ai-workflow.md)**,
+**[docs/ai/agentic-workflow.md](docs/ai/agentic-workflow.md)** and
+`python tools/ai-loop/view.py`.
 
 How AI is designed, prompted, grounded, and made auditable across **every**
 microservice is documented in **[docs/ai/](docs/ai/README.md)** — architecture,
