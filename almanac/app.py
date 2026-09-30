@@ -706,10 +706,18 @@ def create_app(test_config: dict | None = None) -> Flask:
         all_records = PlantReference.query.order_by(PlantReference.common_name).all()
         records = _records_for_question(question, all_records)
         plants = [record.to_dict() for record in records]
+        context_plants = plants
         history = [{"role": m.role, "content": m.content} for m in _chat_history(owner_key)]
         current_month = datetime.now().strftime("%B")
         required_answer_items = []
         if _asks_for_current_planting_list(question, all_records):
+            # A current-month list only needs names and planting dates, not care notes
+            # or earlier conversations that can overflow the local model's context.
+            context_plants = [
+                {key: plant[key] for key in ("slug", "common_name", "planting_months")}
+                for plant in plants
+            ]
+            history = []
             required_answer_items = [
                 plant["common_name"]
                 for plant in plants
@@ -719,7 +727,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         def build_context():
             grounding = {
                 "current_month": current_month,
-                "plant_records": plants,
+                "plant_records": context_plants,
                 "conversation": history,
             }
             if required_answer_items:
@@ -756,12 +764,17 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "The local AI model is unavailable. Check that Ollama is running and try again.",
             ), 503
 
+        if result.verdict == "revised_capped":
+            result.answer = "I don't have enough information in the Plant Almanac to answer that yet."
+
         user_msg = AIChatMessage(owner_key=owner_key, role="user", content=question)
         assistant_msg = AIChatMessage(
             owner_key=owner_key,
             role="assistant",
             content=result.answer,
-            source_slugs=sources_for_text(result.answer, plants),
+            source_slugs=(
+                [] if result.verdict == "revised_capped" else sources_for_text(result.answer, plants)
+            ),
         )
         db.session.add_all([user_msg, assistant_msg])
         db.session.flush()
