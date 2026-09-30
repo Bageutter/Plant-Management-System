@@ -271,6 +271,21 @@ photos were persisted), `404` if it does not exist, `503` if the local AI is unr
 `POST /plant-health-records/assessments/<id>/regenerate/stream` is the `text/event-stream`
 variant, emitting the same events as `/assessments/stream`.
 
+### Plant names
+
+The form offers the plant names used before, plus **Other / new plant…** for a new one. A
+name is stored in the `plants` table the first time an assessment (or an edit) uses it, so
+it is offered next time; migration `0004` backfills the table from existing records.
+Assessments keep their own `plant_ref` text rather than a foreign key, so removing a name on
+the **Manage plant names** page (`/plant-health-records/plants`) only stops it being offered
+— the assessments recorded under it are untouched.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/plant-health-records/plants` | Management page for a browser; JSON list (`id`, `name`, `assessments`, `created_at`) for API clients |
+| `POST` | `/plant-health-records/plants` | Add a name (`name`, JSON or form). `201` when created, `200` when it already existed, `400` when empty or over 200 characters |
+| `DELETE` | `/plant-health-records/plants/<id>` | Remove a name from the list (`204`; `404` if unknown). Assessments are kept |
+
 ### Other endpoints
 
 | Method | Path | Description |

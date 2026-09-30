@@ -42,7 +42,10 @@
                   hx-target="#submission" hx-swap="outerHTML">
                 <label class="uk-form-label" for="edit_plant_ref">Plant name / reference</label>
                 <input class="uk-input mb-4" type="text" id="edit_plant_ref" name="plant_ref"
-                       maxlength="200" value="{{ assessment.plant_ref or '' }}">
+                       maxlength="200" value="{{ assessment.plant_ref or '' }}" list="plant-names">
+                <datalist id="plant-names">
+                    {% for plant in plants or [] %}<option value="{{ plant.name }}">{% endfor %}
+                </datalist>
 
                 <label class="uk-form-label" for="edit_description">Description</label>
                 <textarea class="uk-textarea mb-4" id="edit_description" name="description"
