@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import Column, String, create_engine, inspect, text
 from werkzeug.datastructures import MultiDict
 
 from app import create_app
@@ -262,6 +262,23 @@ def test_add_missing_preserves_local_records_and_remaps_snapshot_ids(app):
     assert len(tomato.pests) == len(tomato.diseases) == len(tomato.uses) == 1
 
 
+@pytest.mark.parametrize("local_min,local_max", [(8, None), (None, 5)])
+def test_add_missing_skips_ph_bounds_that_conflict_with_local_values(app, local_min, local_max):
+    basil = PlantReference.query.filter_by(slug="basil").one()
+    basil.soil_ph_min, basil.soil_ph_max = local_min, local_max
+    basil.uses_notes = None
+    db.session.commit()
+    snapshot = _public_snapshot()
+    snapshot["tables"]["plant_references"][1].update(
+        slug="basil", soil_ph_min=6, soil_ph_max=7, uses_notes="Public use guidance",
+    )
+
+    assert import_snapshot(snapshot, add_missing=True) == 1
+    assert (basil.soil_ph_min, basil.soil_ph_max) == (local_min, local_max)
+    assert basil.uses_notes == "Public use guidance"
+    assert PlantReference.query.count() == 9
+
+
 def test_import_my_garden_cli_uses_configured_source_and_is_repeatable(app, monkeypatch):
     calls = []
 
@@ -333,18 +350,53 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
             runpy.run_path(
                 str(Path(__file__).resolve().parents[1] / "migrations/versions/001_baseline.py")
             )["upgrade"]()
+            from alembic import op
+
+            with op.batch_alter_table("plant_references") as batch:
+                batch.add_column(Column("category", String(60), nullable=False))
+                batch.add_column(Column("difficulty", String(30), nullable=False))
+                batch.add_column(Column("icon", String(12), nullable=False))
+                batch.create_index("ix_plant_references_category", ["category"])
+                batch.create_check_constraint(
+                    "ck_plant_references_difficulty",
+                    "difficulty IN ('easy', 'moderate', 'advanced')",
+                )
+        # These are the original image/month tables from an existing installation.
+        conn.execute(text("DROP TABLE plant_images"))
+        conn.execute(text("""
+            CREATE TABLE plant_images (
+                id INTEGER NOT NULL PRIMARY KEY,
+                plant_reference_id INTEGER NOT NULL REFERENCES plant_references(id) ON DELETE CASCADE,
+                filename VARCHAR(80) NOT NULL UNIQUE,
+                original_name VARCHAR(255) NOT NULL,
+                content_type VARCHAR(40) NOT NULL,
+                created_at DATETIME NOT NULL
+            )
+        """))
+        conn.execute(text("DROP TABLE planting_months"))
+        conn.execute(text("""
+            CREATE TABLE planting_months (
+                id INTEGER NOT NULL PRIMARY KEY,
+                plant_reference_id INTEGER NOT NULL REFERENCES plant_references(id) ON DELETE CASCADE,
+                climate_zone VARCHAR(60) NOT NULL,
+                month_number INTEGER NOT NULL,
+                CONSTRAINT ck_planting_months_month_number CHECK (month_number BETWEEN 1 AND 12),
+                CONSTRAINT uq_planting_months_plant_zone_month
+                    UNIQUE (plant_reference_id, climate_zone, month_number)
+            )
+        """))
         conn.execute(text("ALTER TABLE plant_references ADD COLUMN rotation_group TEXT"))
         conn.execute(
             text(
-                "INSERT INTO plant_references (id, slug, common_name, scientific_name, family, summary, rotation_group) VALUES (99,'legacy','Legacy','Legacy species','','Original wording',' brassica ')"
+                "INSERT INTO plant_references (id, slug, common_name, scientific_name, family, summary, rotation_group, category, difficulty, icon) VALUES (99,'legacy','Legacy','Legacy species','','Original wording',' brassica ', 'herb', 'easy', 'leaf')"
             )
         )
         conn.execute(
-            text("INSERT INTO planting_months (plant_reference_id,month_number) VALUES (99,3)")
+            text("INSERT INTO planting_months (plant_reference_id,month_number,climate_zone) VALUES (99,3,'temperate')")
         )
         conn.execute(
             text(
-                "INSERT INTO plant_images (plant_reference_id,filename) VALUES (99,'original.png')"
+                "INSERT INTO plant_images (plant_reference_id,filename,original_name,content_type,created_at) VALUES (99,'original.png','Original photo.png','image/png','2026-09-01 12:00:00')"
             )
         )
     app = create_app(
@@ -361,11 +413,45 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
         assert plant.yield_qty is None
         assert plant.image.filename == "original.png"
         assert plant.planting_months[0].month_number == 3
-        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "004"
+        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "005"
         assert any(
             c["name"] == "ck_yield_qty_positive"
             for c in inspect(db.engine).get_check_constraints("plant_references")
         )
+        legacy = db.session.execute(text(
+            "SELECT category,difficulty,icon FROM plant_references WHERE id=99"
+        )).one()
+        assert tuple(legacy) == ("herb", "easy", "leaf")
+        columns = {c["name"]: c for c in inspect(db.engine).get_columns("plant_references")}
+        assert all(columns[name]["nullable"] for name in ("category", "difficulty", "icon"))
+        assert any(
+            index["name"] == "ix_plant_references_category"
+            for index in inspect(db.engine).get_indexes("plant_references")
+        )
+        assert tuple(db.session.execute(text(
+            "SELECT original_name,content_type,created_at FROM plant_images WHERE plant_reference_id=99"
+        )).one()) == ("Original photo.png", "image/png", "2026-09-01 12:00:00")
+        assert db.session.execute(text(
+            "SELECT climate_zone FROM planting_months WHERE plant_reference_id=99"
+        )).scalar() == "temperate"
+        assert import_snapshot(_public_snapshot(), "https://images.example/", add_missing=True) == 2
+        assert PlantReference.query.count() == 3
+        imported = PlantReference.query.filter_by(slug="test-tomato").one()
+        assert imported.image.public_url == "https://images.example/test-tomato.jpg"
+        assert [month.month_number for month in imported.planting_months] == [9]
+        assert db.session.execute(text(
+            "SELECT category,difficulty,icon FROM plant_references WHERE slug='test-tomato'"
+        )).one() == (None, None, None)
+        assert db.session.execute(text("PRAGMA foreign_key_check")).all() == []
+        db.session.commit()
+        # Explicitly repeating the compatibility step is safe after a partial rollout.
+        with db.engine.begin() as conn:
+            with Operations.context(MigrationContext.configure(conn)):
+                runpy.run_path(str(
+                    Path(__file__).resolve().parents[1]
+                    / "migrations/versions/005_optional_legacy_fields.py"
+                ))["upgrade"]()
+        assert PlantReference.query.count() == 3
     with sqlite3.connect(path) as conn:
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute("UPDATE plant_references SET in_row_spacing_cm=-1 WHERE id=99")

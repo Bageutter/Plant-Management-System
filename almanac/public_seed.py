@@ -93,7 +93,14 @@ def import_snapshot(
         if existing is not None:
             for field in PLANT_FIELDS:
                 if getattr(existing, field) in (None, ""):
-                    setattr(existing, field, row.get(field))
+                    value = row.get(field)
+                    if field == "soil_ph_min" and existing.soil_ph_max is not None:
+                        if value is not None and value > existing.soil_ph_max:
+                            continue
+                    if field == "soil_ph_max" and existing.soil_ph_min is not None:
+                        if value is not None and value < existing.soil_ph_min:
+                            continue
+                    setattr(existing, field, value)
             if existing.rotation_group is None and row.get("rotation_group_id") is not None:
                 existing.rotation_group = rotation_groups[row["rotation_group_id"]]
             plants[row["id"]] = existing
