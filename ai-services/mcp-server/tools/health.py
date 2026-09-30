@@ -25,7 +25,7 @@ from tools.schemas import (
 )
 
 FEATURE = "Plant Health"
-TRACKING = "docs/ai/mcp-rag-design.md §2 (branch claude/health-mcp-rag-integration)"
+TRACKING = "docs/ai/mcp-rag-design.md section 2 (branch claude/health-mcp-rag-integration)"
 
 
 def register(server: MCPServer, settings) -> None:
