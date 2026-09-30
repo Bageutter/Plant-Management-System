@@ -55,9 +55,9 @@ class Assessment(db.Model):
     def confidence_level(self) -> str | None:
         """The confidence as a valid level, or None.
 
-        Records written before confidence became a graded level stored a float
-        (e.g. 0.7) in this column. Those values are meaningless as labels, so they
-        are reported as "no confidence recorded" rather than rendered verbatim.
+        Migration 0003 cleared the floats (e.g. 0.7) that records stored before
+        confidence became a graded level; this stays defensive so an unexpected
+        value is reported as "no confidence recorded" rather than rendered verbatim.
         """
         value = self.confidence
         if isinstance(value, str) and value.lower() in CONFIDENCE_LEVELS:

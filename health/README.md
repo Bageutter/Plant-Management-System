@@ -337,31 +337,47 @@ frontend → backend → MCP server → health API loop. `.github/workflows/heal
 lint, these tests, the image build, and a compose smoke test
 (`scripts/test/smoke-health.sh`) with `MCP_ENABLED=false RAG_ENABLED=false`.
 
-## Database schema changes
+## Database schema changes (Flask-Migrate / Alembic)
 
-The service has no migration tool — SQLite is the documented development default, and
-`db.create_all()` creates missing *tables* but never alters existing ones. A database
-created by an older build therefore kept its old columns, and every query failed with
-`no such column: assessments.image_data`.
+The schema is versioned under [`migrations/versions/`](migrations/versions/) and applied
+with Alembic through Flask-Migrate. `db.create_all()` is gone: it created missing tables
+but never altered existing ones, which is exactly what broke older `health.db` files when
+the model gained columns.
 
-On startup the service now compares each mapped table against the live database and adds
-any missing columns with `ALTER TABLE ... ADD COLUMN` (see [schema.py](schema.py)). This
-is deliberately limited:
+**Applying.** `create_app()` runs `flask db upgrade` on startup (`AUTO_MIGRATE`, default
+`true`), so a container or a local run is always at the latest revision. To apply as an
+explicit deploy step instead, set `AUTO_MIGRATE=false` and run:
 
-* It only **adds** columns. It never drops or retypes them — that needs a real migration
-  tool, and silently discarding data at startup would be worse than a stale column.
-* Added columns are nullable, so existing rows keep their data and simply have no value
-  for the new fields.
-* It is idempotent; a second run adds nothing.
+```bash
+cd health
+flask --app app db upgrade
+```
 
-Because of this, upgrading no longer requires deleting `health/instance/health.db`.
+**Adopting an existing database.** A `health.db` created by an earlier build has tables but
+no `alembic_version`. On first start it is stamped at revision `0001` — the schema
+`create_all()` originally produced — and then upgraded like any other database, so existing
+rows are preserved. Revision `0002` adds only the columns actually missing (a database that
+went through the old startup `ALTER TABLE` stop-gap already has them) and retypes
+`confidence` from a float to a label; `0003` clears legacy float confidences such as `0.7`
+and lower-cases valid labels.
 
-One consequence worth knowing: rows written before `confidence` became a graded level
-stored a float (e.g. `0.7`) in that column. Those values are not valid levels, so they are
-reported as "no confidence recorded" rather than rendered as a meaningless `0.7` badge.
+**Creating a migration.** Change the model, then let Alembic diff it against the database:
 
-**This is a stop-gap, not the intended long-term solution.** It keeps no history, cannot
-express a destructive change, and covers only this service — `auth` and `vgarden` still
-use bare `db.create_all()` and will hit the same problem when their models change.
-Replacing it with Flask-Migrate/Alembic across all services is tracked in
-[issue #10](https://github.com/Bageutter/Plant-Management-System/issues/10).
+```bash
+cd health
+flask --app app db migrate -m "add plant notes" --rev-id 0004
+```
+
+Review the generated file (autogenerate misses renames and cannot see data), commit it
+alongside the model change, and open a PR. A destructive change is expressed the same way —
+`op.drop_column(...)` in a reviewed, versioned file — never at startup by inference.
+Revision ids are sequential (`--rev-id`) so history reads in order.
+
+SQLite cannot `ALTER` most things, so revisions use `op.batch_alter_table` (Flask-Migrate's
+`render_as_batch`), which rebuilds the table; on PostgreSQL the same code issues ordinary
+`ALTER TABLE` statements. `flask --app app db upgrade --sql` prints the DDL for review.
+
+```bash
+flask --app app db current    # revision the database is at
+flask --app app db history    # every revision, newest first
+```
