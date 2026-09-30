@@ -67,6 +67,25 @@ docker compose logs -f almanac  # one service
 docker compose down             # stop (keeps data)
 ```
 
+## Database migrations
+
+Every service's schema is versioned with Alembic and applied on startup, so upgrading a
+service never requires deleting its database:
+
+| service | tool | revisions | applied by |
+| --- | --- | --- | --- |
+| `auth`, `vgarden`, `health` | Flask-Migrate | `<service>/migrations/versions/` | `create_app()` (`AUTO_MIGRATE=true`), or `flask --app app db upgrade` |
+| `almanac` | Alembic directly | `almanac/migrations/versions/` | `schema.upgrade_schema()` at startup |
+
+A database created before migrations existed (by `db.create_all()`) is adopted on first
+start: stamped at the baseline revision that describes it, then upgraded, keeping its rows.
+
+To change a schema: edit the model, then from the service directory run
+`flask --app app db migrate -m "what changed" --rev-id 000N`, review the generated file
+under `migrations/versions/`, and commit it with the model change. Destructive changes
+(dropping or renaming a column) are written the same way, so they get reviewed.
+`health/README.md` has the full walkthrough.
+
 ## Release 1: shared local MCP + RAG servers
 
 Release 1 adds one shared **MCP server** and one shared **RAG server**. Both are plain
