@@ -270,6 +270,48 @@ Uploaded photos **are** persisted, at the reduced resolution actually used for i
 (typically ~75 KB), so a past record can be reviewed alongside the photo it was based on.
 The full-resolution original is never stored.
 
+## Release 1: MCP and RAG through this backend
+
+The records page has two extra panels. Neither talks to a shared server from the
+browser; both go through routes on this service, so the integration can be switched off
+per deployment (CI runs with both off).
+
+| Route | Purpose |
+| --- | --- |
+| `GET /plant-health-records/integrations` | `{"mcp": {enabled, url, reachable}, "rag": {...}}`. `reachable` is `null` when a mode is disabled — nothing is probed. |
+| `GET /plant-health-records/tools` | Tools registered on the shared MCP server, flagged `health: true` for ours. |
+| `POST /plant-health-records/tools/run` | Run **one whitelisted Plant Health tool** (`tool` + its arguments, JSON or form). Arguments are validated here before anything is sent; non-health tools are refused with `400`. Returns the structured result as JSON, or a rendered fragment for HTMX. A tool-level failure (e.g. record not found) is `200` with `is_error: true` and the tool's message — the tool ran, it just had nothing to return. |
+| `POST /plant-health-records/ask` | Ask the shared RAG server a `question` (≤ 500 chars) restricted to the `health` source. Returns the RAG contract (`answer`, `confidence` ∈ high/medium/low/insufficient, `citations[]`, `insufficient_context`) or the `_rag_answer.html` fragment with the confidence badge, cited records and the insufficient-context state. |
+| `POST /plant-health-records/ask/sync` | Ask the RAG server to re-index this service's assessments. |
+
+Status codes: `400` bad input, `503` when the mode is disabled (`MCP_ENABLED=false` /
+`RAG_ENABLED=false`), `502` when the shared server is unreachable or failed.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MCP_ENABLED` | `true` | Switch for the tools panel/routes |
+| `MCP_SERVER_URL` | `http://127.0.0.1:5105/mcp` (`http://host.docker.internal:5105/mcp` in compose) | Shared MCP server |
+| `RAG_ENABLED` | `true` | Switch for the ask panel/routes |
+| `RAG_SERVER_URL` | `http://127.0.0.1:5106` (`http://host.docker.internal:5106` in compose) | Shared RAG server |
+| `INTEGRATION_TIMEOUT` | `180` | Seconds per call to a shared server |
+
+The list endpoint gained `status=`, `since=` (ISO-8601) and `offset=` so the shared
+servers can filter and page through records.
+
+### Tests and CI
+
+```bash
+cd health
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+Tests use a fake model. The MCP tests run the real shared server in-process and route
+its HTTP calls back into the Flask app under test, so a tool run exercises the whole
+frontend → backend → MCP server → health API loop. `.github/workflows/health.yml` runs
+lint, these tests, the image build, and a compose smoke test
+(`scripts/test/smoke-health.sh`) with `MCP_ENABLED=false RAG_ENABLED=false`.
+
 ## Database schema changes
 
 The service has no migration tool — SQLite is the documented development default, and

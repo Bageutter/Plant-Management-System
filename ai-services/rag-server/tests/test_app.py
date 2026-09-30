@@ -52,16 +52,17 @@ def test_landing_page_renders_with_shared_header(client):
 def test_sources_lists_every_known_source_as_unindexed(client):
     body = client.get("/rag/sources").get_json()
     assert [row["source"] for row in body] == ["health", "almanac", "vgarden"]
-    assert all(row["chunks"] == 0 and row["implemented"] is False for row in body)
+    assert all(row["chunks"] == 0 for row in body)
+    assert [row["implemented"] for row in body] == [True, False, False]
 
 
-@pytest.mark.parametrize("source", ["health", "almanac", "vgarden"])
+@pytest.mark.parametrize("source", ["almanac", "vgarden"])
 def test_ingest_stubs_answer_501_and_name_the_tracking_reference(client, source):
     response = client.post(f"/rag/ingest/{source}")
     assert response.status_code == 501
     body = response.get_json()
     assert body["source"] == source and "not implemented" in body["error"]
-    assert body["tracking"]
+    assert "issue #4" in body["tracking"]
 
 
 def test_ingest_unknown_source_is_404(client):
@@ -88,21 +89,30 @@ def test_query_validation(client, payload, fragment):
     assert fragment in response.get_json()["error"]
 
 
-def test_valid_query_hits_the_not_implemented_pipeline_stub(client):
+def test_valid_query_on_an_empty_index_is_an_insufficient_context_answer(client):
     response = client.post("/rag/query", json={"question": "Why are the tomato leaves yellow?"})
-    assert response.status_code == 501
+    assert response.status_code == 200
     body = response.get_json()
-    assert "not implemented" in body["error"] and "No answer was generated" in body["error"]
+    assert body["insufficient_context"] is True and body["confidence"] == "insufficient"
+    assert body["answer"] is None and body["citations"] == []
+    assert body["retrieval"] == {
+        "mode": "lexical",
+        "candidates": 0,
+        "considered": 0,
+        "top_k": 5,
+        "query_terms": ["tomato", "leave", "yellow"],
+        "sources": ["health", "almanac", "vgarden"],
+    }
 
-    # The HTMX path renders the same failure as a fragment, never as fabricated prose.
+    # The HTMX path renders the insufficient-context state, never fabricated prose.
     response = client.post(
         "/rag/query",
         data={"question": "Why are the tomato leaves yellow?", "sources": "health, almanac"},
         headers={"HX-Request": "true"},
     )
-    assert response.status_code == 501
+    assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "could not answer" in html and 'data-status="501"' in html
+    assert 'data-confidence="insufficient"' in html and "Not enough relevant context" in html
 
 
 def test_disabled_server_only_serves_liveness_and_landing(tmp_path, monkeypatch):

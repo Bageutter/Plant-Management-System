@@ -1,0 +1,115 @@
+{# Release 1: frontend access to the shared local MCP and RAG servers, always
+   routed through this service's own backend (routes in routes.py). #}
+<section class="mt-12 grid grid-cols-1 gap-8" id="integrations">
+
+    <!-- Ask about your records (RAG) -->
+    <div class="border border-border rounded-lg p-6">
+        <header class="flex items-center justify-between gap-4 flex-wrap mb-2">
+            <h2 class="text-2xl m-0">Ask about your records</h2>
+            <span class="badge {{ 'status-healthy' if rag_enabled else 'status-unknown' }}">RAG {{ 'on' if rag_enabled else 'off' }}</span>
+        </header>
+        <p class="text-sm text-muted-foreground mb-4">
+            Questions are answered by the shared local RAG server from your indexed health records
+            only, with the records it used cited underneath and a confidence category. If nothing
+            relevant is indexed it says so rather than guessing.
+        </p>
+
+        {% if rag_enabled %}
+        <form class="flex flex-col gap-3"
+              hx-post="{{ url_for('health.ask_records') }}" hx-target="#rag-result" hx-swap="innerHTML"
+              hx-indicator="#rag-busy">
+            <label class="uk-form-label" for="rag-question">Question</label>
+            <input class="uk-input" type="text" id="rag-question" name="question" required maxlength="500"
+                   placeholder="e.g. What has been wrong with the tomato in the back bed?">
+            <div class="flex items-center gap-3 flex-wrap">
+                <button class="uk-btn uk-btn-primary" type="submit">Ask</button>
+                <span id="rag-busy" class="htmx-indicator text-sm text-muted-foreground">
+                    <span class="spinner" aria-hidden="true"></span> Retrieving and answering locally…
+                </span>
+            </div>
+        </form>
+        <div id="rag-result" class="mt-4" aria-live="polite"></div>
+
+        <div class="mt-4 flex items-center gap-3 flex-wrap text-sm">
+            <button class="uk-btn uk-btn-default uk-btn-sm" type="button"
+                    hx-post="{{ url_for('health.sync_records') }}" hx-target="#rag-sync" hx-swap="innerHTML"
+                    hx-indicator="#rag-sync-busy">
+                Sync records to the knowledge base
+            </button>
+            <span id="rag-sync-busy" class="htmx-indicator text-muted-foreground">Indexing…</span>
+            <span id="rag-sync" class="text-muted-foreground"></span>
+        </div>
+        {% else %}
+        <p class="text-sm text-muted-foreground m-0" data-integration="rag-disabled">
+            RAG is disabled for this deployment (<code>RAG_ENABLED=false</code>), as it is during CI.
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Tools (MCP) -->
+    <div class="border border-border rounded-lg p-6" x-data="{ tool: 'list_health_assessments' }">
+        <header class="flex items-center justify-between gap-4 flex-wrap mb-2">
+            <h2 class="text-2xl m-0">Tools</h2>
+            <span class="badge {{ 'status-healthy' if mcp_enabled else 'status-unknown' }}">MCP {{ 'on' if mcp_enabled else 'off' }}</span>
+        </header>
+        <p class="text-sm text-muted-foreground mb-4">
+            Runs one of this service's registered tools on the shared local MCP server and shows the
+            structured result it returns. Only Plant Health tools can be run from here.
+        </p>
+
+        {% if mcp_enabled %}
+        <form class="flex flex-col gap-3"
+              hx-post="{{ url_for('health.run_tool') }}" hx-target="#mcp-result" hx-swap="innerHTML"
+              hx-indicator="#mcp-busy">
+            <label class="uk-form-label" for="mcp-tool">Tool</label>
+            <select class="uk-select" id="mcp-tool" name="tool" x-model="tool">
+                {% for name, label in mcp_tools.items() %}
+                <option value="{{ name }}">{{ name }} — {{ label }}</option>
+                {% endfor %}
+            </select>
+
+            <div x-show="['list_health_assessments','summarise_plant_health_history','assess_plant_health'].includes(tool)" x-cloak>
+                <label class="uk-form-label" for="mcp-plant-ref">Plant reference</label>
+                <input class="uk-input" type="text" id="mcp-plant-ref" name="plant_ref" maxlength="200"
+                       placeholder="e.g. Tomato in the back bed">
+            </div>
+            <div x-show="tool === 'list_health_assessments'" x-cloak>
+                <label class="uk-form-label" for="mcp-status">Status filter</label>
+                <select class="uk-select" id="mcp-status" name="status">
+                    <option value="">any</option>
+                    <option value="healthy">healthy</option>
+                    <option value="at_risk">at_risk</option>
+                    <option value="unhealthy">unhealthy</option>
+                    <option value="unknown">unknown</option>
+                </select>
+            </div>
+            <div x-show="['list_health_assessments','summarise_plant_health_history'].includes(tool)" x-cloak>
+                <label class="uk-form-label" for="mcp-limit">Limit</label>
+                <input class="uk-input" type="number" id="mcp-limit" name="limit" min="1" max="50" value="10">
+            </div>
+            <div x-show="tool === 'get_health_assessment'" x-cloak>
+                <label class="uk-form-label" for="mcp-id">Assessment id</label>
+                <input class="uk-input" type="number" id="mcp-id" name="assessment_id" min="1">
+            </div>
+            <div x-show="tool === 'assess_plant_health'" x-cloak>
+                <label class="uk-form-label" for="mcp-description">Description</label>
+                <textarea class="uk-textarea" id="mcp-description" name="description" rows="3" maxlength="4000"
+                          placeholder="Describe the plant and its care"></textarea>
+                <p class="text-xs text-muted-foreground mt-1 mb-0">Creates a new record via the local model; can take a while on CPU.</p>
+            </div>
+
+            <div class="flex items-center gap-3 flex-wrap">
+                <button class="uk-btn uk-btn-primary" type="submit">Run tool</button>
+                <span id="mcp-busy" class="htmx-indicator text-sm text-muted-foreground">
+                    <span class="spinner" aria-hidden="true"></span> Calling the shared MCP server…
+                </span>
+            </div>
+        </form>
+        <div id="mcp-result" class="mt-4" aria-live="polite"></div>
+        {% else %}
+        <p class="text-sm text-muted-foreground m-0" data-integration="mcp-disabled">
+            MCP is disabled for this deployment (<code>MCP_ENABLED=false</code>), as it is during CI.
+        </p>
+        {% endif %}
+    </div>
+</section>

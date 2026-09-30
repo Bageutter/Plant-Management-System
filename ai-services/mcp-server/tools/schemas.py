@@ -62,7 +62,7 @@ class AssessmentSummary(BaseModel):
     summary: str
     has_image: bool
     created_at: str
-    path: str
+    url: str
 
 
 class Assessment(AssessmentSummary):

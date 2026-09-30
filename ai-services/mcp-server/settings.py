@@ -52,6 +52,8 @@ class Settings:
     almanac_url: str = "http://127.0.0.1:3000/almanac"
     vgarden_url: str = "http://127.0.0.1:3000/vgarden"
     timeout: float = 10.0
+    # A text assessment runs the vision model; allow the health service's own 180 s.
+    assess_timeout: float = 200.0
 
     def __post_init__(self) -> None:
         for name in ("health_url", "almanac_url", "vgarden_url"):
@@ -71,4 +73,5 @@ class Settings:
             almanac_url=env.get("ALMANAC_SERVICE_URL", "http://127.0.0.1:3000/almanac"),
             vgarden_url=env.get("VGARDEN_SERVICE_URL", "http://127.0.0.1:3000/vgarden"),
             timeout=float(env.get("SERVICE_TIMEOUT", "10")),
+            assess_timeout=float(env.get("ASSESS_TIMEOUT", "200")),
         )

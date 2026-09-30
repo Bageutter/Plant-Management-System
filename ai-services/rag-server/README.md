@@ -12,19 +12,32 @@ feature UI ─► feature backend/API ─► shared RAG server (localhost:5106) 
                                                         └─► local Ollama (/api/embed, /api/chat)
 ```
 
-## Status of this branch
+## Endpoints
 
-The **base structure** is in place and every endpoint exists with its final contract.
-Retrieval, grounding and generation, and the health knowledge source, land in the
-`claude/health-mcp-rag-integration` branch. Until then:
-
-| Endpoint | Now |
+| Endpoint | Behaviour |
 | --- | --- |
-| `GET /healthz` | live: Ollama reachability, chunk count, enabled flag |
-| `GET /` | live: HTMX page (query form + indexed sources table) |
-| `GET /rag/sources` | live: known sources with document/chunk counts |
-| `POST /rag/ingest/<source>` | `501` for `health`, `almanac`, `vgarden`; `404` for anything else |
-| `POST /rag/query` | validates input (`400`), then `501` — never a fabricated answer |
+| `GET /healthz` | Ollama reachability (503 = degraded), chunk count, enabled flag |
+| `GET /` | HTMX page: query form + indexed sources table |
+| `GET /rag/sources` | known sources with `implemented`, document and chunk counts |
+| `POST /rag/ingest/health` | **implemented**: pages `GET /plant-health-records/assessments` from the health API and indexes summary / description / issues / recommendations / missing-information passages per record (embeddings best-effort). Idempotent; deleted records disappear. |
+| `POST /rag/ingest/almanac`, `.../vgarden` | `501` stubs — issues #43, #44 |
+| `POST /rag/query` | `400` on bad input; otherwise the grounded-answer contract below. Nothing relevant retrieved → `insufficient_context: true` **without a model call**. |
+
+### How an answer is produced
+
+1. **Retrieve** — BM25 over every indexed passage (title + text), plus cosine similarity
+   when both the query and the passages have embeddings (`retrieval.mode = "hybrid"`).
+2. **Gate** — a passage counts as relevant only if it covers ≥ `RAG_MIN_COVERAGE` of the
+   question's terms or its similarity ≥ `RAG_MIN_SIMILARITY`. Nothing passes → refusal.
+3. **Ground + generate** — the top-k passages become the *only* facts in the prompt;
+   local Ollama answers at `temperature 0` against a pinned JSON schema
+   (`answer`, `cited_chunk_ids`, `evidence_strength`, `insufficient_context`).
+4. **Re-validate** — citations the model did not receive are dropped; its
+   `insufficient_context` flag is honoured; an answer with no valid citation is pinned to
+   the top passage and capped at `low`.
+5. **Confidence category** (in code): `high` = ≥ 2 citations, top relevance ≥ 0.6 and
+   `strong`; `low` = `weak`, or a single weak citation, or the no-citation fallback;
+   `medium` otherwise; `insufficient` when refused.
 
 `RAG_ENABLED=false` (what CI uses) keeps `/healthz` and `/` up and turns every other
 endpoint into a `503` with `{"enabled": false}`.
@@ -76,4 +89,6 @@ cd ai-services/rag-server
 python -m pytest -q
 ```
 
-No Ollama and no feature service are needed.
+No Ollama and no feature service are needed: retrieval and the confidence rules are
+tested directly, generation is faked, and the health source is ingested from a fake
+health API on a real socket (paging, deletions, outages).

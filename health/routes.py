@@ -1,6 +1,7 @@
 import base64
 import binascii
 import json
+from datetime import datetime
 
 from flask import (
     Blueprint,
@@ -15,8 +16,13 @@ from flask import (
     url_for,
 )
 
-from ai import AIUnavailableError
+from ai import STATUSES, AIUnavailableError
 from extensions import db
+from integrations import (
+    IntegrationDisabled,
+    IntegrationUnavailable,
+    coerce_tool_args,
+)
 from images import downscale_image, to_base64
 from models import Assessment
 
@@ -191,16 +197,42 @@ def _persist(result, client, plant_ref, description, image_b64, image_mime) -> A
 
 @bp.route("/assessments", methods=["GET"])
 def list_assessments():
+    """List assessments, newest first.
+
+    Filters: ``plant_ref`` (exact), ``status``, ``since`` (ISO-8601, records created
+    at or after it). Paging: ``limit`` (1-200) and ``offset``. The shared MCP and RAG
+    servers page through this endpoint; it never returns image bytes.
+    """
+
     query = Assessment.query
     plant_ref = request.args.get("plant_ref")
     if plant_ref:
         query = query.filter_by(plant_ref=plant_ref)
 
+    status = request.args.get("status")
+    if status:
+        if status not in STATUSES:
+            return jsonify({"error": f"status must be one of: {', '.join(STATUSES)}"}), 400
+        query = query.filter_by(status=status)
+
+    since = request.args.get("since")
+    if since:
+        try:
+            since_at = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        except ValueError:
+            return jsonify({"error": "since must be an ISO-8601 timestamp"}), 400
+        # created_at is stored naive (UTC); compare like with like.
+        query = query.filter(Assessment.created_at >= since_at.replace(tzinfo=None))
+
     limit = request.args.get("limit", default=50, type=int)
     limit = max(1, min(limit, 200))
+    offset = max(0, request.args.get("offset", default=0, type=int))
 
     assessments = (
-        query.order_by(Assessment.created_at.desc(), Assessment.id.desc()).limit(limit).all()
+        query.order_by(Assessment.created_at.desc(), Assessment.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
     )
     return jsonify([a.to_dict() for a in assessments])
 
@@ -449,3 +481,128 @@ def _clean(value, max_chars: int, field: str) -> str | None:
     if len(value) > max_chars:
         raise ValueError(f"{field} must be {max_chars} characters or fewer")
     return value
+
+
+# --------------------------------------------------------------------------- #
+# Release 1: shared local MCP + RAG servers, reached only through this backend  #
+# --------------------------------------------------------------------------- #
+
+MAX_QUESTION_CHARS = 500
+
+
+def _mcp():
+    return current_app.extensions["mcp"]
+
+
+def _rag():
+    return current_app.extensions["rag"]
+
+
+def _integration_error(exc: Exception, wants_html: bool, *, fragment: str = "_error.html"):
+    """Map integration failures to honest status codes: 400 input, 503 disabled,
+    502 shared server unreachable / failed."""
+
+    if isinstance(exc, ValueError):
+        code = 400
+    elif isinstance(exc, IntegrationDisabled):
+        code = 503
+    else:
+        code = 502
+    if wants_html:
+        return render_template(fragment, message=str(exc), error=True, code=code), code
+    return jsonify({"error": str(exc), "status_code": code}), code
+
+
+@bp.route("/integrations")
+def integrations_status():
+    """Wiring status of both integrations. Probes only when a mode is enabled, so
+    the CI smoke test (both disabled) proves configuration without any network."""
+
+    def probe(client, fn):
+        if not client.enabled:
+            return None
+        try:
+            fn()
+            return True
+        except (IntegrationUnavailable, IntegrationDisabled):
+            return False
+
+    mcp, rag = _mcp(), _rag()
+    return jsonify(
+        {
+            "mcp": {"enabled": mcp.enabled, "url": mcp.url, "reachable": probe(mcp, mcp.list_tools)},
+            "rag": {"enabled": rag.enabled, "url": rag.base_url, "reachable": probe(rag, rag.status)},
+        }
+    )
+
+
+@bp.route("/tools")
+def list_tools():
+    """Tools registered on the shared MCP server (all features), flagged for ours."""
+
+    try:
+        return jsonify(_mcp().list_tools())
+    except (IntegrationDisabled, IntegrationUnavailable) as exc:
+        return _integration_error(exc, False)
+
+
+@bp.route("/tools/run", methods=["POST"])
+def run_tool():
+    """Run one whitelisted Plant Health tool on the shared MCP server.
+
+    Accepts JSON or form data: ``tool`` plus that tool's arguments. Returns the
+    structured result as JSON, or a rendered fragment for HTMX.
+    """
+
+    wants_html = _wants_html()
+    source = request.get_json(silent=True) or {} if request.is_json else request.form
+    tool = (source.get("tool") or "").strip()
+    try:
+        if not tool:
+            raise ValueError("Provide a 'tool' to run.")
+        arguments = coerce_tool_args(tool, source)
+        result = _mcp().call(tool, arguments)
+    except (ValueError, IntegrationDisabled, IntegrationUnavailable) as exc:
+        return _integration_error(exc, wants_html)
+
+    if wants_html:
+        return render_template("_mcp_result.html", result=result)
+    return jsonify(result)
+
+
+@bp.route("/ask", methods=["POST"])
+def ask_records():
+    """Ask the shared RAG server a question grounded in this service's records."""
+
+    wants_html = _wants_html()
+    source = request.get_json(silent=True) or {} if request.is_json else request.form
+    try:
+        question = _clean(source.get("question"), MAX_QUESTION_CHARS, "question")
+        if not question:
+            raise ValueError("Provide a question.")
+        answer = _rag().ask(question, sources=("health",))
+    except (ValueError, IntegrationDisabled, IntegrationUnavailable) as exc:
+        return _integration_error(exc, wants_html)
+
+    if wants_html:
+        return render_template("_rag_answer.html", answer=answer)
+    return jsonify(answer)
+
+
+@bp.route("/ask/sync", methods=["POST"])
+def sync_records():
+    """Ask the shared RAG server to (re)index this service's assessments."""
+
+    wants_html = _wants_html()
+    try:
+        result = _rag().sync_health()
+    except (IntegrationDisabled, IntegrationUnavailable) as exc:
+        return _integration_error(exc, wants_html, fragment="_notice.html")
+
+    if wants_html:
+        message = (
+            f"Indexed {result.get('documents', 0)} record(s) as {result.get('chunks', 0)} passages"
+            + (" with embeddings." if result.get("embedded") else ".")
+        )
+        return render_template("_notice.html", message=message, error=False, code=200)
+    return jsonify(result)

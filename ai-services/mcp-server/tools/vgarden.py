@@ -14,7 +14,7 @@ from tools.common import READ_ONLY, guard, not_implemented
 from tools.schemas import GardenSnapshot, PlantingList, RecordId
 
 FEATURE = "Virtual Garden"
-TRACKING = "the Virtual Garden MCP tracking issue (see ai-services/mcp-server/README.md)"
+TRACKING = "GitHub issue #42 (Bageutter/Plant-Management-System)"
 
 
 def register(server: MCPServer, settings) -> None:

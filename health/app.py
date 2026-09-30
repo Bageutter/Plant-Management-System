@@ -8,6 +8,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 # Keep imports at module top; delay importing `Config` until after loading env vars
 from ai import OllamaClient
 from extensions import db
+from integrations import McpToolClient, RagClient
 from schema import sync_schema
 
 
@@ -26,13 +27,16 @@ def create_app(config_class: type | None = None) -> Flask:
     # X-Forwarded-* so url_for()/redirects carry that prefix. No-op without the
     # headers (direct/local runs).
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    # Shared project templates (the nav header). In compose they are mounted at
+    # ./shared_templates; outside compose (tests, local runs) fall back to the
+    # repository's shared/templates directory.
+    here = os.path.abspath(os.path.dirname(__file__))
+    shared_dirs = [
+        os.path.join(here, "shared_templates"),
+        os.path.join(here, "..", "shared", "templates"),
+    ]
     app.jinja_loader = ChoiceLoader(
-        [
-            app.jinja_loader,
-            FileSystemLoader(
-                os.path.join(os.path.abspath(os.path.dirname(__file__)), "shared_templates")
-            ),
-        ]
+        [app.jinja_loader, *(FileSystemLoader(d) for d in shared_dirs if os.path.isdir(d))]
     )
 
     db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
@@ -52,6 +56,19 @@ def create_app(config_class: type | None = None) -> Flask:
         num_ctx=app.config["OLLAMA_NUM_CTX"],
     )
 
+    # Release 1: clients for the shared local MCP and RAG servers. The browser only
+    # ever reaches them through this backend (see routes.py).
+    app.extensions["mcp"] = McpToolClient(
+        app.config["MCP_SERVER_URL"],
+        enabled=app.config["MCP_ENABLED"],
+        timeout=app.config["INTEGRATION_TIMEOUT"],
+    )
+    app.extensions["rag"] = RagClient(
+        app.config["RAG_SERVER_URL"],
+        enabled=app.config["RAG_ENABLED"],
+        timeout=app.config["INTEGRATION_TIMEOUT"],
+    )
+
     from routes import bp as health_bp
     from routes import root_bp
 
@@ -66,8 +83,12 @@ def create_app(config_class: type | None = None) -> Flask:
     @app.context_processor
     def inject_template_globals():
         from ai import CONFIDENCE_EXPLANATION, SCORE_EXPLANATION
+        from integrations import TOOL_LABELS
 
         return {
+            "mcp_enabled": app.extensions["mcp"].enabled,
+            "rag_enabled": app.extensions["rag"].enabled,
+            "mcp_tools": TOOL_LABELS,
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
             "health_public_url": app.config.get(
                 "HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records/"
