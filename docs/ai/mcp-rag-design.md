@@ -153,6 +153,11 @@ question ──► tokenise ──► BM25 over chunks ──┐
 | `medium` | otherwise, when ≥ 1 cited chunk and model strength ≥ `moderate` |
 | `low` | 1 weak citation, or model strength `weak` |
 
+The response returns the category as `confidence`, the model's own rating as
+`model_confidence` (`weak` / `moderate` / `strong`, or `null` when the gate refused before
+the model ran), and a plain-words `confidence_reason` derived from the same inputs. The
+health UI shows all three, labelling the model's rating as self-reported.
+
 ### Endpoints
 
 | Method | Path | Purpose |
@@ -178,7 +183,7 @@ question ──► tokenise ──► BM25 over chunks ──┐
 | --- | --- |
 | Config | `MCP_ENABLED`, `MCP_SERVER_URL`, `RAG_ENABLED`, `RAG_SERVER_URL` |
 | Backend/API | `GET  /plant-health-records/integrations` — status of both integrations (used by the CI smoke test to prove they are wired but disabled)<br/>`GET  /plant-health-records/tools` — tool list from the MCP server<br/>`POST /plant-health-records/tools/run` — run one whitelisted health tool; JSON or HTMX fragment<br/>`POST /plant-health-records/ask` — RAG question about the user's records; JSON or HTMX fragment with citations + confidence<br/>`POST /plant-health-records/ask/sync` — ask the RAG server to re-ingest health records |
-| Frontend | Two new panels on the records page: **Tools (MCP)** and **Ask about your records (RAG)**, HTMX-driven, rendering `_mcp_result.html` / `_rag_answer.html`. The RAG card shows the confidence badge, the cited records (linked), and the insufficient-context state. When a mode is disabled the panel says so. |
+| Frontend | Two new panels on the records page: **Tools (MCP)** and **Ask about your records (RAG)**, HTMX-driven, rendering `_mcp_result.html` / `_rag_answer.html`. The RAG card shows the confidence badge with its plain-words reason, the model's self-reported evidence rating (labelled as such), the cited records (linked), and the insufficient-context state — distinguishing "nothing relevant indexed" from "the model judged the retrieved records did not answer". When a mode is disabled the panel says so. |
 | API additions used by the servers | `GET /plant-health-records/assessments?since=&offset=` for incremental ingestion; `status=` filter for the MCP list tool |
 | Tests | `health/tests/`: CRUD e2e, MCP/RAG routes with an in-process MCP server and a fake RAG server, disabled-mode behaviour |
 | CI | `health.yml` becomes a real workflow: ruff, pytest (health + ai-services), docker build, and a compose smoke test with `MCP_ENABLED=false RAG_ENABLED=false` |

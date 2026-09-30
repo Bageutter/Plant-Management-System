@@ -37,7 +37,11 @@ feature UI ─► feature backend/API ─► shared RAG server (localhost:5106) 
    the top passage and capped at `low`.
 5. **Confidence category** (in code): `high` = ≥ 2 citations, top relevance ≥ 0.6 and
    `strong`; `low` = `weak`, or a single weak citation, or the no-citation fallback;
-   `medium` otherwise; `insufficient` when refused.
+   `medium` otherwise; `insufficient` when refused. The response also carries
+   `model_confidence` — the model's own `evidence_strength` rating (`null` when the gate
+   refused before the model was called) — and `confidence_reason`, a plain-words
+   justification built from the same inputs, so callers can show *why* a category was
+   chosen and how the model's self-assessment fed into it.
 
 `RAG_ENABLED=false` (what CI uses) keeps `/healthz` and `/` up and turns every other
 endpoint into a `503` with `{"enabled": false}`.
@@ -73,14 +77,23 @@ python ai-services/rag-server/app.py
   "question": "…",
   "answer": "… or null",
   "confidence": "high | medium | low | insufficient",
+  "confidence_reason": "2 cited passages, top relevance 84%; model rated its evidence strong, meeting every high-confidence rule.",
+  "model_confidence": "weak | moderate | strong | null",
   "insufficient_context": false,
   "citations": [{"chunk_id": "health:12:summary", "source": "health", "source_id": "12",
-                 "title": "Assessment #12 — Tomato, back bed", "url": "…", "excerpt": "…", "score": 0.71}],
-  "retrieval": {"mode": "lexical | hybrid", "candidates": 9, "top_k": 5},
-  "model": "qwen3:4b-instruct",
-  "duration_ms": 4120
+                 "title": "Assessment #12 — Tomato, back bed", "url": "…",
+                 "recorded_at": "2026-09-20T05:30:00+00:00", "excerpt": "…", "score": 0.71}],
+  "retrieval": {"mode": "lexical | hybrid", "candidates": 2, "considered": 9, "top_k": 5,
+                "query_terms": ["tomato", "yellow"], "sources": ["health"]},
+  "model": "qwen3:4b-instruct or null",
+  "duration_ms": 4120,
+  "note": "… or null"
 }
 ```
+
+`model` is `null` only when the model was not consulted (relevance gate refusal).
+`model_confidence` is `null` when the model was not consulted or did not supply a valid
+rating; it is never filled in by code.
 
 ## Tests
 

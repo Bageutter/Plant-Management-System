@@ -223,4 +223,6 @@ def test_end_to_end_ingest_then_query_through_the_api(fake, tmp_path, monkeypatc
     )
     html = fragment.get_data(as_text=True)
     assert fragment.status_code == 200 and "Assessment #3" in html and "confidence" in html.lower()
+    assert 'data-model-confidence="strong"' in html and "Why " in html
+    assert "model rated its evidence strong" in html
     app.extensions["chunk_store"].close()
