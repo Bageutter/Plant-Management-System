@@ -4,3 +4,7 @@ Flask-WTF
 itsdangerous
 python-dotenv
 psycopg2-binary
+# Release 1: clients for the shared local MCP + RAG servers (neither is containerised)
+mcp==2.2.0
+httpx==0.28.1
+requests

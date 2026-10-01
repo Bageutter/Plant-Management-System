@@ -17,6 +17,59 @@ from models import Container, Garden, GardenArea, Planting
 from weather import WeatherUnavailableError
 
 
+GARDEN_SNAPSHOT_EVIDENCE_NOTE = (
+    "Recorded garden state as entered by the owner: areas, containers and plantings are "
+    "the gardener's own records, not AI-determined observations or a health diagnosis."
+)
+
+
+def _planting_payload(planting: Planting) -> dict:
+    """The Planting shape the shared MCP/RAG servers are contracted to (see
+    ai-services/mcp-server/tools/schemas.py::Planting)."""
+    location = None
+    loc = planting.location
+    if loc is not None:
+        if loc.garden_area is not None:
+            location = f"area: {loc.garden_area.name}"
+        elif loc.container is not None:
+            location = f"container: {loc.container.name}"
+    return {
+        "id": planting.id,
+        "crop_name": planting.crop_name,
+        "quantity": planting.quantity,
+        "lifecycle_state": planting.lifecycle_state,
+        "growth_stage": planting.growth_stage,
+        "planted_date": planting.planted_date.isoformat() if planting.planted_date else None,
+        "expected_harvest_date": (
+            planting.expected_harvest_date.isoformat() if planting.expected_harvest_date else None
+        ),
+        "location": location,
+    }
+
+
+def _garden_snapshot_payload(garden: Garden) -> dict:
+    areas = GardenArea.query.filter_by(garden_id=garden.id).order_by(GardenArea.name).all()
+    containers = (
+        Container.query.join(GardenArea, Container.garden_area_id == GardenArea.id)
+        .filter(GardenArea.garden_id == garden.id)
+        .order_by(Container.name)
+        .all()
+    )
+    plantings = (
+        Planting.query.filter_by(garden_id=garden.id).order_by(Planting.created_at.desc()).all()
+    )
+    return {
+        "garden_id": garden.id,
+        "name": garden.name,
+        "location_label": garden.location_label or None,
+        "climate_zone": garden.climate_zone or None,
+        "areas": [a.to_dict() for a in areas],
+        "containers": [c.to_dict() for c in containers],
+        "plantings": [_planting_payload(p) for p in plantings],
+        "evidence_note": GARDEN_SNAPSHOT_EVIDENCE_NOTE,
+    }
+
+
 def _apply_location(garden: Garden, place_name: str) -> None:
     """Geocode a typed place name (Open-Meteo) onto the garden. Best-effort: on a
     lookup miss keep the raw text; on a network error keep whatever's there."""
@@ -185,3 +238,53 @@ def delete_garden(garden_id):
     db.session.delete(garden)
     db.session.commit()
     return "", 204
+
+
+# --- Release 1: shared local MCP + RAG servers read garden state through these  --
+# --- endpoints, never the database. Garden data is private per-owner (unlike    --
+# --- the Almanac catalogue or Plant Health assessments), so — unlike those two  --
+# --- features' public catalogue/list APIs — these require the same             --
+# --- service-token bearer auth already used for auth's /gardens calls above.   --
+
+
+@bp.route("/gardens/<int:garden_id>/snapshot", methods=["GET"])
+@require_service_token
+def garden_snapshot(garden_id):
+    """One garden's areas, containers and plantings. Used by the shared MCP
+    server's ``get_garden_snapshot`` tool."""
+    garden = db.session.get(Garden, garden_id)
+    if garden is None:
+        return jsonify({"error": "garden not found"}), 404
+    return jsonify(_garden_snapshot_payload(garden))
+
+
+@bp.route("/gardens/<int:garden_id>/plantings", methods=["GET"])
+@require_service_token
+def garden_plantings(garden_id):
+    """One garden's plantings only. Used by the shared MCP server's
+    ``list_garden_plantings`` tool."""
+    garden = db.session.get(Garden, garden_id)
+    if garden is None:
+        return jsonify({"error": "garden not found"}), 404
+    items = [
+        _planting_payload(p)
+        for p in Planting.query.filter_by(garden_id=garden_id)
+        .order_by(Planting.created_at.desc())
+        .all()
+    ]
+    return jsonify({"garden_id": garden_id, "items": items, "count": len(items)})
+
+
+@bp.route("/gardens/export", methods=["GET"])
+@require_service_token
+def export_gardens():
+    """Every garden's full snapshot, for the shared RAG server's bulk ingestion.
+
+    There is no owner filter: the RAG server indexes every garden so each owner's
+    "ask about this garden" question can be grounded, and it is the RAG server's
+    ``/rag/query`` ``source_id`` filter (not this endpoint) that keeps one owner's
+    question from being grounded in another owner's garden. See
+    ai-services/rag-server/sources/vgarden.py and docs/ai/mcp-rag-design.md.
+    """
+    gardens = Garden.query.order_by(Garden.id).all()
+    return jsonify([_garden_snapshot_payload(g) for g in gardens])
