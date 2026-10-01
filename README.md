@@ -84,26 +84,42 @@ python ai-services/mcp-server/server.py     # http://127.0.0.1:5105/mcp  (+ /hea
 python ai-services/rag-server/app.py        # http://127.0.0.1:5106      (+ /healthz, /rag/query)
 ```
 
-Then, with the stack up on :3000, the **Plant Health** page has a *Tools (MCP)* panel and an
-*Ask about your records (RAG)* panel; click *Sync records to the knowledge base* first so
-the RAG server indexes your assessments. Terminal validation:
+Then, with the stack up on :3000:
+- The **Plant Health** page has a *Tools (MCP)* panel and an *Ask about your records
+  (RAG)* panel; click *Sync records to the knowledge base* first so the RAG server
+  indexes your assessments.
+- The **Plant Almanac** page has equivalent panels for the public plant/pest/disease
+  catalogue.
+- Each **Virtual Garden** page (`/vgarden/gardens/<id>/view`) has its own *Tools* and
+  *Ask about this garden (grounded)* panels, scoped to that one garden only — garden
+  data is private per-owner, so these require being logged in as the garden's owner,
+  unlike the other two features' public panels.
+
+Terminal validation:
 
 ```bash
 curl -s http://127.0.0.1:5105/healthz
 curl -s -X POST http://127.0.0.1:5106/rag/ingest/health
 curl -s -X POST http://127.0.0.1:5106/rag/query -H 'Content-Type: application/json' -d '{"question":"What is wrong with my tomato?"}'
 curl -s http://localhost:3000/health/plant-health-records/integrations
+curl -s http://localhost:3000/vgarden/integrations   # service-wide wiring status, no login needed
 ```
 
 | | MCP | RAG |
 | --- | --- | --- |
 | server | [`ai-services/mcp-server/`](ai-services/mcp-server/README.md) | [`ai-services/rag-server/`](ai-services/rag-server/README.md) |
 | health backend routes | `GET /plant-health-records/tools`, `POST /plant-health-records/tools/run` | `POST /plant-health-records/ask`, `POST /plant-health-records/ask/sync` |
+| almanac backend routes | `POST /integrations/mcp` | `POST /integrations/rag` |
+| vgarden backend routes (owner-scoped) | `GET /gardens/:id/tools`, `POST /gardens/:id/tools/run` | `POST /gardens/:id/ask`, `POST /gardens/:id/ask/sync` |
 | switch (CI sets `false`) | `MCP_ENABLED` | `RAG_ENABLED` |
-| status | `GET /plant-health-records/integrations` | same |
+| status | `GET /plant-health-records/integrations` / `GET /integrations` (vgarden, service-wide) | same |
 
-Almanac / Virtual Garden tools and sources are registered stubs — see issues
-#41–#44 and #46; the agentic loop's MCP/RAG validation modes are #45.
+Full design, including why Virtual Garden's integration differs (private per-owner
+data → service-token-authenticated endpoints + `source_id`-scoped retrieval):
+[docs/ai/mcp-rag-design.md](docs/ai/mcp-rag-design.md). The shared agentic loop's
+MCP/RAG validation modes (`tools/ai-loop/validate.py`) currently exercise the Almanac
+contract; extending them to Virtual Garden's authenticated, owner-scoped flow is
+tracked as group follow-up.
 
 ## Agentic AI workflow
 

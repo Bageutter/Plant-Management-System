@@ -119,8 +119,8 @@ README describes the target shape.
 
 | Path | Intended role |
 |---|---|
-| `ai-services/mcp-server/` | **Built (Release 1):** the shared local MCP server. Plant Health tools implemented; Almanac (#41) and Virtual Garden (#42) tools are registered stubs. See [`mcp-rag-design.md`](mcp-rag-design.md). |
-| `ai-services/rag-server/` | **Built (Release 1):** the shared local RAG server. `health` source implemented; `almanac` (#43) and `vgarden` (#44) sources are stubs. |
+| `ai-services/mcp-server/` | **Built (Release 1):** the shared local MCP server. Plant Health, Plant Almanac and Virtual Garden tools are all implemented. See [`mcp-rag-design.md`](mcp-rag-design.md). |
+| `ai-services/rag-server/` | **Built (Release 1):** the shared local RAG server. `health`, `almanac` and `vgarden` sources are all implemented. |
 | `ai-services/multi-agent-server/` | Orchestrate multiple specialised agents across services for a single user question |
 | `ai-services/ai-mode/` | A conversational "manage my garden" front door spanning vgarden + almanac + health |
 | `ai-input/` | Convert unstructured natural-language / image input into structured Virtual Garden updates |
