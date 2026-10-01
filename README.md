@@ -67,6 +67,25 @@ docker compose logs -f almanac  # one service
 docker compose down             # stop (keeps data)
 ```
 
+## Database migrations
+
+Every service's schema is versioned with Alembic and applied on startup, so upgrading a
+service never requires deleting its database:
+
+| service | tool | revisions | applied by |
+| --- | --- | --- | --- |
+| `auth`, `vgarden`, `health` | Flask-Migrate | `<service>/migrations/versions/` | `create_app()` (`AUTO_MIGRATE=true`), or `flask --app app db upgrade` |
+| `almanac` | Alembic directly | `almanac/migrations/versions/` | `schema.upgrade_schema()` at startup |
+
+A database created before migrations existed (by `db.create_all()`) is adopted on first
+start: stamped at the baseline revision that describes it, then upgraded, keeping its rows.
+
+To change a schema: edit the model, then from the service directory run
+`flask --app app db migrate -m "what changed" --rev-id 000N`, review the generated file
+under `migrations/versions/`, and commit it with the model change. Destructive changes
+(dropping or renaming a column) are written the same way, so they get reviewed.
+`health/README.md` has the full walkthrough.
+
 ## Release 1: shared local MCP + RAG servers
 
 Release 1 adds one shared **MCP server** and one shared **RAG server**. Both are plain
@@ -126,9 +145,13 @@ MCP/RAG routes (see [`tools/ai-loop/README.md`](tools/ai-loop/README.md#release-
 
 The almanac and virtual-garden chat answers run through an explicit
 **Plan → Act → Observe → Adapt** loop (a second model reviews each draft; the loop
-revises until approved). Every phase is logged for evidence — stdout, JSONL, and a
-per-run transcript. See **[docs/agentic-ai-workflow.md](docs/agentic-ai-workflow.md)**
-and `python tools/ai-loop/view.py`.
+revises until approved), and every plant health assessment runs through a
+**Perceive → Reason → Act → Observe → Repeat** loop of the same shape (code checks plus
+an independent reviewer model observe each draft). Every phase is logged for evidence —
+stdout, JSONL, and a per-run transcript — and each answer or report links to its trace.
+See **[docs/agentic-ai-workflow.md](docs/agentic-ai-workflow.md)**,
+**[docs/ai/agentic-workflow.md](docs/ai/agentic-workflow.md)** and
+`python tools/ai-loop/view.py`.
 
 How AI is designed, prompted, grounded, and made auditable across **every**
 microservice is documented in **[docs/ai/](docs/ai/README.md)** — architecture,

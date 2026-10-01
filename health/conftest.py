@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 
 import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _MCP_SERVER = os.path.join(_HERE, "..", "ai-services", "mcp-server")
-for path in (_HERE, _MCP_SERVER):
+_SHARED = os.path.join(_HERE, "..", "shared")  # ai_loop.py, as app.py does at runtime
+for path in (_HERE, _MCP_SERVER, _SHARED):
     if os.path.isdir(path) and path not in sys.path:
         sys.path.insert(0, path)
 
@@ -29,12 +31,21 @@ class FakeOllama:
         self.model = "fake-vision-model"
         self.reachable = True
         self.calls = []
+        # Per-call overrides merged into the result (the last entry repeats), so a
+        # test can make the first draft inconsistent and the next one fine.
+        self.script = []
         self.preload_state = {"status": "loaded", "attempts": 1, "detail": "fake"}
 
     def ping(self):
         return self.reachable
 
-    def _result(self, description, plant_ref):
+    def _result(self, description, plant_ref, call_index=0):
+        result = self._base_result(description, plant_ref)
+        if self.script:
+            result.update(self.script[min(call_index, len(self.script) - 1)])
+        return result
+
+    def _base_result(self, description, plant_ref):
         return {
             "status": "at_risk",
             "health_score": 45,
@@ -51,17 +62,58 @@ class FakeOllama:
             "duration_ms": 12,
         }
 
-    def assess(self, description=None, image_b64=None, plant_ref=None):
+    def _record(self, description, image_b64, plant_ref, feedback, history):
+        self.calls.append(
+            {
+                "description": description,
+                "plant_ref": plant_ref,
+                "image": bool(image_b64),
+                "feedback": feedback,
+                "history": list(history or []),
+            }
+        )
+        return len(self.calls) - 1
+
+    def assess(self, description=None, image_b64=None, plant_ref=None, feedback=None, history=None):
         from ai import AIUnavailableError
 
-        self.calls.append({"description": description, "plant_ref": plant_ref, "image": bool(image_b64)})
+        index = self._record(description, image_b64, plant_ref, feedback, history)
         if not self.reachable:
             raise AIUnavailableError("Could not reach the local AI instance at http://fake-ollama")
-        return self._result(description, plant_ref)
+        return self._result(description, plant_ref, index)
 
-    def assess_stream(self, description=None, image_b64=None, plant_ref=None):
+    def assess_stream(self, description=None, image_b64=None, plant_ref=None, feedback=None, history=None):
+        index = self._record(description, image_b64, plant_ref, feedback, history)
+        if not self.reachable:
+            yield {"type": "error", "message": "Could not reach the local AI instance at http://fake-ollama"}
+            return
         yield {"type": "progress", "field": "Writing the summary", "summary": "…", "chars": 1, "elapsed_ms": 1}
-        yield {"type": "result", "result": self._result(description, plant_ref)}
+        yield {"type": "result", "result": self._result(description, plant_ref, index)}
+
+
+class FakeReviewer:
+    """Stand-in for ai_loop.Reviewer with the health prompt. Emits verdicts from
+    `script` (repeating the last one) so the loop is driven deterministically."""
+
+    model = "fake-reviewer"
+
+    def __init__(self, script=None):
+        self.script = list(script or ["approved"])
+        self.calls = []
+        self.fail = False
+
+    def review(self, question, grounding, draft):
+        if self.fail:
+            raise RuntimeError("reviewer offline")
+        self.calls.append({"question": question, "grounding": grounding, "draft": draft})
+        verdict = self.script[min(len(self.calls) - 1, len(self.script) - 1)]
+        if verdict == "approved":
+            return {"verdict": "approved", "issues": [], "guidance": ""}
+        return {
+            "verdict": "revise",
+            "issues": ["draft not grounded"],
+            "guidance": f"fix iteration {len(self.calls)}",
+        }
 
 
 class TestConfig:
@@ -79,6 +131,11 @@ class TestConfig:
     OLLAMA_NUM_PREDICT = 10
     OLLAMA_NUM_CTX = 512
     OLLAMA_PRELOAD = False  # no background thread hitting a fake URL during tests
+    # No review model -> build_reviewer() returns None; the autouse fixture below
+    # injects a FakeReviewer instead.
+    OLLAMA_REVIEW_MODEL = None
+    AI_LOOP_MAX_ITERATIONS = 2
+    AI_LOOP_LOG_DIR = os.path.join(tempfile.gettempdir(), "health-ai-loop-test-logs")
     MAX_CONTENT_LENGTH = 1024 * 1024
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     IMAGE_MAX_EDGE = 64
@@ -95,10 +152,21 @@ def app(tmp_path):
 
     class Config(TestConfig):
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(tmp_path, 'health.db')}"
+        AI_LOOP_LOG_DIR = os.path.join(tmp_path, "ai-loop-logs")
 
     application = create_app(Config)
     application.extensions["ollama"] = FakeOllama()
     return application
+
+
+@pytest.fixture(autouse=True)
+def ai_loop_reviewer(app):
+    """Every test gets a reviewer that approves on the first pass (1 iteration,
+    verdict 'approved'). Override `.script` for revision tests."""
+
+    fake = FakeReviewer()
+    app.extensions["ai_loop_reviewer"] = fake
+    return fake
 
 
 @pytest.fixture

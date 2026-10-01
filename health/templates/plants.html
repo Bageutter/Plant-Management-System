@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Plant names — Plant Health{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <a href="{{ url_for('health.index') }}" class="text-sm text-primary hover:underline">&larr; Back to plant health records</a>
+
+    <h1 class="text-3xl mt-3 mb-2">Plant names</h1>
+    <p class="text-muted-foreground mb-8">
+        The names offered in the assessment form. A name is added automatically the first time
+        it is used on an assessment, or here. Deleting a name only removes it from the list —
+        the assessments recorded under it are kept, and still show the name they were given.
+    </p>
+
+    <form class="border border-border rounded-lg p-6 mb-8 flex flex-col gap-3"
+          hx-post="{{ url_for('health.create_plant') }}" hx-target="#plant-list" hx-swap="outerHTML"
+          hx-on::after-request="if (event.detail.successful) this.reset()">
+        <label class="uk-form-label" for="new-plant-name">Add a plant name</label>
+        <div class="flex items-center gap-3 flex-wrap">
+            <input class="uk-input flex-1" type="text" id="new-plant-name" name="name" required
+                   maxlength="200" placeholder="e.g. Tomato in the back bed">
+            <button class="uk-btn uk-btn-primary" type="submit">Add</button>
+        </div>
+    </form>
+
+    {% include "_plant_list.html" %}
+</div>
+{% endblock %}

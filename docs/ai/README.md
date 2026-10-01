@@ -23,8 +23,9 @@ allowed to use, pins the model to a **response schema**, runs at
 **`temperature` 0–0.2**, and tells the model to refuse rather than guess when the
 grounding is thin. The two conversational features (Almanac chat, Virtual Garden
 chat) additionally wrap the call in a **Plan → Act → Observe → Adapt** loop where
-a second, independent model reviews each draft; every phase of every run is
-logged three ways for evidence.
+a second, independent model reviews each draft, and the Plant Health assessment
+runs a **Perceive → Reason → Act → Observe → Repeat** loop of the same shape around
+its vision call; every phase of every run is logged three ways for evidence.
 
 ## AI by service — the whole map
 
@@ -32,7 +33,7 @@ logged three ways for evidence.
 |---|---|---|---|---|---|
 | **`almanac/`** (Plant Almanac) | "Ask the Almanac" chat | `qwen3:4b-instruct`, JSON schema, `temp 0` | **Yes** — runtime P→A→O→A, reviewer `llama3.1:8b` | Selected plant reference records + current month + chat history | [context](context-management.md#almanac) · [prompts](prompt-engineering.md#almanac) |
 | **`vgarden/`** (Virtual Garden) | "Ask about this garden" chat; **Release 1:** owner-scoped *Tools (MCP)* and *Ask about this garden, grounded (RAG)* panels routed through the backend, both strictly scoped to the authenticated garden | `qwen3:4b-instruct`, JSON schema, `temp 0` (chat); none for MCP/RAG passthrough | **Yes** (chat only) — runtime P→A→O→A, reviewer `llama3.1:8b` | One garden snapshot (areas, containers, plantings) + live weather + chat history | [context](context-management.md#vgarden) · [prompts](prompt-engineering.md#vgarden) · [mcp+rag](mcp-rag-design.md) |
-| **`health/`** (Plant Health) | Photo / description health assessment (+ SSE streaming variant); **Release 1:** *Tools (MCP)* and *Ask about your records (RAG)* panels routed through the backend | `qwen2.5vl:3b` (vision), JSON schema, `temp 0.2` | No — single structured call, normalised + clamped in code | The user's photo and/or free-text description + optional `plant_ref` string | [context](context-management.md#health) · [prompts](prompt-engineering.md#health) · [mcp+rag](mcp-rag-design.md) |
+| **`health/`** (Plant Health) | Photo / description health assessment (+ SSE streaming variant); **Release 1:** *Tools (MCP)* and *Ask about your records (RAG)* panels routed through the backend | `qwen2.5vl:3b` (vision), JSON schema, `temp 0.2` | **Yes** — runtime **Perceive → Reason → Act → Observe → Repeat**: code consistency checks + reviewer `qwen3:4b-instruct` | The user's photo and/or free-text description + optional `plant_ref` string + the plant's earlier assessments | [context](context-management.md#health) · [prompts](prompt-engineering.md#health) · [agentic](agentic-workflow.md#health) · [mcp+rag](mcp-rag-design.md) |
 | **`auth/`** | — | none | — | — | — |
 | **`shared/frontend/`** | — | none | — | — | — |
 | **`tools/ai-dev/`** | Build-time repo reviewer (`./ai-dev`) | `qwen3:4b-instruct` proposes, `llama3.1:8b` reviews | **Yes** — build-time P→A→O→A, human ADAPT | Repository files in scope, capped at 16 000 chars | [agentic](agentic-workflow.md#build-time) |
