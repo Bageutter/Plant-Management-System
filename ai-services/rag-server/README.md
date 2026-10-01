@@ -1,9 +1,9 @@
 # Shared RAG server
 
 One **local, non-containerised** Retrieval-Augmented Generation server for the whole
-Plant Management System. Feature backends (Plant Health and Plant Almanac) send it questions from
-their own API routes, so the frontend reaches RAG *through* the backend — the Release 1
-requirement. It is never a `docker compose` service.
+Plant Management System. Feature backends (Plant Health, Plant Almanac, Virtual Garden)
+send it questions from their own API routes, so the frontend reaches RAG *through* the
+backend — the Release 1 requirement. It is never a `docker compose` service.
 
 Design, retrieval gate and confidence rules: [`docs/ai/mcp-rag-design.md`](../../docs/ai/mcp-rag-design.md).
 
@@ -21,8 +21,8 @@ feature UI ─► feature backend/API ─► shared RAG server (localhost:5106) 
 | `GET /rag/sources` | known sources with `implemented`, document and chunk counts |
 | `POST /rag/ingest/health` | **implemented**: pages `GET /plant-health-records/assessments` from the health API and indexes summary / description / issues / recommendations / missing-information passages per record (embeddings best-effort). Idempotent; deleted records disappear. |
 | `POST /rag/ingest/almanac` | Pages the public catalogue and indexes plants, pests and disease guides with source links. Refreshes replace this source only after every read succeeds. |
-| `POST /rag/ingest/vgarden` | `501` stub — issue #44 |
-| `POST /rag/query` | `400` on bad input; otherwise the grounded-answer contract below. Nothing relevant retrieved → `insufficient_context: true` **without a model call**. |
+| `POST /rag/ingest/vgarden` | **implemented**: reads every garden via vgarden's service-token-authenticated `GET /gardens/export` and indexes summary / areas / containers / plantings passages per garden, each carrying `source_id = str(garden_id)`. |
+| `POST /rag/query` | `400` on bad input; otherwise the grounded-answer contract below. Nothing relevant retrieved → `insufficient_context: true` **without a model call**. Accepts an optional `source_id` to narrow retrieval to one record within a source — Virtual Garden always sets this to the asking owner's garden id, so one owner's question is never grounded in another owner's garden (garden state is private per-owner, unlike the public Almanac catalogue or Health assessment list). |
 
 ### How an answer is produced
 
@@ -66,7 +66,8 @@ python ai-services/rag-server/app.py
 | `RAG_DATABASE_PATH` | `ai-services/rag-server/instance/rag.db` | SQLite chunk store |
 | `HEALTH_SERVICE_URL` | `http://127.0.0.1:3000/health` | health public API (through the proxy) |
 | `ALMANAC_SERVICE_URL` / `ALMANAC_PUBLIC_URL` | `http://127.0.0.1:3000/almanac` / `http://localhost:3000/almanac` | catalogue API / browser citation links |
-| `VGARDEN_SERVICE_URL` | via the proxy | reserved for the garden source |
+| `VGARDEN_SERVICE_URL` / `VGARDEN_PUBLIC_URL` | `http://127.0.0.1:3000/vgarden` / `http://localhost:3000/vgarden` | snapshot export API / browser citation links |
+| `VGARDEN_SERVICE_TOKEN` | `dev-inter-service-secret-change-me` | bearer token for vgarden's private `GET /gardens/export` — must match vgarden's own `INTER_SERVICE_SECRET` |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen3:4b-instruct` | local answering model |
 | `RAG_EMBED_MODEL` | `nomic-embed-text` | local embedding model; empty → lexical retrieval only |
 | `RAG_TOP_K` | `5` | passages handed to the model (max 10) |
@@ -86,7 +87,7 @@ python ai-services/rag-server/app.py
                  "title": "Assessment #12 — Tomato, back bed", "url": "…",
                  "recorded_at": "2026-09-20T05:30:00+00:00", "excerpt": "…", "score": 0.71}],
   "retrieval": {"mode": "lexical | hybrid", "candidates": 2, "considered": 9, "top_k": 5,
-                "query_terms": ["tomato", "yellow"], "sources": ["health"]},
+                "query_terms": ["tomato", "yellow"], "sources": ["health"], "source_id": null},
   "model": "qwen3:4b-instruct or null",
   "duration_ms": 4120,
   "note": "… or null"
@@ -105,5 +106,6 @@ python -m pytest -q
 ```
 
 No Ollama and no feature service are needed: retrieval and the confidence rules are
-tested directly, generation is faked, and the health source is ingested from a fake
-health API on a real socket (paging, deletions, outages).
+tested directly, generation is faked, and the health/almanac/vgarden sources are each
+ingested from a fake feature API on a real socket (paging, deletions, outages, and —
+for vgarden — the service-token auth and the `source_id` isolation between gardens).
