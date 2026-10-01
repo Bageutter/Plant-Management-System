@@ -33,6 +33,9 @@ did not supply one — never invented.
 from __future__ import annotations
 
 import logging
+import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import time
 
 from embeddings import EmbeddingUnavailable, build_embedder
@@ -160,6 +163,52 @@ def answer(
     started = time.monotonic()
     chunks = store.chunks(sources)
 
+    today = datetime.now(ZoneInfo("Australia/Sydney"))
+    if re.fullmatch(r"(?:what|which plants|what plants) can i (?:plant|sow|grow) (?:now|this month)[?.! ]*", question.strip(), re.I):
+        month = today.strftime("%B")
+        matches = []
+        for chunk in chunks:
+            recorded = re.search(r"Recorded planting months: ([^.]+)", chunk.text)
+            if chunk.source == "almanac" and recorded and month.casefold() in {m.strip().casefold() for m in recorded.group(1).split(",")}:
+                matches.append(chunk)
+        retrieval = {"mode": "calendar", "candidates": len(matches), "considered": len(chunks),
+                     "top_k": top_k, "query_terms": [month], "sources": list(sources),
+                     "current_date": today.date().isoformat(), "timezone": "Australia/Sydney"}
+        if not matches:
+            return insufficient(question, retrieval=retrieval, duration_ms=_ms(started), note=f"No saved planting records match {month}.")
+        unique = {c.source_id: c for c in matches}
+        matches = sorted(unique.values(), key=lambda c: c.title)
+        names = [c.title.split(" — ")[0] for c in matches]
+        return {"question": question, "answer": f"For {month}, your saved planting calendar lists: " + ", ".join(names) + ".",
+                "confidence": "medium", "confidence_reason": f"Exact match to recorded {month} planting months; local growing conditions are not recorded here.",
+                "model_confidence": None, "insufficient_context": False,
+                "citations": [_citation(Candidate(c, 1, 1, None, 1)) for c in matches],
+                "retrieval": retrieval, "model": None, "duration_ms": _ms(started), "note": None}
+
+    comparison = re.fullmatch(r"compare (.+?) (?:and|with|versus|vs\.?) (.+?)[?.!]*", question.strip(), re.I)
+    if comparison:
+        selected = []
+        for name in comparison.groups():
+            found = next((c for c in chunks if c.source == "almanac" and c.title.split(" — ")[0].casefold() == name.strip().casefold()), None)
+            if found:
+                selected.append(found)
+        if len(selected) == 2:
+            lines = []
+            for chunk in selected:
+                facts = []
+                for label in ("Summary", "Sun needs", "Water needs", "Recorded planting months", "Care"):
+                    match = re.search(re.escape(label) + r": ([^.]+)", chunk.text)
+                    if match:
+                        facts.append(f"{label}: {match.group(1)}.")
+                lines.append(chunk.title.split(" — ")[0] + " — " + " ".join(facts))
+            return {"question": question, "answer": "\n\n".join(lines), "confidence": "medium",
+                    "confidence_reason": "Direct comparison of the two saved plant records; no growing conditions were inferred.",
+                    "model_confidence": None, "insufficient_context": False,
+                    "citations": [_citation(Candidate(c, 1, 1, None, 1)) for c in selected],
+                    "retrieval": {"mode": "record_comparison", "candidates": 2, "considered": len(chunks),
+                                  "top_k": top_k, "query_terms": list(comparison.groups()), "sources": list(sources)},
+                    "model": None, "duration_ms": _ms(started), "note": None}
+
     # -- retrieve (dense is best-effort; lexical always works) ----------------
     query_embedding = None
     note = None
@@ -193,6 +242,8 @@ def answer(
     # -- ground + generate -------------------------------------------------------
     grounding = {
         "question": question,
+        "current_date": today.date().isoformat(),
+        "timezone": "Australia/Sydney",
         "passages": [
             {
                 "chunk_id": c.chunk.chunk_id,
