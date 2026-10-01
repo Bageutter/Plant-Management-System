@@ -103,34 +103,55 @@ python ai-services/mcp-server/server.py     # http://127.0.0.1:5105/mcp  (+ /hea
 python ai-services/rag-server/app.py        # http://127.0.0.1:5106      (+ /healthz, /rag/query)
 ```
 
-Then, with the stack up on :3000, the **Plant Health** page has a *Tools (MCP)* panel and an
-*Ask about your records (RAG)* panel; click *Sync records to the knowledge base* first so
-the RAG server indexes your assessments. Terminal validation:
+Then, with the stack up on :3000:
+- The **Plant Health** page has a *Tools (MCP)* panel and an *Ask about your records
+  (RAG)* panel; click *Sync records to the knowledge base* first so the RAG server
+  indexes your assessments.
+- The **Plant Almanac** page has equivalent panels for the public plant/pest/disease
+  catalogue.
+- Each **Virtual Garden** page (`/vgarden/gardens/<id>/view`) has its own *Tools* and
+  *Ask about this garden (grounded)* panels, scoped to that one garden only — garden
+  data is private per-owner, so these require being logged in as the garden's owner,
+  unlike the other two features' public panels.
+
+Terminal validation:
 
 ```bash
 curl -s http://127.0.0.1:5105/healthz
 curl -s -X POST http://127.0.0.1:5106/rag/ingest/health
 curl -s -X POST http://127.0.0.1:5106/rag/query -H 'Content-Type: application/json' -d '{"question":"What is wrong with my tomato?"}'
 curl -s http://localhost:3000/health/plant-health-records/integrations
+curl -s http://localhost:3000/vgarden/integrations   # service-wide wiring status, no login needed
 ```
 
 | | MCP | RAG |
 | --- | --- | --- |
 | server | [`ai-services/mcp-server/`](ai-services/mcp-server/README.md) | [`ai-services/rag-server/`](ai-services/rag-server/README.md) |
 | health backend routes | `GET /plant-health-records/tools`, `POST /plant-health-records/tools/run` | `POST /plant-health-records/ask`, `POST /plant-health-records/ask/sync` |
+| almanac backend routes | `POST /integrations/mcp` | `POST /integrations/rag` |
+| vgarden backend routes (owner-scoped) | `GET /gardens/:id/tools`, `POST /gardens/:id/tools/run` | `POST /gardens/:id/ask`, `POST /gardens/:id/ask/sync` |
 | switch (CI sets `false`) | `MCP_ENABLED` | `RAG_ENABLED` |
-| status | `GET /plant-health-records/integrations` | same |
+| status | `GET /plant-health-records/integrations` / `GET /integrations` (vgarden, service-wide) | same |
 
-Almanac / Virtual Garden tools and sources are registered stubs — see issues
-#41–#44 and #46; the agentic loop's MCP/RAG validation modes are #45.
+Full design, including why Virtual Garden's integration differs (private per-owner
+data → service-token-authenticated endpoints + `source_id`-scoped retrieval):
+[docs/ai/mcp-rag-design.md](docs/ai/mcp-rag-design.md). The shared agentic loop's
+MCP/RAG validation modes run from `tools/ai-loop/validate.py --feature {almanac,vgarden}`
+— the Virtual Garden mode registers a throwaway account through the real
+register → create-garden → SSO-handoff flow before validating its owner-scoped
+MCP/RAG routes (see [`tools/ai-loop/README.md`](tools/ai-loop/README.md#release-1-validate-mcp-and-rag-through-the-feature)).
 
 ## Agentic AI workflow
 
 The almanac and virtual-garden chat answers run through an explicit
 **Plan → Act → Observe → Adapt** loop (a second model reviews each draft; the loop
-revises until approved). Every phase is logged for evidence — stdout, JSONL, and a
-per-run transcript. See **[docs/agentic-ai-workflow.md](docs/agentic-ai-workflow.md)**
-and `python tools/ai-loop/view.py`.
+revises until approved), and every plant health assessment runs through a
+**Perceive → Reason → Act → Observe → Repeat** loop of the same shape (code checks plus
+an independent reviewer model observe each draft). Every phase is logged for evidence —
+stdout, JSONL, and a per-run transcript — and each answer or report links to its trace.
+See **[docs/agentic-ai-workflow.md](docs/agentic-ai-workflow.md)**,
+**[docs/ai/agentic-workflow.md](docs/ai/agentic-workflow.md)** and
+`python tools/ai-loop/view.py`.
 
 How AI is designed, prompted, grounded, and made auditable across **every**
 microservice is documented in **[docs/ai/](docs/ai/README.md)** — architecture,

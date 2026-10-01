@@ -1,4 +1,4 @@
-name: Plant Almanac
+name: Plant Almanac (Amy)
 
 on:
   push:
@@ -6,9 +6,21 @@ on:
     paths:
       - "almanac/**"
       - "shared/**"
+      - "tools/ai-loop/**"
+      - "pyproject.toml"
+      - ".github/workflows/plant_almanac.yml"
+  pull_request:
+    paths:
+      - "almanac/**"
+      - "shared/**"
+      - "tools/ai-loop/**"
       - "pyproject.toml"
       - ".github/workflows/plant_almanac.yml"
   workflow_dispatch:
+
+env:
+  MCP_ENABLED: "false"
+  RAG_ENABLED: "false"
 
 permissions:
   contents: read
@@ -35,10 +47,10 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           version: "0.16.4"
-          args: check --output-format=github almanac shared/ai_loop.py
+          args: check --output-format=github almanac shared/ai_loop.py tools/ai-loop/validate.py
 
       - name: Compile-check Python files
-        run: python -m compileall -q almanac shared
+        run: python -m compileall -q almanac shared tools/ai-loop
 
   test:
     name: Tests

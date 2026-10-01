@@ -110,6 +110,48 @@ python app.py
 | `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `nginx.conf` above it) |
 | `IMAGE_MAX_EDGE` | `896` | Photos are downscaled to this longest edge before inference |
 
+## Agentic loop: Perceive → Reason → Act → Observe → Repeat
+
+Every assessment — from the form, the API, a rerun, or the MCP `assess_plant_health` tool
+— is produced by an explicit loop ([`agentic.py`](agentic.py)) rather than one bare model
+call:
+
+| Phase | What happens |
+| --- | --- |
+| **Perceive** | Build the grounding: exactly what was supplied (photo? description? plant name?) plus this plant's last three assessments, as context only. |
+| **Reason** | The vision model (`OLLAMA_MODEL`) drafts the structured assessment. From the second pass it also receives the reviewer's guidance. |
+| **Act** | The draft becomes the candidate report: normalised, clamped, score band derived. |
+| **Observe** | Deterministic checks in code (status vs score band, a photo described when none was given, no recommendation for a plant that needs action, …) and then an independent reviewer model (`OLLAMA_REVIEW_MODEL`) that reads the candidate against the same grounding and answers `approved` / `revise` with one concrete instruction. The reviewer cannot see the photo; it checks what can be checked without it. |
+| **Repeat** | `approved` → done. `revise` → the guidance is carried into the next Reason, up to `AI_LOOP_MAX_ITERATIONS`. Cap reached → the last candidate is kept, marked `revised_capped`. |
+
+If no review model is configured or it cannot be reached, the loop still runs with the
+code checks only and the run is marked `fallback`. A reviewer outage never blocks an
+assessment.
+
+**Evidence.** Each phase is logged to stdout (`ai_loop` logger), appended to
+`tools/ai-loop/logs/health.jsonl`, and written to a per-run markdown transcript under
+`tools/ai-loop/logs/reports/health/` (via the shared `shared/ai_loop.py` logger, mounted
+into the container like the other services). The run is stored with the assessment
+(`assessment_loop_runs`) and shown in the product as a
+`🔄 Perceive → Reason → Act → Observe → Repeat · N iterations` badge on every report,
+linking to `/plant-health-records/<id>/loop` — the full trace. The streaming endpoint
+emits `phase` events so the form shows which phase is running.
+
+```bash
+python tools/ai-loop/view.py --service health          # recent runs
+python tools/ai-loop/view.py <run_id>                  # one run, phase by phase
+curl -s localhost:3000/health/plant-health-records/assessments/1/loop   # the trace as JSON
+```
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OLLAMA_REVIEW_MODEL` | `qwen3:4b-instruct` | Independent reviewer (Observe). Empty → code checks only |
+| `AI_LOOP_MAX_ITERATIONS` | `2` | Maximum Reason/Observe rounds |
+| `AI_LOOP_LOG_DIR` | `tools/ai-loop/logs` (`/app/ai_loop_logs` in compose) | JSONL + transcripts |
+
+Compose sets `OLLAMA_MAX_LOADED_MODELS=2` on the Ollama service so the vision model and
+the reviewer stay resident together instead of evicting each other on every assessment.
+
 ## How the health score works
 
 `health_score` is a 0-100 rating where 100 is a thriving plant and 0 is a dead one.
@@ -203,7 +245,8 @@ Responds `201` with:
 
 `status` is one of `healthy`, `at_risk`, `unhealthy`, `unknown`. When `status` is
 `unknown`, `health_score` and `score_band` are `null`. `confidence` is `low`, `medium`
-or `high`.
+or `high`. `loop` summarises the agentic run that produced the record:
+`{"run_id": "health-…", "iterations": 1, "verdict": "approved", "reviewed": true}`.
 
 Errors: `400` for invalid/missing input, `413` when the image exceeds the size limit,
 `503` when the local AI instance is unreachable or the model cannot be pulled.
@@ -230,7 +273,8 @@ model works. Each event is a JSON object on a `data:` line:
 | Event | Fields | Meaning |
 | --- | --- | --- |
 | `progress` | `field`, `summary`, `chars`, `elapsed_ms` | Which part of the answer is being written, and the summary text so far |
-| `done` | `id`, `html` | Finished; the rendered assessment card and its record id |
+| `phase` | `phase`, `iteration`, `detail` | The loop moved to Perceive / Reason / Observe / Repeat |
+| `done` | `id`, `html`, `loop` | Finished; the rendered assessment card, its record id, and `{iterations, verdict, reviewed}` |
 | `error` | `message` | Validation failure or the local AI being unavailable |
 
 The stream ends after exactly one `done` or `error` event. `summary` is extracted from
@@ -271,6 +315,21 @@ photos were persisted), `404` if it does not exist, `503` if the local AI is unr
 `POST /plant-health-records/assessments/<id>/regenerate/stream` is the `text/event-stream`
 variant, emitting the same events as `/assessments/stream`.
 
+### Plant names
+
+The form offers the plant names used before, plus **Other / new plant…** for a new one. A
+name is stored in the `plants` table the first time an assessment (or an edit) uses it, so
+it is offered next time; migration `0004` backfills the table from existing records.
+Assessments keep their own `plant_ref` text rather than a foreign key, so removing a name on
+the **Manage plant names** page (`/plant-health-records/plants`) only stops it being offered
+— the assessments recorded under it are untouched.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/plant-health-records/plants` | Management page for a browser; JSON list (`id`, `name`, `assessments`, `created_at`) for API clients |
+| `POST` | `/plant-health-records/plants` | Add a name (`name`, JSON or form). `201` when created, `200` when it already existed, `400` when empty or over 200 characters |
+| `DELETE` | `/plant-health-records/plants/<id>` | Remove a name from the list (`204`; `404` if unknown). Assessments are kept |
+
 ### Other endpoints
 
 | Method | Path | Description |
@@ -278,6 +337,8 @@ variant, emitting the same events as `/assessments/stream`.
 | `GET` | `/plant-health-records/` | UI: submit a plant, plus the list of past records |
 | `GET` | `/plant-health-records/<id>` | Full record: photo, name, description and assessment |
 | `GET` | `/plant-health-records/<id>/image` | The photo the assessment was based on |
+| `GET` | `/plant-health-records/<id>/loop` | The Perceive → Reason → Act → Observe → Repeat trace behind a record |
+| `GET` | `/plant-health-records/assessments/<id>/loop` | The same trace as JSON (`run_id`, `iterations`, `verdict`, `reviewer_model`, `trace[]`) |
 | `GET` | `/healthz` | Liveness, local AI reachability, and the model preload state |
 | `GET` | `/plant-health-records/assessments?plant_ref=&limit=` | List assessments, newest first |
 | `GET` | `/plant-health-records/assessments/<id>` | Fetch a single assessment as JSON |
@@ -306,7 +367,7 @@ per deployment (CI runs with both off).
 | `GET /plant-health-records/integrations` | `{"mcp": {enabled, url, reachable}, "rag": {...}}`. `reachable` is `null` when a mode is disabled — nothing is probed. |
 | `GET /plant-health-records/tools` | Tools registered on the shared MCP server, flagged `health: true` for ours. |
 | `POST /plant-health-records/tools/run` | Run **one whitelisted Plant Health tool** (`tool` + its arguments, JSON or form). Arguments are validated here before anything is sent; non-health tools are refused with `400`. Returns the structured result as JSON, or a rendered fragment for HTMX. A tool-level failure (e.g. record not found) is `200` with `is_error: true` and the tool's message — the tool ran, it just had nothing to return. |
-| `POST /plant-health-records/ask` | Ask the shared RAG server a `question` (≤ 500 chars) restricted to the `health` source. Returns the RAG contract (`answer`, `confidence` ∈ high/medium/low/insufficient, `citations[]`, `insufficient_context`) or the `_rag_answer.html` fragment with the confidence badge, cited records and the insufficient-context state. |
+| `POST /plant-health-records/ask` | Ask the shared RAG server a `question` (≤ 500 chars) restricted to the `health` source. Returns the RAG contract (`answer`, `confidence` ∈ high/medium/low/insufficient, `confidence_reason`, `model_confidence` ∈ weak/moderate/strong/null, `citations[]`, `insufficient_context`) or the `_rag_answer.html` fragment, which shows the confidence badge, *why* that category was chosen, the model's own self-reported evidence rating (labelled as such), the cited records and the insufficient-context state. |
 | `POST /plant-health-records/ask/sync` | Ask the RAG server to re-index this service's assessments. |
 
 Status codes: `400` bad input, `503` when the mode is disabled (`MCP_ENABLED=false` /

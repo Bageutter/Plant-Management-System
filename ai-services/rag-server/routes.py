@@ -138,7 +138,7 @@ def ingest(source: str):
 @bp.route("/rag/query", methods=["POST"])
 def query():
     try:
-        question, chosen, top_k = _read_query()
+        question, chosen, top_k, source_id = _read_query()
     except ValueError as exc:
         return _error(str(exc), 400)
 
@@ -149,6 +149,7 @@ def query():
             top_k=top_k,
             config=current_app.config,
             store=_store(),
+            source_id=source_id,
         )
     except pipeline.ModelUnavailable as exc:
         return _error(str(exc), 503)
@@ -158,7 +159,7 @@ def query():
     return jsonify(result)
 
 
-def _read_query() -> tuple[str, tuple[str, ...], int]:
+def _read_query() -> tuple[str, tuple[str, ...], int, str | None]:
     data = request.get_json(silent=True) if request.is_json else request.form
     data = data or {}
     max_chars = current_app.config["RAG_MAX_QUESTION_CHARS"]
@@ -194,4 +195,13 @@ def _read_query() -> tuple[str, tuple[str, ...], int]:
     if not 1 <= top_k <= current_app.config["RAG_MAX_TOP_K"]:
         raise ValueError(f"'top_k' must be between 1 and {current_app.config['RAG_MAX_TOP_K']}.")
 
-    return question, chosen, top_k
+    # Optional: scope retrieval to one record within a source (e.g. one garden's
+    # chunks in "vgarden"), so a question is never grounded in another owner's
+    # record. See store.ChunkStore.chunks and docs/ai/mcp-rag-design.md.
+    source_id = data.get("source_id")
+    if source_id is not None:
+        source_id = str(source_id).strip()
+        if not source_id or len(source_id) > 120:
+            raise ValueError("'source_id' must be non-empty text, at most 120 characters.")
+
+    return question, chosen, top_k, source_id or None

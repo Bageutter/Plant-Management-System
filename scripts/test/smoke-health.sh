@@ -22,9 +22,9 @@ want_mcp=$(as_bool "${MCP_ENABLED:-true}")
 want_rag=$(as_bool "${RAG_ENABLED:-true}")
 
 echo "==> UI: $records/"
-# Save the page, then grep it. Piping curl straight into `grep -q` is a race: grep exits
-# on its first match, curl then cannot write the rest of the body (exit 23),
-# --retry-all-errors retries that twenty times, and pipefail makes it the script's result.
+# Download first, then grep. Piping curl into `grep -q` is a race: grep exits on the
+# first match while curl is still writing the rest of the page, so curl gets a broken
+# pipe (exit 23) and, with pipefail, the check fails even though the page is fine.
 curl "${retry[@]}" --fail -o /tmp/ui.html "$records/"
 grep -q "Plant Health Records" /tmp/ui.html
 

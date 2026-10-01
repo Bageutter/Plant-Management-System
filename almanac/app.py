@@ -38,8 +38,11 @@ from schema import upgrade_schema
 from garden_data import seed_lookups
 from public_seed import fetch_snapshot, import_snapshot
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
-from planning import parse_details, apply_details
-from models import RotationGroup, PlantFunctionTag, PlantUse, PlantCompanion
+from growing_details import parse_details, apply_details
+from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
+from problem_guides import DISEASE_GUIDES, PEST_GUIDES
+from catalogue_api import catalogue_api
+from integrations import integrations
 
 try:
     import ai_loop
@@ -74,9 +77,7 @@ def _records_for_question(question: str, records: list[PlantReference]) -> list[
     return matches or records
 
 
-def _asks_for_current_planting_list(
-    question: str, records: list[PlantReference]
-) -> bool:
+def _asks_for_current_planting_list(question: str, records: list[PlantReference]) -> bool:
     """Whether this is a broad "what can I plant now?" question."""
     question_lower = question.lower()
     mentions_a_plant = any(
@@ -90,12 +91,8 @@ def _asks_for_current_planting_list(
 
     words = set(re.findall(r"[a-z]+", question_lower))
     asks_about_planting = bool(words & {"plant", "planting", "sow", "sowing", "grow"})
-    asks_about_now = bool(words & {"now", "today", "currently"}) or (
-        "this month" in question_lower
-    )
-    asks_broad_question = bool(words & {"what", "which"}) and bool(
-        words & {"can", "should"}
-    )
+    asks_about_now = bool(words & {"now", "today", "currently"}) or ("this month" in question_lower)
+    asks_broad_question = bool(words & {"what", "which"}) and bool(words & {"can", "should"})
     return asks_about_planting and (asks_about_now or asks_broad_question)
 
 
@@ -144,7 +141,14 @@ def _apply_plant(plant: PlantReference, fields: dict, months: list[int]) -> None
     plant.scientific_name = fields["scientific_name"]
     plant.family = fields["family"]
     plant.summary = fields["summary"]
-    apply_details(plant, {key: value for key, value in fields.items() if key not in ("common_name", "scientific_name", "family", "summary")})
+    apply_details(
+        plant,
+        {
+            key: value
+            for key, value in fields.items()
+            if key not in ("common_name", "scientific_name", "family", "summary")
+        },
+    )
 
     # Diff rather than replace: assigning a fresh list would try to INSERT a
     # month row before deleting the old one with the same (plant, month) and
@@ -204,6 +208,14 @@ def _delete_image_file(filename: str | None) -> None:
 
 def _plant_payload(plant: PlantReference) -> dict:
     payload = plant.to_dict()
+    payload["pest_links"] = [
+        {"id": pest.id, "name": pest.name}
+        for pest in sorted(plant.pests, key=lambda item: item.name.casefold())
+    ]
+    payload["disease_links"] = [
+        {"id": disease.id, "name": disease.name}
+        for disease in sorted(plant.diseases, key=lambda item: item.name.casefold())
+    ]
     payload["image_url"] = (
         plant.image.public_url
         if plant.image and plant.image.public_url
@@ -239,9 +251,7 @@ def _chat_history(owner_key: str) -> list[AIChatMessage]:
 
 def _chat_context(owner_key: str) -> tuple[list[AIChatMessage], dict[str, dict]]:
     messages = _chat_history(owner_key)
-    source_slugs = {
-        slug for message in messages for slug in (message.source_slugs or [])
-    }
+    source_slugs = {slug for message in messages for slug in (message.source_slugs or [])}
     source_records = PlantReference.query.filter(PlantReference.slug.in_(source_slugs)).all()
     sources = {record.slug: record.to_dict() for record in source_records}
     return messages, sources
@@ -285,6 +295,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         OLLAMA_MODEL=os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
         OLLAMA_TIMEOUT=int(os.environ.get("OLLAMA_TIMEOUT", "120")),
         OLLAMA_AUTO_PULL=os.environ.get("OLLAMA_AUTO_PULL", "false").lower() == "true",
+        MCP_ENABLED=os.environ.get("MCP_ENABLED", "true").lower() == "true",
+        MCP_SERVER_URL=os.environ.get("MCP_SERVER_URL", "http://127.0.0.1:5105/mcp"),
+        RAG_ENABLED=os.environ.get("RAG_ENABLED", "true").lower() == "true",
+        RAG_SERVER_URL=os.environ.get("RAG_SERVER_URL", "http://127.0.0.1:5106"),
         # Agentic loop (Plan -> Act -> Observe -> Adapt); see docs/agentic-ai-workflow.md.
         OLLAMA_REVIEW_MODEL=os.environ.get("OLLAMA_REVIEW_MODEL", "llama3.1:8b"),
         AI_LOOP_MAX_ITERATIONS=int(os.environ.get("AI_LOOP_MAX_ITERATIONS", "2")),
@@ -317,6 +331,8 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     db.init_app(app)
     csrf.init_app(app)
+    app.register_blueprint(catalogue_api)
+    app.register_blueprint(integrations)
     app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])
     app.extensions["almanac_ai"] = OllamaAlmanacAI(
         base_url=app.config["OLLAMA_URL"],
@@ -335,9 +351,12 @@ def create_app(test_config: dict | None = None) -> Flask:
             "health_public_url": app.config["HEALTH_PUBLIC_URL"],
             "auth_user": _current_auth_user(),
             "field_help": FIELD_HELP,
-            "detail_choices": CHOICES, "numeric_fields": NUMERIC, "text_fields": TEXT,
+            "detail_choices": CHOICES,
+            "numeric_fields": NUMERIC,
+            "text_fields": TEXT,
             "rotation_groups": RotationGroup.query.order_by(RotationGroup.id).all(),
-            "function_options": PlantFunctionTag.query.all(), "use_options": PlantUse.query.all(),
+            "function_options": PlantFunctionTag.query.all(),
+            "use_options": PlantUse.query.all(),
         }
 
     @app.get("/")
@@ -351,6 +370,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             plants=plants,
             messages=messages,
             sources=sources,
+            pest_count=Pest.query.count(),
+            disease_count=Disease.query.count(),
         )
 
     @app.get("/plants/<slug>")
@@ -358,7 +379,66 @@ def create_app(test_config: dict | None = None) -> Flask:
         plant = PlantReference.query.filter_by(slug=slug).first()
         if plant is None:
             return render_template("404.html"), 404
-        return render_template("plant_detail.html", plant=_plant_payload(plant), guild_candidates=PlantReference.query.filter(PlantReference.id != plant.id).order_by(PlantReference.common_name).all())
+        return render_template(
+            "plant_detail.html",
+            plant=_plant_payload(plant),
+            guild_candidates=PlantReference.query.filter(PlantReference.id != plant.id)
+            .order_by(PlantReference.common_name)
+            .all(),
+        )
+
+    @app.get("/pests")
+    def pest_index():
+        return render_template(
+            "problem_index.html",
+            kind="pest",
+            records=Pest.query.order_by(Pest.name).all(),
+        )
+
+    @app.get("/pests/<int:pest_id>")
+    def pest_detail(pest_id: int):
+        record = db.get_or_404(Pest, pest_id)
+        guide = PEST_GUIDES.get(record.name)
+        companions = []
+        if guide:
+            for suggestion in guide["companions"]:
+                item = suggestion.copy()
+                if item.get("slug"):
+                    plant = PlantReference.query.filter_by(slug=item["slug"]).first()
+                    item["url"] = (
+                        url_for("plant_detail", slug=plant.slug) if plant else None
+                    )
+                else:
+                    item["url"] = item.get("external_url")
+                companions.append(item)
+        return render_template(
+            "problem_detail.html",
+            kind="pest",
+            record=record,
+            guide=guide,
+            companion_suggestions=companions,
+        )
+
+    @app.get("/diseases")
+    def disease_index():
+        return render_template(
+            "problem_index.html",
+            kind="disease",
+            records=Disease.query.order_by(Disease.name).all(),
+        )
+
+    @app.get("/diseases/<int:disease_id>")
+    def disease_detail(disease_id: int):
+        record = db.get_or_404(Disease, disease_id)
+        return render_template(
+            "problem_detail.html",
+            kind="disease",
+            record=record,
+            guide=DISEASE_GUIDES.get(record.name),
+            companion_suggestions=(
+                DISEASE_GUIDES.get(record.name, {}).get("companions", [])
+            ),
+        )
 
     @app.post("/plants/<slug>/guild")
     def save_guild(slug):
@@ -367,9 +447,13 @@ def create_app(test_config: dict | None = None) -> Flask:
         plant = PlantReference.query.filter_by(slug=slug).first_or_404()
         companion_id = request.form.get("companion_id", type=int)
         function_id = request.form.get("function_id", type=int)
-        if (companion_id == plant.id or not companion_id or not function_id
-                or not db.session.get(PlantReference, companion_id)
-                or not db.session.get(PlantFunctionTag, function_id)):
+        if (
+            companion_id == plant.id
+            or not companion_id
+            or not function_id
+            or not db.session.get(PlantReference, companion_id)
+            or not db.session.get(PlantFunctionTag, function_id)
+        ):
             abort(400)
         link = db.session.get(PlantCompanion, (plant.id, companion_id, function_id))
         if request.form.get("action") == "remove":
@@ -377,7 +461,9 @@ def create_app(test_config: dict | None = None) -> Flask:
                 db.session.delete(link)
         else:
             if link is None:
-                link = PlantCompanion(plant_id=plant.id, companion_id=companion_id, function_id=function_id)
+                link = PlantCompanion(
+                    plant_id=plant.id, companion_id=companion_id, function_id=function_id
+                )
                 db.session.add(link)
             link.notes = request.form.get("notes", "").strip() or None
         db.session.commit()
@@ -529,10 +615,23 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     def _api_parse(payload: dict, plant=None):
         from werkzeug.datastructures import MultiDict
+
         if not isinstance(payload, dict):
             return {}, [], "Send a JSON object."
         if plant is not None:
-            previous = {key: getattr(plant, key) for key in ["common_name", "scientific_name", "family", "summary", *NUMERIC, *TEXT, *CHOICES, "rotation_group_id"]}
+            previous = {
+                key: getattr(plant, key)
+                for key in [
+                    "common_name",
+                    "scientific_name",
+                    "family",
+                    "summary",
+                    *NUMERIC,
+                    *TEXT,
+                    *CHOICES,
+                    "rotation_group_id",
+                ]
+            }
             previous["months"] = [month.month_number for month in plant.planting_months]
             payload = {**previous, **payload}
         form = MultiDict()
@@ -595,7 +694,9 @@ def create_app(test_config: dict | None = None) -> Flask:
     def ask_almanac():
         owner_key = _chat_owner_key()
         if owner_key is None:
-            return _render_chat(None, "Your session has expired. Log in again to use the chat."), 401
+            return _render_chat(
+                None, "Your session has expired. Log in again to use the chat."
+            ), 401
         question = request.form.get("question", "").strip()
         if not question:
             return _render_chat(owner_key, "Enter a question first."), 400
@@ -605,10 +706,18 @@ def create_app(test_config: dict | None = None) -> Flask:
         all_records = PlantReference.query.order_by(PlantReference.common_name).all()
         records = _records_for_question(question, all_records)
         plants = [record.to_dict() for record in records]
+        context_plants = plants
         history = [{"role": m.role, "content": m.content} for m in _chat_history(owner_key)]
         current_month = datetime.now().strftime("%B")
         required_answer_items = []
         if _asks_for_current_planting_list(question, all_records):
+            # A current-month list only needs names and planting dates, not care notes
+            # or earlier conversations that can overflow the local model's context.
+            context_plants = [
+                {key: plant[key] for key in ("slug", "common_name", "planting_months")}
+                for plant in plants
+            ]
+            history = []
             required_answer_items = [
                 plant["common_name"]
                 for plant in plants
@@ -618,7 +727,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         def build_context():
             grounding = {
                 "current_month": current_month,
-                "plant_records": plants,
+                "plant_records": context_plants,
                 "conversation": history,
             }
             if required_answer_items:
@@ -655,12 +764,17 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "The local AI model is unavailable. Check that Ollama is running and try again.",
             ), 503
 
+        if result.verdict == "revised_capped":
+            result.answer = "I don't have enough information in the Plant Almanac to answer that yet."
+
         user_msg = AIChatMessage(owner_key=owner_key, role="user", content=question)
         assistant_msg = AIChatMessage(
             owner_key=owner_key,
             role="assistant",
             content=result.answer,
-            source_slugs=sources_for_text(result.answer, plants),
+            source_slugs=(
+                [] if result.verdict == "revised_capped" else sources_for_text(result.answer, plants)
+            ),
         )
         db.session.add_all([user_msg, assistant_msg])
         db.session.flush()
@@ -693,7 +807,9 @@ def create_app(test_config: dict | None = None) -> Flask:
     def clear_ai_chat():
         owner_key = _chat_owner_key()
         if owner_key is None:
-            return _render_chat(None, "Your session has expired. Log in again to use the chat."), 401
+            return _render_chat(
+                None, "Your session has expired. Log in again to use the chat."
+            ), 401
         AILoopRun.query.filter_by(owner_key=owner_key).delete()
         AIChatMessage.query.filter_by(owner_key=owner_key).delete()
         db.session.commit()
@@ -724,11 +840,33 @@ def create_app(test_config: dict | None = None) -> Flask:
             if not imported:
                 seed_reference_data()
 
+    @app.cli.command("import-my-garden")
+    def import_my_garden_command():
+        """Add public My Garden plants and fill gaps while preserving local values."""
+        import click
+
+        try:
+            imported = import_snapshot(
+                fetch_snapshot(
+                    app.config["MY_GARDEN_SEED_URL"],
+                    app.config["MY_GARDEN_SEED_TIMEOUT"],
+                ),
+                app.config["MY_GARDEN_IMAGE_BASE_URL"],
+                add_missing=True,
+            )
+        except Exception as exc:
+            db.session.rollback()
+            raise click.ClickException(f"Could not import My Garden plants: {exc}") from exc
+        click.echo(f"Added {imported} My Garden plants and filled missing details. Local values were preserved.")
+
     @app.cli.command("refresh-garden")
     def refresh_garden_command():
         """Refresh seeded wording and add starter companion suggestions."""
         from garden_data import refresh_garden_wording, seed_guilds
-        print(f"Updated {refresh_garden_wording()} text fields; added {seed_guilds()} companion links.")
+
+        print(
+            f"Updated {refresh_garden_wording()} text fields; added {seed_guilds()} companion links."
+        )
 
     return app
 

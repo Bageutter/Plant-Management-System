@@ -1,0 +1,92 @@
+{# Release 1: frontend access to the shared local MCP and RAG servers, always
+   routed through this service's own backend (garden_integrations.py). Both
+   panels are scoped to this one garden only. #}
+<section class="mt-12 grid grid-cols-1 gap-8" id="integrations">
+
+    <!-- Ask about this garden (RAG) -->
+    <div class="border border-border rounded-lg p-6">
+        <header class="flex items-center justify-between gap-4 flex-wrap mb-2">
+            <h2 class="text-2xl m-0">Ask about this garden (grounded)</h2>
+            <span class="badge {{ 'status-on' if rag_enabled else 'status-off' }}">RAG {{ 'on' if rag_enabled else 'off' }}</span>
+        </header>
+        <p class="text-sm text-muted-foreground mb-4">
+            Questions here are answered by the shared local RAG server from this garden's indexed
+            state only — never another garden's — with the records it used cited underneath and a
+            confidence category. If nothing relevant is indexed it says so rather than guessing.
+            This is separate from the "Ask about this garden" chat assistant below, which is a
+            freeform conversation rather than a cited, grounded answer.
+        </p>
+
+        {% if rag_enabled %}
+        <form class="flex flex-col gap-3"
+              hx-post="{{ url_for('garden_integrations.ask_garden', garden_id=garden.id) }}"
+              hx-target="#rag-result" hx-swap="innerHTML" hx-indicator="#rag-busy">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <label class="uk-form-label" for="rag-question">Question</label>
+            <input class="uk-input" type="text" id="rag-question" name="question" required maxlength="500"
+                   placeholder="e.g. What's planted here and is anything ready to harvest?">
+            <div class="flex items-center gap-3 flex-wrap">
+                <button class="uk-btn uk-btn-primary" type="submit">Ask</button>
+                <span id="rag-busy" class="htmx-indicator text-sm text-muted-foreground">
+                    <span class="spinner" aria-hidden="true"></span> Retrieving and answering locally…
+                </span>
+            </div>
+        </form>
+        <div id="rag-result" class="mt-4" aria-live="polite"></div>
+
+        <div class="mt-4 flex items-center gap-3 flex-wrap text-sm">
+            <form hx-post="{{ url_for('garden_integrations.sync_garden_index', garden_id=garden.id) }}"
+                  hx-target="#rag-sync" hx-swap="innerHTML" hx-indicator="#rag-sync-busy">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="uk-btn uk-btn-default uk-btn-sm" type="submit">
+                    Sync this garden to the knowledge base
+                </button>
+            </form>
+            <span id="rag-sync-busy" class="htmx-indicator text-muted-foreground">Indexing…</span>
+            <span id="rag-sync" class="text-muted-foreground"></span>
+        </div>
+        {% else %}
+        <p class="text-sm text-muted-foreground m-0" data-integration="rag-disabled">
+            RAG is disabled for this deployment (<code>RAG_ENABLED=false</code>), as it is during CI.
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Tools (MCP) -->
+    <div class="border border-border rounded-lg p-6" x-data="{ tool: 'get_garden_snapshot' }">
+        <header class="flex items-center justify-between gap-4 flex-wrap mb-2">
+            <h2 class="text-2xl m-0">Tools</h2>
+            <span class="badge {{ 'status-on' if mcp_enabled else 'status-off' }}">MCP {{ 'on' if mcp_enabled else 'off' }}</span>
+        </header>
+        <p class="text-sm text-muted-foreground mb-4">
+            Runs one of this service's registered, read-only tools on the shared local MCP server for
+            <strong>this garden only</strong> and shows the structured result it returns.
+        </p>
+
+        {% if mcp_enabled %}
+        <form class="flex flex-col gap-3"
+              hx-post="{{ url_for('garden_integrations.run_tool', garden_id=garden.id) }}"
+              hx-target="#mcp-result" hx-swap="innerHTML" hx-indicator="#mcp-busy">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <label class="uk-form-label" for="mcp-tool">Tool</label>
+            <select class="uk-select" id="mcp-tool" name="tool" x-model="tool">
+                {% for name, label in mcp_tools.items() %}
+                <option value="{{ name }}">{{ name }} — {{ label }}</option>
+                {% endfor %}
+            </select>
+
+            <div class="flex items-center gap-3 flex-wrap">
+                <button class="uk-btn uk-btn-primary" type="submit">Run tool</button>
+                <span id="mcp-busy" class="htmx-indicator text-sm text-muted-foreground">
+                    <span class="spinner" aria-hidden="true"></span> Calling the shared MCP server…
+                </span>
+            </div>
+        </form>
+        <div id="mcp-result" class="mt-4" aria-live="polite"></div>
+        {% else %}
+        <p class="text-sm text-muted-foreground m-0" data-integration="mcp-disabled">
+            MCP is disabled for this deployment (<code>MCP_ENABLED=false</code>), as it is during CI.
+        </p>
+        {% endif %}
+    </div>
+</section>

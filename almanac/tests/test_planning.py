@@ -5,13 +5,16 @@ from pathlib import Path
 import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import Column, String, create_engine, inspect, text
 from werkzeug.datastructures import MultiDict
 
 from app import create_app
 from extensions import db
-from models import PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag
-from planning import parse_details
+from models import (
+    Disease, Pest, PlantReference, RotationGroup, PlantCompanion, PlantFunctionTag,
+    PlantImage, PlantUse, PlantingMonth,
+)
+from growing_details import parse_details
 from public_seed import import_snapshot
 
 
@@ -159,6 +162,145 @@ def test_public_snapshot_failure_falls_back_to_builtin_seed(tmp_path, monkeypatc
         assert PlantReference.query.count() == 8
 
 
+def test_add_missing_preserves_local_records_and_remaps_snapshot_ids(app):
+    basil = PlantReference.query.filter_by(slug="basil").one()
+    basil.summary = "My own basil notes"
+    basil.water_needs = "low"
+    basil.soil_ph_min = 0
+    basil.care_notes = None
+    basil.uses_notes = ""
+    basil.image = PlantImage(filename="local-basil.jpg", public_url=None)
+    local_pest = Pest(name="Local beetle", description="My observation")
+    basil.pests = [local_pest]
+    aphids = Pest(name="Aphids", description="My edited aphid description")
+    wilt = Disease(name="Wilt", description="My edited wilt description")
+    function = PlantFunctionTag(name="pollinator", description="My edited function")
+    culinary = PlantUse.query.filter_by(name="culinary").one()
+    culinary.description = "My edited use"
+    group = RotationGroup.query.filter_by(name="Solanums").one()
+    group.feeder_weight = "light"
+    basil.rotation_group = group
+    db.session.add_all([aphids, wilt, function])
+    db.session.flush()
+    basil.guild_links.append(PlantCompanion(
+        companion_id=PlantReference.query.filter_by(slug="carrot").one().id,
+        function_id=function.id, notes="My saved companion",
+    ))
+    db.session.commit()
+    original_values = {
+        column.name: getattr(basil, column.name) for column in PlantReference.__table__.columns
+        if getattr(basil, column.name) not in (None, "")
+    }
+    original_months = [(month.id, month.month_number) for month in basil.planting_months]
+    original_image_id = basil.image.id
+
+    snapshot = _public_snapshot()
+    tables = snapshot["tables"]
+    tables["plant_references"][1].update(
+        slug="basil", water_needs="high", soil_ph_min=6, soil_ph_max=7,
+        care_notes="Public care guidance", uses_notes="Public use guidance",
+    )
+    tables["rotation_groups"][0]["is_rotation_exempt"] = 1
+    tables["planting_months"].append({"plant_reference_id": 11, "month_number": 3})
+    for table in ("plant_pests", "plant_diseases", "plant_function_tags", "plant_uses"):
+        tables[table].append({"plant_id": 11, "tag_id": 1})
+    tables["plant_companions"].append({
+        "plant_id": 11, "companion_id": 10, "function_id": 1, "notes": "Imported companion",
+    })
+    tables["plant_images"].append({
+        "plant_reference_id": 11, "filename": "replacement-basil.jpg",
+    })
+
+    assert import_snapshot(snapshot, "https://images.example/", add_missing=True) == 1
+    assert PlantReference.query.count() == 9
+    assert all(getattr(basil, field) == value for field, value in original_values.items())
+    assert basil.care_notes == "Public care guidance"
+    assert basil.uses_notes == "Public use guidance"
+    assert basil.soil_ph_min == 0 and basil.soil_ph_max == 7
+    assert set(original_months) <= {(m.id, m.month_number) for m in basil.planting_months}
+    assert 3 in [m.month_number for m in basil.planting_months]
+    assert {pest.name for pest in basil.pests} == {"Local beetle", "Aphids"}
+    assert basil.diseases == [wilt]
+    assert basil.function_tags == [function]
+    assert basil.uses == [culinary]
+    assert {(link.companion.slug, link.notes) for link in basil.guild_links} == {
+        ("carrot", "My saved companion"), ("test-tomato", "Imported companion"),
+    }
+    assert basil.image.id == original_image_id
+    assert basil.image.filename == "local-basil.jpg"
+    assert basil.image.public_url is None
+    assert aphids.description == "My edited aphid description"
+    assert wilt.description == "My edited wilt description"
+    assert function.description == "My edited function"
+    assert culinary.description == "My edited use"
+
+    tomato = PlantReference.query.filter_by(slug="test-tomato").one()
+    assert tomato.id != 10 and basil.id != 11
+    assert tomato.rotation_group_id == group.id and group.id != 1
+    assert tomato.rotation_group.feeder_weight == "light"
+    assert tomato.rotation_group.is_rotation_exempt is False
+    assert tomato.pests == [aphids]
+    assert tomato.diseases == [wilt]
+    assert tomato.uses == [culinary]
+    assert [month.month_number for month in tomato.planting_months] == [9]
+    assert tomato.guild_links[0].companion_id == basil.id
+    assert tomato.guild_links[0].function_id == function.id
+    assert tomato.image.public_url == "https://images.example/test-tomato.jpg"
+
+    counts = [model.query.count() for model in (
+        PlantReference, PlantingMonth, PlantCompanion, PlantImage, Pest, Disease,
+        PlantFunctionTag, PlantUse, RotationGroup,
+    )]
+    merged_basil = basil.to_dict()
+    tables["plant_companions"][-1]["notes"] = "Do not overwrite existing notes"
+    assert import_snapshot(snapshot, "https://images.example/", add_missing=True) == 0
+    assert counts == [model.query.count() for model in (
+        PlantReference, PlantingMonth, PlantCompanion, PlantImage, Pest, Disease,
+        PlantFunctionTag, PlantUse, RotationGroup,
+    )]
+    assert basil.to_dict() == merged_basil
+    assert len(tomato.pests) == len(tomato.diseases) == len(tomato.uses) == 1
+
+
+@pytest.mark.parametrize("local_min,local_max", [(8, None), (None, 5)])
+def test_add_missing_skips_ph_bounds_that_conflict_with_local_values(app, local_min, local_max):
+    basil = PlantReference.query.filter_by(slug="basil").one()
+    basil.soil_ph_min, basil.soil_ph_max = local_min, local_max
+    basil.uses_notes = None
+    db.session.commit()
+    snapshot = _public_snapshot()
+    snapshot["tables"]["plant_references"][1].update(
+        slug="basil", soil_ph_min=6, soil_ph_max=7, uses_notes="Public use guidance",
+    )
+
+    assert import_snapshot(snapshot, add_missing=True) == 1
+    assert (basil.soil_ph_min, basil.soil_ph_max) == (local_min, local_max)
+    assert basil.uses_notes == "Public use guidance"
+    assert PlantReference.query.count() == 9
+
+
+def test_import_my_garden_cli_uses_configured_source_and_is_repeatable(app, monkeypatch):
+    calls = []
+
+    def snapshot(url, timeout):
+        calls.append((url, timeout))
+        return _public_snapshot()
+
+    monkeypatch.setattr("app.fetch_snapshot", snapshot)
+    app.config.update(MY_GARDEN_SEED_URL="https://example.test/catalogue.json",
+                      MY_GARDEN_SEED_TIMEOUT=7)
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["import-my-garden"])
+    assert result.exit_code == 0, result.output
+    assert "Added 2 My Garden plants" in result.output
+    assert calls == [("https://example.test/catalogue.json", 7)]
+    assert PlantReference.query.count() == 10
+    result = runner.invoke(args=["import-my-garden"])
+    assert result.exit_code == 0
+    assert "Added 0 My Garden plants" in result.output
+    assert PlantReference.query.count() == 10
+
+
 def test_form_api_and_guild_round_trip(app):
     client = app.test_client()
     group = RotationGroup.query.filter_by(name="Solanums").one()
@@ -208,18 +350,53 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
             runpy.run_path(
                 str(Path(__file__).resolve().parents[1] / "migrations/versions/001_baseline.py")
             )["upgrade"]()
+            from alembic import op
+
+            with op.batch_alter_table("plant_references") as batch:
+                batch.add_column(Column("category", String(60), nullable=False))
+                batch.add_column(Column("difficulty", String(30), nullable=False))
+                batch.add_column(Column("icon", String(12), nullable=False))
+                batch.create_index("ix_plant_references_category", ["category"])
+                batch.create_check_constraint(
+                    "ck_plant_references_difficulty",
+                    "difficulty IN ('easy', 'moderate', 'advanced')",
+                )
+        # These are the original image/month tables from an existing installation.
+        conn.execute(text("DROP TABLE plant_images"))
+        conn.execute(text("""
+            CREATE TABLE plant_images (
+                id INTEGER NOT NULL PRIMARY KEY,
+                plant_reference_id INTEGER NOT NULL REFERENCES plant_references(id) ON DELETE CASCADE,
+                filename VARCHAR(80) NOT NULL UNIQUE,
+                original_name VARCHAR(255) NOT NULL,
+                content_type VARCHAR(40) NOT NULL,
+                created_at DATETIME NOT NULL
+            )
+        """))
+        conn.execute(text("DROP TABLE planting_months"))
+        conn.execute(text("""
+            CREATE TABLE planting_months (
+                id INTEGER NOT NULL PRIMARY KEY,
+                plant_reference_id INTEGER NOT NULL REFERENCES plant_references(id) ON DELETE CASCADE,
+                climate_zone VARCHAR(60) NOT NULL,
+                month_number INTEGER NOT NULL,
+                CONSTRAINT ck_planting_months_month_number CHECK (month_number BETWEEN 1 AND 12),
+                CONSTRAINT uq_planting_months_plant_zone_month
+                    UNIQUE (plant_reference_id, climate_zone, month_number)
+            )
+        """))
         conn.execute(text("ALTER TABLE plant_references ADD COLUMN rotation_group TEXT"))
         conn.execute(
             text(
-                "INSERT INTO plant_references (id, slug, common_name, scientific_name, family, summary, rotation_group) VALUES (99,'legacy','Legacy','Legacy species','','Original wording',' brassica ')"
+                "INSERT INTO plant_references (id, slug, common_name, scientific_name, family, summary, rotation_group, category, difficulty, icon) VALUES (99,'legacy','Legacy','Legacy species','','Original wording',' brassica ', 'herb', 'easy', 'leaf')"
             )
         )
         conn.execute(
-            text("INSERT INTO planting_months (plant_reference_id,month_number) VALUES (99,3)")
+            text("INSERT INTO planting_months (plant_reference_id,month_number,climate_zone) VALUES (99,3,'temperate')")
         )
         conn.execute(
             text(
-                "INSERT INTO plant_images (plant_reference_id,filename) VALUES (99,'original.png')"
+                "INSERT INTO plant_images (plant_reference_id,filename,original_name,content_type,created_at) VALUES (99,'original.png','Original photo.png','image/png','2026-09-01 12:00:00')"
             )
         )
     app = create_app(
@@ -236,11 +413,45 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
         assert plant.yield_qty is None
         assert plant.image.filename == "original.png"
         assert plant.planting_months[0].month_number == 3
-        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "004"
+        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "005"
         assert any(
             c["name"] == "ck_yield_qty_positive"
             for c in inspect(db.engine).get_check_constraints("plant_references")
         )
+        legacy = db.session.execute(text(
+            "SELECT category,difficulty,icon FROM plant_references WHERE id=99"
+        )).one()
+        assert tuple(legacy) == ("herb", "easy", "leaf")
+        columns = {c["name"]: c for c in inspect(db.engine).get_columns("plant_references")}
+        assert all(columns[name]["nullable"] for name in ("category", "difficulty", "icon"))
+        assert any(
+            index["name"] == "ix_plant_references_category"
+            for index in inspect(db.engine).get_indexes("plant_references")
+        )
+        assert tuple(db.session.execute(text(
+            "SELECT original_name,content_type,created_at FROM plant_images WHERE plant_reference_id=99"
+        )).one()) == ("Original photo.png", "image/png", "2026-09-01 12:00:00")
+        assert db.session.execute(text(
+            "SELECT climate_zone FROM planting_months WHERE plant_reference_id=99"
+        )).scalar() == "temperate"
+        assert import_snapshot(_public_snapshot(), "https://images.example/", add_missing=True) == 2
+        assert PlantReference.query.count() == 3
+        imported = PlantReference.query.filter_by(slug="test-tomato").one()
+        assert imported.image.public_url == "https://images.example/test-tomato.jpg"
+        assert [month.month_number for month in imported.planting_months] == [9]
+        assert db.session.execute(text(
+            "SELECT category,difficulty,icon FROM plant_references WHERE slug='test-tomato'"
+        )).one() == (None, None, None)
+        assert db.session.execute(text("PRAGMA foreign_key_check")).all() == []
+        db.session.commit()
+        # Explicitly repeating the compatibility step is safe after a partial rollout.
+        with db.engine.begin() as conn:
+            with Operations.context(MigrationContext.configure(conn)):
+                runpy.run_path(str(
+                    Path(__file__).resolve().parents[1]
+                    / "migrations/versions/005_optional_legacy_fields.py"
+                ))["upgrade"]()
+        assert PlantReference.query.count() == 3
     with sqlite3.connect(path) as conn:
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute("UPDATE plant_references SET in_row_spacing_cm=-1 WHERE id=99")
@@ -312,3 +523,78 @@ def test_guild_seed_is_repeatable_and_keeps_edited_links(app):
     assert seed_guilds() == 0
     assert link.notes == "My own planting notes"
     assert all(link.plant_id != link.companion_id for link in PlantCompanion.query.all())
+
+
+def test_pest_and_disease_pages_link_back_to_plants(app):
+    from garden_data import refresh_garden_wording
+
+    tomato = PlantReference.query.filter_by(slug="tomato").one()
+    lettuce = PlantReference.query.filter_by(slug="lettuce").one()
+    alyssum = PlantReference(
+        slug="alyssum",
+        common_name="Sweet Alyssum",
+        scientific_name="Lobularia maritima",
+        family="Brassicaceae",
+        summary="A flowering plant for garden edges.",
+    )
+    aphids = Pest(name="Aphids")
+    slugs = Pest(name="Slugs and snails")
+    mildew = Disease(name="Powdery mildew")
+    db.session.add_all([alyssum, aphids, slugs, mildew])
+    tomato.pests.append(aphids)
+    lettuce.pests.extend([aphids, slugs])
+    tomato.diseases.append(mildew)
+    db.session.commit()
+
+    refresh_garden_wording()
+    client = app.test_client()
+
+    pests = client.get("/pests")
+    assert pests.status_code == 200
+    assert b"Aphids" in pests.data
+    assert b"Slugs and snails" in pests.data
+
+    home = client.get("/")
+    assert b"Plant problem library" in home.data
+    assert b'href="/pests"' in home.data
+    assert b'href="/diseases"' in home.data
+
+    plant_page = client.get(f"/plants/{tomato.slug}")
+    assert 1 < len(aphids.plants) < PlantReference.query.count()
+    assert f"/pests/{aphids.id}".encode() in plant_page.data
+
+    detail = client.get(f"/pests/{aphids.id}")
+    assert detail.status_code == 200
+    assert b"Use the lightest effective response" in detail.data
+    assert b"Sweet Alyssum" in detail.data
+    assert b"Nasturtium" in detail.data
+    assert b"insecticidal soap" in detail.data
+    assert b'href="/plants/alyssum"' in detail.data
+    assert tomato.common_name.encode() in detail.data
+
+    diseases = client.get("/diseases")
+    assert diseases.status_code == 200
+    assert b"Powdery mildew" in diseases.data
+    disease_detail = client.get(f"/diseases/{mildew.id}")
+    assert disease_detail.status_code == 200
+    assert b"Make the garden less inviting" in disease_detail.data
+    assert b"Choose a labelled treatment" in disease_detail.data
+    assert b"horticultural oil" in disease_detail.data
+    assert client.get("/pests/999999").status_code == 404
+
+
+def test_refresh_updates_old_problem_copy_but_preserves_custom_descriptions(app):
+    from garden_data import LEGACY_PROBLEM_DESCRIPTIONS, PROBLEM_DESCRIPTIONS
+    from garden_data import refresh_garden_wording
+
+    mildew = Disease(name="Powdery mildew")
+    db.session.add(mildew)
+    mildew.description = LEGACY_PROBLEM_DESCRIPTIONS["Powdery mildew"]
+    db.session.commit()
+    refresh_garden_wording()
+    assert mildew.description == PROBLEM_DESCRIPTIONS["Powdery mildew"]
+    mildew.description = "My local observations and management notes"
+    db.session.commit()
+    refresh_garden_wording()
+    assert mildew.description == "My local observations and management notes"
+    assert refresh_garden_wording() == 0

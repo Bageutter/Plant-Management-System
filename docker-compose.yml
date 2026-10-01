@@ -76,8 +76,19 @@ services:
       - OLLAMA_REVIEW_MODEL=llama3.1:8b
       - AI_LOOP_MAX_ITERATIONS=2
       - AI_LOOP_LOG_DIR=/app/ai_loop_logs
+      # Release 1: shared local MCP + RAG servers. They run on the HOST, outside
+      # compose (never as services here); the container reaches them through
+      # host.docker.internal, the same approach already used for OLLAMA_URL on
+      # almanac above. CI sets both flags to false.
+      - MCP_ENABLED=${MCP_ENABLED:-true}
+      - MCP_SERVER_URL=${MCP_SERVER_URL:-http://host.docker.internal:5105/mcp}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
+      - RAG_SERVER_URL=${RAG_SERVER_URL:-http://host.docker.internal:5106}
     depends_on:
       - ollama
+    extra_hosts:
+      # Needed on Linux engines (incl. WSL); harmless on Docker Desktop.
+      - "host.docker.internal:host-gateway"
 
   almanac:
     build: ./almanac
@@ -92,9 +103,14 @@ services:
       - HEALTH_PUBLIC_URL=http://localhost:3000/health/plant-health-records/
       - DATABASE_URL=sqlite:////app/instance/almanac.db
       - FLASK_DEBUG=1
-      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_URL=${ALMANAC_OLLAMA_URL:-http://host.docker.internal:11434}
       - OLLAMA_MODEL=qwen3:4b-instruct
       - OLLAMA_AUTO_PULL=true
+      # Release 1 shared servers run on the host, never in this feature container.
+      - MCP_ENABLED=${MCP_ENABLED:-true}
+      - MCP_SERVER_URL=${MCP_SERVER_URL:-http://host.docker.internal:5105/mcp}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
+      - RAG_SERVER_URL=${RAG_SERVER_URL:-http://host.docker.internal:5106}
       # Plan -> Act -> Observe -> Adapt loop; see docs/agentic-ai-workflow.md.
       - OLLAMA_REVIEW_MODEL=llama3.1:8b
       - AI_LOOP_MAX_ITERATIONS=2
@@ -111,7 +127,8 @@ services:
       - almanac_data:/app/instance
     depends_on:
       - auth
-      - ollama
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   health:
     build: ./health
@@ -120,6 +137,8 @@ services:
     volumes:
       - ./health:/app
       - ./shared/templates:/app/shared_templates
+      - ./shared/ai_loop.py:/app/ai_loop.py:ro
+      - ./tools/ai-loop/logs:/app/ai_loop_logs
     environment:
       - DATABASE_URL=sqlite:////app/instance/health.db
       # Browser-facing (via the proxy).
@@ -133,6 +152,11 @@ services:
       # Pull (if needed) and load the model in the background at startup, so the
       # first assessment does not pay the cold-load cost. See /healthz.
       - OLLAMA_PRELOAD=true
+      # Perceive -> Reason -> Act -> Observe -> Repeat around every assessment
+      # (health/agentic.py). The reviewer is an independent text model.
+      - OLLAMA_REVIEW_MODEL=qwen3:4b-instruct
+      - AI_LOOP_MAX_ITERATIONS=2
+      - AI_LOOP_LOG_DIR=/app/ai_loop_logs
       # Release 1: shared local MCP + RAG servers. They run on the HOST, outside
       # compose (never as services here); the container reaches them through
       # host.docker.internal, like the local AI mode. CI sets both flags to false.
@@ -158,9 +182,11 @@ services:
     volumes:
       - ollama-models:/root/.ollama
     environment:
-      # Keep one model resident so repeat requests skip the load cost.
+      # Keep models resident so repeat requests skip the load cost. Two, so the
+      # health service's vision model and its reviewer model do not evict each
+      # other on every assessment (about 3 GB + 2.5 GB).
       - OLLAMA_KEEP_ALIVE=30m
-      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_MAX_LOADED_MODELS=2
 
 volumes:
   ollama-models:

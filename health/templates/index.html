@@ -10,9 +10,25 @@
     </p>
 
     <form class="border border-border rounded-lg p-6" @submit.prevent="submit($event)">
-        <label class="uk-form-label" for="plant_ref">Plant name or reference (optional)</label>
-        <input class="uk-input mb-4" type="text" id="plant_ref" name="plant_ref"
-               maxlength="200" placeholder="e.g. Tomato in the back bed">
+        <label class="uk-form-label" for="plant_choice">Plant name or reference (optional)</label>
+        {# Only the visible control carries the plant_ref name, so the backend always
+           receives one plain plant_ref field whichever way the name was given. #}
+        <select class="uk-select mb-2" id="plant_choice" x-model="plantChoice"
+                :name="plantChoice === '__new__' ? '' : 'plant_ref'" data-role="plant-choice">
+            <option value="">— No plant name —</option>
+            {% for plant in plants %}
+                <option value="{{ plant.name }}">{{ plant.name }}</option>
+            {% endfor %}
+            <option value="__new__">Other / new plant…</option>
+        </select>
+        <input class="uk-input mb-2" type="text" id="plant_ref_new" x-show="plantChoice === '__new__'" x-cloak
+               :name="plantChoice === '__new__' ? 'plant_ref' : ''" x-ref="newPlant"
+               maxlength="200" placeholder="e.g. Tomato in the back bed"
+               :required="plantChoice === '__new__'">
+        <p class="text-xs text-muted-foreground mb-4">
+            A new name is saved with the assessment and offered here next time.
+            <a class="text-primary hover:underline" href="{{ url_for('health.list_plants') }}">Manage plant names</a>
+        </p>
 
         <label class="uk-form-label" for="description">Description (optional if a photo is given)</label>
         <textarea class="uk-textarea mb-4" id="description" name="description" rows="5"
@@ -96,6 +112,7 @@ function assessmentForm(limits) {
         elapsed: 0,
         resultHtml: "",
         previewUrl: "",
+        plantChoice: "",
         file: null,
         fileNote: defaultNote,
         fileTooBig: false,
@@ -234,9 +251,23 @@ function assessmentForm(limits) {
             }
         },
 
+        // The loop reports its phases (Perceive → Reason → Act → Observe → Repeat).
+        phaseLabel(event) {
+            const labels = {
+                perceive: "Perceiving the evidence…",
+                reason: event.iteration > 1 ? "Reasoning again with the reviewer's guidance…" : "Reasoning about the plant…",
+                observe: "Observing: checking the draft against the evidence…",
+                repeat: "Repeat: the reviewer asked for a revision…",
+            };
+            return labels[event.phase] || (event.detail || "Working…");
+        },
+
         handle(event) {
-            if (event.type === "progress") {
-                if (event.field) this.stage = event.field + "…";
+            if (event.type === "phase") {
+                this.stage = this.phaseLabel(event);
+            } else if (event.type === "progress") {
+                const pass = event.iteration > 1 ? "Revising (pass " + event.iteration + " of " + event.iterations_max + "): " : "";
+                if (event.field) this.stage = pass + event.field + "…";
                 if (event.summary) this.liveSummary = event.summary;
                 this.chars = event.chars || 0;
             } else if (event.type === "done") {

@@ -70,6 +70,8 @@ class FakeRag:
                         "question": payload["question"],
                         "answer": None,
                         "confidence": "insufficient",
+                        "confidence_reason": "No indexed passage passed the relevance gate, so the model was not consulted.",
+                        "model_confidence": None,
                         "insufficient_context": True,
                         "citations": [],
                         "retrieval": {"mode": "lexical", "candidates": 0, "considered": 3, "top_k": 5},
@@ -78,11 +80,29 @@ class FakeRag:
                         "note": "No indexed passage was relevant enough.",
                     }
                 )
+            if self.mode == "model_insufficient":
+                return jsonify(
+                    {
+                        "question": payload["question"],
+                        "answer": None,
+                        "confidence": "insufficient",
+                        "confidence_reason": "The model judged the retrieved passages insufficient to answer this question (its own evidence rating: weak).",
+                        "model_confidence": "weak",
+                        "insufficient_context": True,
+                        "citations": [],
+                        "retrieval": {"mode": "lexical", "candidates": 2, "considered": 3, "top_k": 5},
+                        "model": "fake-llm",
+                        "duration_ms": 800,
+                        "note": "The retrieved passages did not contain enough to answer this question.",
+                    }
+                )
             return jsonify(
                 {
                     "question": payload["question"],
                     "answer": "Assessment #1 rated the tomato at risk from overwatering.",
                     "confidence": "medium",
+                    "confidence_reason": "1 cited passage, top relevance 71%; model rated its evidence moderate.",
+                    "model_confidence": "moderate",
                     "insufficient_context": False,
                     "citations": [
                         {
@@ -305,6 +325,11 @@ def test_ask_returns_grounded_answer_with_citations_and_confidence(client, rag):
     assert 'data-confidence="medium"' in html and "Medium confidence" in html
     assert "Assessment #1 — Tomato, back bed" in html and "relevance 71%" in html
     assert "answered locally by fake-llm" in html
+    # The model's own rating and the reason for the category are shown, labelled honestly.
+    assert body["model_confidence"] == "moderate"
+    assert "Why medium confidence:" in html and "model rated its evidence moderate" in html
+    assert 'data-model-confidence="moderate"' in html and "moderate evidence" in html
+    assert "self-reported by fake-llm" in html
 
 
 def test_ask_renders_the_insufficient_context_response(client, rag):
@@ -317,7 +342,31 @@ def test_ask_renders_the_insufficient_context_response(client, rag):
     html = fragment.get_data(as_text=True)
     assert fragment.status_code == 200
     assert 'data-confidence="insufficient"' in html and "Not enough relevant context" in html
+    assert 'data-refusal="gate"' in html and "Sync records to the knowledge base" in html
     assert "fake-llm" not in html
+    # No model was consulted, so there is a reason but no model rating to show.
+    assert "model was not consulted" in html
+    assert "data-model-confidence" not in html
+
+
+def test_ask_renders_a_model_declared_refusal_with_its_rating(client, rag):
+    rag.mode = "model_insufficient"
+    fragment = client.post(
+        "/plant-health-records/ask",
+        data={"question": "Was the tomato fertilised?"},
+        headers={"HX-Request": "true"},
+    )
+    html = fragment.get_data(as_text=True)
+    assert fragment.status_code == 200
+    assert 'data-confidence="insufficient"' in html and 'data-refusal="model"' in html
+    # Relevant records were retrieved, so the card must not claim nothing was indexed
+    # or suggest re-syncing; it attributes the refusal to the model and shows its rating.
+    assert "2 related passages were retrieved" in html and "do not" in html
+    assert "Sync records to the knowledge base" not in html
+    assert 'data-model-confidence="weak"' in html and "weak evidence" in html
+    assert "self-reported by fake-llm" in html and "assessed locally by fake-llm" in html
+    assert "Why insufficient context:" in html
+    assert "<h4" not in html  # no Sources list for a refusal
 
 
 def test_ask_validation_and_failures(app, client, rag):

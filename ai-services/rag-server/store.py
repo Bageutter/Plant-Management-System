@@ -115,13 +115,32 @@ class ChunkStore:
 
     # -- reads -------------------------------------------------------------
 
-    def chunks(self, sources: tuple[str, ...] | list[str] | None = None) -> list[Chunk]:
+    def chunks(
+        self,
+        sources: tuple[str, ...] | list[str] | None = None,
+        *,
+        source_id: str | None = None,
+    ) -> list[Chunk]:
+        """Retrievable chunks, optionally narrowed to one ``source_id``.
+
+        ``source_id`` scopes retrieval to one record within a source — e.g. one
+        garden's chunks within the ``vgarden`` source — so a question can be
+        grounded in exactly one owner's record and never another's. See
+        ``pipeline.answer`` and ``routes.py``'s ``/rag/query``.
+        """
+
         sql = "SELECT * FROM chunks"
-        params: tuple = ()
+        clauses: list[str] = []
+        params: list[str] = []
         if sources:
-            sql += f" WHERE source IN ({','.join('?' * len(sources))})"
-            params = tuple(sources)
-        return [_row_to_chunk(row) for row in self._conn.execute(sql, params)]
+            clauses.append(f"source IN ({','.join('?' * len(sources))})")
+            params.extend(sources)
+        if source_id is not None:
+            clauses.append("source_id = ?")
+            params.append(source_id)
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        return [_row_to_chunk(row) for row in self._conn.execute(sql, tuple(params))]
 
     def get(self, chunk_id: str) -> Chunk | None:
         row = self._conn.execute("SELECT * FROM chunks WHERE chunk_id = ?", (chunk_id,)).fetchone()

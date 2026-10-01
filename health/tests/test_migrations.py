@@ -111,7 +111,7 @@ def _columns(app):
 def test_fresh_database_is_at_head_and_matches_the_models(app):
     from extensions import db
 
-    assert _current_revision(app) == _head(app) == "0003"
+    assert _current_revision(app) == _head(app) == "0005"
     with app.app_context(), db.engine.connect() as connection:
         context = MigrationContext.configure(connection, opts={"compare_type": True})
         assert compare_metadata(context, db.metadata) == []
@@ -124,7 +124,7 @@ def test_pre_migration_database_is_adopted_and_upgraded_keeping_its_rows(tmp_pat
 
     app = _app_for(path)
 
-    assert _current_revision(app) == "0003"
+    assert _current_revision(app) == "0005"
     columns = _columns(app)
     assert {"image_data", "score_band", "confidence_reason", "duration_ms"} <= set(columns)
     assert "VARCHAR" in str(columns["confidence"]["type"]).upper()
@@ -145,9 +145,13 @@ def test_pre_migration_database_is_adopted_and_upgraded_keeping_its_rows(tmp_pat
     assert created["confidence"] == "medium"
     assert len(client.get("/plant-health-records/assessments").get_json()) == 5
 
+    # 0004: every plant name already recorded is offered as a title.
+    titles = [p["name"] for p in client.get("/plant-health-records/plants").get_json()]
+    assert titles == ["Basil", "Chilli", "Mint", "New tomato", "Tomato, back bed"]
+
     # A second start is a no-op (idempotent).
     again = _app_for(path)
-    assert _current_revision(again) == "0003"
+    assert _current_revision(again) == "0005"
 
 
 def test_auto_migrate_can_be_turned_off_for_an_explicit_deploy_step(tmp_path):
@@ -166,10 +170,10 @@ def test_auto_migrate_can_be_turned_off_for_an_explicit_deploy_step(tmp_path):
     # ...and `flask db upgrade` (the CLI Flask-Migrate registers) applies them.
     result = app.test_cli_runner().invoke(args=["db", "upgrade"])
     assert result.exit_code == 0, result.output
-    assert _current_revision(app) == "0003"
+    assert _current_revision(app) == "0005"
 
 
 def test_revisions_form_a_single_linear_history(app):
     script = _script(app)
-    assert script.get_heads() == ["0003"]
-    assert [rev.revision for rev in script.walk_revisions()] == ["0003", "0002", "0001"]
+    assert script.get_heads() == ["0005"]
+    assert [rev.revision for rev in script.walk_revisions()] == ["0005", "0004", "0003", "0002", "0001"]

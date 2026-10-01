@@ -36,6 +36,14 @@ class Config:
     # budget only costs time.
     OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "700"))
     OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "4096"))
+    # Agentic loop (Perceive -> Reason -> Act -> Observe -> Repeat, see agentic.py).
+    # The reviewer is a second, independent text model that checks each draft
+    # assessment against the evidence. Empty -> the loop runs its code checks only.
+    OLLAMA_REVIEW_MODEL = os.environ.get("OLLAMA_REVIEW_MODEL", "qwen3:4b-instruct")
+    AI_LOOP_MAX_ITERATIONS = int(os.environ.get("AI_LOOP_MAX_ITERATIONS", "2"))
+    AI_LOOP_LOG_DIR = os.environ.get(
+        "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
+    )
     # Load the model into memory in the background as soon as the service starts,
     # so the first assessment does not also pay the cold-load cost. Retried while
     # Ollama itself is still coming up.

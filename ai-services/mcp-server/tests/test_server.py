@@ -1,4 +1,4 @@
-"""Discovery and boundary tests for the shared MCP server (stub phase).
+"""Discovery and boundary tests for the shared MCP server.
 
 No feature service and no model is needed: the in-memory client talks to the
 server object directly, and one test starts the real streamable-http listener.
@@ -29,21 +29,13 @@ EXPECTED_TOOLS = {
     "get_health_assessment",
     "summarise_plant_health_history",
     "assess_plant_health",
-    # Plant Almanac (stubs)
+    # Plant Almanac
     "search_almanac_catalogue",
     "get_almanac_plant",
-    # Virtual Garden (stubs)
+    # Virtual Garden
     "get_garden_snapshot",
     "list_garden_plantings",
 }
-
-# Tools whose behaviour is still a registered stub (tracked in issues #41 / #42).
-STUB_CALLS = [
-    ("search_almanac_catalogue", {"query": "tomato"}),
-    ("get_almanac_plant", {"slug": "tomato"}),
-    ("get_garden_snapshot", {"garden_id": 1}),
-    ("list_garden_plantings", {"garden_id": 1}),
-]
 
 
 def run(coro):
@@ -84,22 +76,6 @@ def test_every_tool_is_discoverable_with_schemas_and_annotations():
     run(check())
 
 
-@pytest.mark.parametrize("name,args", STUB_CALLS)
-def test_stubs_return_an_honest_not_implemented_error(name, args):
-    server = create_server(Settings())
-
-    async def check():
-        async with Client(server) as client:
-            result = await client.call_tool(name, args)
-            assert result.is_error
-            message = result.content[0].text
-            assert "not implemented" in message and "No data was returned" in message
-            assert "issue #4" in message
-            assert result.structured_content in (None, {})
-
-    run(check())
-
-
 def test_invalid_inputs_are_rejected_before_any_work():
     server = create_server(Settings())
     bad = [
@@ -129,7 +105,13 @@ def test_disabled_server_still_discovers_but_refuses_every_call():
     async def check():
         async with Client(server) as client:
             assert {t.name for t in (await client.list_tools()).tools} == EXPECTED_TOOLS
-            for name, args in STUB_CALLS + [("list_health_assessments", {}), ("health_service_status", {})]:
+            calls = [
+                ("get_garden_snapshot", {"garden_id": 1}),
+                ("list_garden_plantings", {"garden_id": 1}),
+                ("list_health_assessments", {}),
+                ("health_service_status", {}),
+            ]
+            for name, args in calls:
                 result = await client.call_tool(name, args)
                 assert result.is_error
                 assert "disabled" in result.content[0].text
@@ -166,7 +148,11 @@ def test_streamable_http_listener_serves_healthz_and_protocol(tmp_path):
     port = _free_port()
     process = subprocess.Popen(
         [sys.executable, str(Path(__file__).resolve().parents[1] / "server.py"), "--port", str(port)],
-        env={**os.environ, "MCP_ENABLED": "true"},
+        env={
+            **os.environ,
+            "MCP_ENABLED": "true",
+            "HEALTH_SERVICE_URL": f"http://127.0.0.1:{_free_port()}/health",
+        },
         cwd=tmp_path,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -206,7 +192,7 @@ def test_streamable_http_listener_serves_healthz_and_protocol(tmp_path):
         async def check():
             async with Client(f"http://127.0.0.1:{port}/mcp", read_timeout_seconds=10) as client:
                 assert {t.name for t in (await client.list_tools()).tools} == EXPECTED_TOOLS
-                # No health service is running on :3000 in the test: the tool must say so.
+                # The test points Health at an unused port, independent of any live stack.
                 result = await client.call_tool("health_service_status", {})
                 assert result.is_error and "unavailable" in result.content[0].text
 
