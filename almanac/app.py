@@ -18,6 +18,7 @@ from flask import (
     url_for,
 )
 from jinja2 import ChoiceLoader, FileSystemLoader
+from markupsafe import Markup, escape
 from sqlalchemy import text
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -266,6 +267,39 @@ def _chat_context(owner_key: str) -> tuple[list[AIChatMessage], dict[str, dict]]
     return messages, sources
 
 
+def _chat_fact_text(content):
+    """Format a known field label while keeping all answer text escaped."""
+    parts = re.split(r"[ \t]*Recorded planting months:\s*", content)
+    return Markup('<br><strong>When to Plant:</strong> ').join(escape(part) for part in parts)
+
+
+def _plant_mentions(content, sources):
+    """Link known reference names without interpreting answer text as HTML."""
+    content = re.sub(r"(?im)^\s*(?:evidence[ _]strength|cited[ _]chunk[ _]ids)\s*:.*$", "", content).strip()
+    paragraphs = []
+    for paragraph in re.split(r"\n\s*\n", content):
+        sentences = re.split(r"(?<=[.!?]) (?=[A-Z])", paragraph) if len(paragraph) > 240 else [paragraph]
+        paragraphs.extend(" ".join(sentences[i:i + 2]) for i in range(0, len(sentences), 2))
+    content = "\n\n".join(paragraphs)
+    names = {}
+    for plant in sources.values():
+        name = plant["common_name"]
+        names[name.casefold()] = plant["slug"]
+        short = name.split(" - ")[0]
+        names.setdefault(short.casefold(), plant["slug"])
+    if not names:
+        return _chat_fact_text(content)
+    pattern = re.compile(r"(?<!\w)(?:" + "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)) + r")(?!\w)", re.I)
+    parts, end = [], 0
+    for match in pattern.finditer(content):
+        parts.append(_chat_fact_text(content[end:match.start()]))
+        parts.append(Markup('<a class="chat-plant-mention" href="{}">{}</a>').format(
+            url_for("plant_detail", slug=names[match.group().casefold()]), match.group()))
+        end = match.end()
+    parts.append(_chat_fact_text(content[end:]))
+    return Markup("").join(parts)
+
+
 def _render_chat(owner_key: str, error: str | None = None):
     messages, sources = _chat_context(owner_key)
     return render_template("_ai_history.html", messages=messages, sources=sources, error=error)
@@ -340,6 +374,7 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     db.init_app(app)
     csrf.init_app(app)
+    app.jinja_env.filters["plant_mentions"] = _plant_mentions
     app.register_blueprint(catalogue_api)
     app.register_blueprint(integrations)
     app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])

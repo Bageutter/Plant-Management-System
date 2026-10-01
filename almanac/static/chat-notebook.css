@@ -6,7 +6,7 @@
 #ai-conversation{background:#fcfcf7!important;padding:1.25rem!important}
 #ai-messages>div{gap:1.3rem!important}
 .chat-message{font-size:.93rem;line-height:1.65}
-.chat-message-user{background:#e5eedf!important;color:#26362c!important;border-radius:1rem!important}
+.chat-message-user{background:#2b6b43!important;color:#fff!important;border-radius:1rem!important}
 .chat-message-assistant{max-width:100%!important;width:100%;background:#f3f6ef!important;border:0!important;border-radius:1rem!important;padding:1.1rem!important}
 .chat-message>p:first-child{color:#687367!important}
 .chat-plant-card{display:flex;align-items:center;gap:.8rem;width:100%;padding:.7rem;margin:.85rem 0 .25rem;border:1px solid #dbe4d5;border-radius:.85rem;background:#ffffff;color:#23372a;text-decoration:none}
@@ -35,7 +35,8 @@
 .ai-chat-panel>header h2{font-family:Fraunces,Georgia,serif;font-weight:600;letter-spacing:-.035em;color:#244c34}
 .chat-message{font-size:.95rem;line-height:1.75}
 .chat-message-assistant{background:#ffffff!important;box-shadow:0 1px 5px #28482e06}
-.chat-message-user{border:1px solid #d9e5d1}
+.chat-message-user{border:1px solid #2b6b43}
+.chat-message-user p,.chat-message-user .chat-message-heading p{color:#fff!important}
 .chat-plant-card{background:#f6f8f1;border-color:#dce6d4}
 .chat-mode-tabs button.active{color:#245a37;box-shadow:inset 0 -2px #39784a}
 .ai-chat-panel>header,.ai-chat-panel>footer{border-color:#e0e7d9!important}
@@ -50,3 +51,22 @@
 .chat-technical-dialog h2{font-size:1.3rem;margin:0}
 .chat-technical-dialog header button{border:0;border-radius:50%;padding:.4rem .8rem;background:#e5eedf;font-size:1.4rem;cursor:pointer}
 .chat-technical-dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem;line-height:1.6;margin-top:1rem}
+
+/* Compact references keep the answer, rather than its cards, in focus. */
+.chat-plant-card{gap:.6rem;padding:.5rem .65rem;margin:.4rem 0;width:auto;flex:1 1 16rem;max-width:24rem}
+.chat-plant-card img{width:3rem;height:3rem;border-radius:.45rem}
+.chat-plant-copy{gap:.15rem}
+.chat-plant-copy strong{font-size:.9rem}
+.chat-plant-copy em,.chat-plant-summary{display:none}
+.chat-plant-needs{font-size:.72rem}
+.chat-plant-mention{display:inline;padding:.1rem .45rem;border-radius:1rem;background:#e7efdf;color:#255b37;text-decoration:none;font-weight:600;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.chat-plant-mention:hover{text-decoration:underline;background:#dce9d2}
+.chat-plant-mention:focus-visible{outline:2px solid #426843;outline-offset:2px}
+
+.chat-message-heading{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.65rem}
+.chat-message .chat-message-heading p{margin:0!important}
+.chat-message-heading .confidence-pill{font-size:.68rem!important;padding:.2rem .55rem!important;cursor:help}
+
+.chat-problem-icon{display:grid;place-items:center;width:3rem;height:3rem;flex-shrink:0;border-radius:.5rem;background:#e7ebda;color:#526b36;font-size:1.5rem}
+.chat-problem-card{background:#faf7ee}
+.chat-message-assistant>p{line-height:1.7!important}

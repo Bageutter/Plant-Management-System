@@ -184,7 +184,7 @@
 
             <footer style="padding:0.8rem 0.9rem; border-top:1px solid hsl(var(--border));">
                 <div style="display:flex; gap:0.35rem; margin-bottom:0.6rem; overflow-x:auto; padding-bottom:0.1rem;">
-                    {% for example in ["Plant tomatoes?", "What can I plant now?", "Compare basil and zucchini"] %}
+                    {% for example in ["Plant tomatoes?", "What can I plant now?", "Compare basil and zucchini", "How to prevent powdery mildew?"] %}
                     <button type="button"
                             @click='question = {{ example|tojson }}; document.getElementById("ai-question").focus()'
                             style="flex:none; padding:0.3rem 0.5rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--muted-foreground)); font-size:0.68rem; cursor:pointer;">

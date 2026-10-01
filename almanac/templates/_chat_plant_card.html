@@ -6,3 +6,10 @@
 {% if plant.summary %}<span class="chat-plant-summary">{{ plant.summary }}</span>{% endif %}</span><span aria-hidden="true">›</span>
 </a>
 {% endmacro %}
+
+{% macro problem_card(name, kind, href) %}
+<a class="chat-plant-card chat-problem-card" href="{{ href }}">
+<span class="chat-problem-icon" aria-hidden="true">{{ '✿' if kind == 'disease' else '♧' }}</span>
+<span class="chat-plant-copy"><strong>{{ name }}</strong><span class="chat-plant-needs">{{ 'Disease' if kind == 'disease' else 'Pest' }} guide · Signs & prevention</span></span><span aria-hidden="true">›</span>
+</a>
+{% endmacro %}
