@@ -186,5 +186,13 @@ def retrieve(
         candidates.append(candidate)
 
     relevant = [c for c in candidates if c.relevant and c.score > 0]
+    # A named problem question should use its guide, not plants merely listing it.
+    named_guides = [c for c in relevant if c.chunk.source == "almanac"
+                    and c.chunk.title.endswith((" — disease reference", " — pest reference"))
+                    and set(tokenize(c.chunk.title.split(" — ")[0])).issubset(set(terms))]
+    named_plants = [c for c in relevant if c.chunk.title.endswith(" — plant reference")
+                    and set(tokenize(c.chunk.title.split(" — ")[0])).issubset(set(terms))]
+    if named_guides and not named_plants:
+        relevant = named_guides
     relevant.sort(key=lambda c: (-c.score, c.chunk.chunk_id))
     return Retrieval(relevant[:top_k], mode, len(chunks), terms)

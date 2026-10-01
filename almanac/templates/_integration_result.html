@@ -20,7 +20,7 @@
     <h3 style="margin-top:1rem;">References used</h3>
     <ul class="source-list">
         {% for citation in result.citations %}
-        <li><a href="{{ citation.url }}">{{ citation.title }}</a><p style="margin:.4rem 0; line-height:1.6;">{{ citation.excerpt }}</p></li>
+        <li><a href="{{ citation.url }}">{{ citation.title }}</a><p style="margin:.4rem 0; line-height:1.6;">{{ citation.excerpt|highlight_excerpt(citation.highlight_terms or []) }}</p></li>
         {% endfor %}
     </ul>
     {% endif %}

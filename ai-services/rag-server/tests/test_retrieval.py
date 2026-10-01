@@ -93,3 +93,12 @@ def test_comparison_and_name_typos_still_retrieve_without_admitting_unrelated_qu
     for question in ("powdery mildew", "powedery mildrew", "what prevent powedery mildren", "how do i deal with powdery mildrew"):
         assert search(question).candidates[0].chunk.source_id == "mildew"
     assert not search("What is the orbital period of Neptune?").candidates
+
+
+def test_named_disease_uses_guide_not_associated_plant_records():
+    chunks = [
+        Chunk("almanac", "disease:1", "record", "Powdery mildew — disease reference", "Prevent powdery mildew with airflow."),
+        Chunk("almanac", "plant:pea", "record", "Pea — plant reference", "Associated diseases: Powdery mildew."),
+    ]
+    result = retrieve("How to prevent powdery mildew?", chunks, top_k=5, min_coverage=.34, min_similarity=.45)
+    assert [c.chunk.source_id for c in result.candidates] == ["disease:1"]

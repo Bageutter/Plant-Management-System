@@ -7,7 +7,7 @@ def catalogue_view(plants, args):
     categories = sorted({p.get("plant_category") or "Other" for p in plants})
     if category not in categories:
         category = ""
-    group_by = "none" if args.get("group") == "none" else "plant"
+    group_by = "plant"
     visible = [p for p in plants if (
         not category or (p.get("plant_category") or "Other") == category
     ) and query.casefold() in " ".join(str(p.get(k) or "") for k in (

@@ -2,9 +2,6 @@
     <label class="catalogue-search"><span class="sr-only">Search plants or varieties</span>
         <input name="q" type="search" value="{{ query }}" placeholder="Search plants or varieties…" maxlength="200">
     </label>
-    <label class="catalogue-group-select">View
-        <select name="group"><option value="plant" {% if group_by == 'plant' %}selected{% endif %}>Grouped varieties</option><option value="none" {% if group_by == 'none' %}selected{% endif %}>Individual plants</option></select>
-    </label>
     <nav class="catalogue-problems" aria-label="Plant problem library"><strong>Plant problems:</strong> <a href="{{ url_for('pest_index') }}">Pest guides</a><span aria-hidden="true">·</span><a href="{{ url_for('disease_index') }}">Disease guides</a></nav>
     {% if auth_user %}<a class="uk-btn uk-btn-primary uk-btn-sm" href="{{ url_for('new_plant') }}">+ Add a plant</a>{% endif %}
     <div class="catalogue-categories" role="group" aria-label="Plant category">

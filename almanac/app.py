@@ -2,6 +2,8 @@ import os
 import re
 import sys
 import uuid
+import calendar
+from zoneinfo import ZoneInfo
 from datetime import datetime
 
 from flask import (
@@ -267,20 +269,53 @@ def _chat_context(owner_key: str) -> tuple[list[AIChatMessage], dict[str, dict]]
     return messages, sources
 
 
-def _chat_fact_text(content):
+def _highlight_excerpt(content, terms):
+    if not terms:
+        return escape(content)
+    pattern = re.compile(r"\b(" + "|".join(re.escape(term) for term in sorted(terms, key=len, reverse=True)) + r")\b", re.I)
+    parts, end = [], 0
+    for match in pattern.finditer(content):
+        parts.extend([escape(content[end:match.start()]), Markup("<mark>{}</mark>").format(match.group())])
+        end = match.end()
+    parts.append(escape(content[end:]))
+    return Markup("").join(parts)
+
+
+def _chat_fact_text(content, shared_months=None):
     """Format a known field label while keeping all answer text escaped."""
+    if shared_months is not None:
+        parts, end = [], 0
+        for match in re.finditer(r"[ \t]*Recorded planting months:\s*([A-Za-z, ]+)\.?", content):
+            parts.append(escape(content[end:match.start()]))
+            parts.append(Markup('<br><strong>When to Plant</strong><span class="planting-timeline">'))
+            recorded = {month.strip() for month in match.group(1).split(",")}
+            current_month = datetime.now(ZoneInfo("Australia/Sydney")).month
+            for number in range(1, 13):
+                month = calendar.month_name[number]
+                state = "shared" if month in recorded and month in shared_months else "unique" if month in recorded else "inactive"
+                label = f"{month}: " + ("shared planting month" if state == "shared" else "planting month for this plant only" if state == "unique" else "not recorded for planting")
+                parts.append(Markup('<span class="timeline-month {} {}" title="{}" aria-label="{}"><span class="timeline-bar"></span><span class="timeline-label">{}</span></span>').format(
+                    state, "current" if number == current_month else "", label, label, calendar.month_abbr[number]))
+            parts.append(Markup('</span>'))
+            end = match.end()
+        parts.append(escape(content[end:]))
+        return Markup("").join(parts)
     parts = re.split(r"[ \t]*Recorded planting months:\s*", content)
     return Markup('<br><strong>When to Plant:</strong> ').join(escape(part) for part in parts)
 
 
-def _plant_mentions(content, sources):
+def _plant_mentions(content, sources, comparison=False):
     """Link known reference names without interpreting answer text as HTML."""
+    content = re.sub(r"(?i)\s*\(\s*cited[ _]chunk[ _]ids\s*:\s*\[[^\]]*\]\s*\)", "", content)
     content = re.sub(r"(?im)^\s*(?:evidence[ _]strength|cited[ _]chunk[ _]ids)\s*:.*$", "", content).strip()
     paragraphs = []
     for paragraph in re.split(r"\n\s*\n", content):
         sentences = re.split(r"(?<=[.!?]) (?=[A-Z])", paragraph) if len(paragraph) > 240 else [paragraph]
         paragraphs.extend(" ".join(sentences[i:i + 2]) for i in range(0, len(sentences), 2))
     content = "\n\n".join(paragraphs)
+    month_groups = [set(m.strip() for m in group.split(",")) for group in
+                    re.findall(r"Recorded planting months:\s*([A-Za-z, ]+)", content)]
+    shared_months = set.intersection(*month_groups) if comparison and len(month_groups) >= 2 else None
     names = {}
     for plant in sources.values():
         name = plant["common_name"]
@@ -288,15 +323,15 @@ def _plant_mentions(content, sources):
         short = name.split(" - ")[0]
         names.setdefault(short.casefold(), plant["slug"])
     if not names:
-        return _chat_fact_text(content)
+        return _chat_fact_text(content, shared_months)
     pattern = re.compile(r"(?<!\w)(?:" + "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)) + r")(?!\w)", re.I)
     parts, end = [], 0
     for match in pattern.finditer(content):
-        parts.append(_chat_fact_text(content[end:match.start()]))
+        parts.append(_chat_fact_text(content[end:match.start()], shared_months))
         parts.append(Markup('<a class="chat-plant-mention" href="{}">{}</a>').format(
             url_for("plant_detail", slug=names[match.group().casefold()]), match.group()))
         end = match.end()
-    parts.append(_chat_fact_text(content[end:]))
+    parts.append(_chat_fact_text(content[end:], shared_months))
     return Markup("").join(parts)
 
 
@@ -375,6 +410,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     db.init_app(app)
     csrf.init_app(app)
     app.jinja_env.filters["plant_mentions"] = _plant_mentions
+    app.jinja_env.filters["highlight_excerpt"] = _highlight_excerpt
     app.register_blueprint(catalogue_api)
     app.register_blueprint(integrations)
     app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])

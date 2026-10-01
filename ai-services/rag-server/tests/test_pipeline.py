@@ -300,3 +300,24 @@ def test_comparison_uses_both_saved_records(store):
     assert "Water needs: high" in result["answer"]
     assert len(result["citations"]) == 2 and not result["insufficient_context"]
     assert not model.groundings
+
+
+def test_citation_quotes_relevant_sentence_instead_of_record_intro():
+    from retrieval import Candidate
+    chunk = Chunk("almanac", "disease:1", "record", "Powdery mildew — disease reference",
+                  "A fungal disease. Improve airflow by spacing and pruning plants. Other background.")
+    citation = pipeline._citation(Candidate(chunk, 1, 1, None, .8),
+                                  "How to prevent powdery mildew?", "Improve airflow by spacing and pruning plants.")
+    assert citation["excerpt"] == "Improve airflow by spacing and pruning plants."
+    assert "airflow" in citation["highlight_terms"]
+
+
+def test_inline_citation_metadata_is_removed_without_losing_answer():
+    import json
+    result = parse_generation(json.dumps({
+        "answer": "Improve airflow. (cited_chunk_ids: ['almanac:disease:1:record'])",
+        "cited_chunk_ids": ["almanac:disease:1:record"],
+        "evidence_strength": "strong", "insufficient_context": False,
+    }))
+    assert result["answer"] == "Improve airflow."
+    assert result["cited_chunk_ids"] == ["almanac:disease:1:record"]

@@ -40,7 +40,7 @@ import time
 
 from embeddings import EmbeddingUnavailable, build_embedder
 from generation import ModelUnavailable, build_answerer
-from retrieval import Candidate, retrieve
+from retrieval import Candidate, retrieve, tokenize
 
 logger = logging.getLogger(__name__)
 
@@ -297,7 +297,7 @@ def answer(
         "confidence_reason": explain(cited, strength, fallback=fallback),
         "model_confidence": strength,
         "insufficient_context": False,
-        "citations": [_citation(c) for c in cited],
+        "citations": [_citation(c, question, text) for c in cited],
         "retrieval": retrieval,
         "model": answerer.model,
         "duration_ms": _ms(started),
@@ -305,9 +305,22 @@ def answer(
     }
 
 
-def _citation(candidate: Candidate) -> dict:
+def _citation(candidate: Candidate, question: str = "", answer_text: str = "") -> dict:
     chunk = candidate.chunk
-    excerpt = chunk.text if len(chunk.text) <= EXCERPT_CHARS else chunk.text[: EXCERPT_CHARS - 1] + "…"
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+|\n+", chunk.text) if part.strip()]
+    query_terms = set(tokenize(question))
+    answer_terms = set(tokenize(answer_text))
+    if question and sentences:
+        # Quote an actual source sentence, selected for question and answer overlap.
+        ranked = sorted(enumerate(sentences), key=lambda pair: (
+            -(len(set(tokenize(pair[1])) & answer_terms) + 2 * len(set(tokenize(pair[1])) & query_terms)), pair[0]))
+        index, excerpt = ranked[0]
+        if index and excerpt.startswith(("This ", "These ", "It ")):
+            excerpt = sentences[index - 1] + " " + excerpt
+        if len(excerpt) > 360:
+            excerpt = excerpt[:359] + "…"
+    else:
+        excerpt = chunk.text if len(chunk.text) <= EXCERPT_CHARS else chunk.text[: EXCERPT_CHARS - 1] + "…"
     return {
         "chunk_id": chunk.chunk_id,
         "source": chunk.source,
@@ -316,6 +329,8 @@ def _citation(candidate: Candidate) -> dict:
         "url": chunk.url,
         "recorded_at": chunk.recorded_at,
         "excerpt": excerpt,
+        "highlight_terms": sorted({word for word in re.findall(r"[A-Za-z]+", excerpt)
+                                   if set(tokenize(word)) & (query_terms | answer_terms)}),
         "score": candidate.score,
     }
 

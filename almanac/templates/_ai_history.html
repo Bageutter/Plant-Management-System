@@ -17,7 +17,7 @@
         </p>
         {% if message.evidence and message.evidence.mode == 'rag' %}{{ confidence_pill(message.evidence.result.confidence, message.evidence.result.insufficient_context, message.evidence.result.confidence_reason) }}{% endif %}
         </header>
-        {% if not message.evidence or message.evidence.mode != 'mcp' %}<p style="margin:0; line-height:1.6; white-space:pre-wrap;">{% if message.role == 'assistant' and message.evidence and message.evidence.result.insufficient_context %}I couldn’t find enough information. Try a plant or problem name.{% elif message.role == 'assistant' %}{{ message.content|plant_mentions(sources) }}{% else %}{{ message.content }}{% endif %}</p>{% endif %}
+        {% if not message.evidence or message.evidence.mode != 'mcp' %}<p style="margin:0; line-height:1.6; white-space:pre-wrap;">{% if message.role == 'assistant' and message.evidence and message.evidence.result.insufficient_context %}I couldn’t find enough information. Try a plant or problem name.{% elif message.role == 'assistant' %}{{ message.content|plant_mentions(sources, message.evidence and message.evidence.result.retrieval and message.evidence.result.retrieval.mode == 'record_comparison') }}{% else %}{{ message.content }}{% endif %}</p>{% endif %}
         {% if message.evidence %}
         {% set result = message.evidence.result %}
         {% set mode = message.evidence.mode %}
@@ -40,10 +40,10 @@
           {% if mode == 'rag' %}
           {% set reason = result.confidence_reason or '' %}
           {% if ';' in reason %}
-          <div class="chat-evidence-stats">{% for stat in reason.split(';')[0].split(',') %}<p>{{ stat.strip()|capitalize }}</p>{% endfor %}</div>
+          <div class="chat-evidence-stats">{% for stat in reason.split(';')[0].split(',') %}<p>{{ stat.strip().replace("top relevance", "Search match")|capitalize }}</p>{% endfor %}</div>
           {% elif result.insufficient_context %}<p>No supporting passages found.</p>{% endif %}
 
-          {% for citation in result.citations or [] %}<blockquote style="margin:.6rem 0;padding-left:.7rem;border-left:2px solid #c7d9be;">{{ citation.excerpt }}</blockquote>{% endfor %}
+          {% for citation in result.citations or [] %}<blockquote style="margin:.6rem 0;padding-left:.7rem;border-left:2px solid #c7d9be;"><a href="{{ citation.url }}">{{ citation.title }}</a><br>{{ citation.excerpt|highlight_excerpt(citation.highlight_terms or []) }}</blockquote>{% endfor %}
           {% endif %}
           <div class="chat-technical">
             <button type="button" class="chat-technical-open" @click="$el.nextElementSibling.showModal()">View technical response ↗</button>

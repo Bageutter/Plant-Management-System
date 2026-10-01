@@ -144,9 +144,11 @@ def parse_generation(content: str) -> dict:
     if not isinstance(data, dict):
         raise ModelUnavailable("The local AI model returned an unexpected result shape.")
 
+    answer = str(data.get("answer") or "")
+    answer = re.sub(r"(?i)\s*\(\s*cited[ _]chunk[ _]ids\s*:\s*\[[^\]]*\]\s*\)", "", answer)
     strength = str(data.get("evidence_strength", "")).strip().lower()
     return {
-        "answer": re.sub(r"(?im)^\s*(?:evidence[ _]strength|cited[ _]chunk[ _]ids)\s*:.*$", "", str(data.get("answer") or "")).strip(),
+        "answer": re.sub(r"(?im)^\s*(?:evidence[ _]strength|cited[ _]chunk[ _]ids)\s*:.*$", "", answer).strip(),
         "cited_chunk_ids": [
             str(c).strip() for c in (data.get("cited_chunk_ids") or []) if str(c).strip()
         ],
