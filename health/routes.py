@@ -1,6 +1,8 @@
 import base64
 import binascii
 import json
+import queue
+import threading
 from datetime import datetime
 
 from flask import (
@@ -18,13 +20,14 @@ from flask import (
 
 from ai import STATUSES, AIUnavailableError
 from extensions import db
+from sqlalchemy import func
 from integrations import (
     IntegrationDisabled,
     IntegrationUnavailable,
     coerce_tool_args,
 )
-from images import downscale_image, to_base64
-from models import Assessment
+from images import downscale_image, to_base64, upload_limit_message
+from models import Assessment, AssessmentLoopRun, Plant
 
 # User-facing pages and the assessment API live under a descriptive prefix.
 URL_PREFIX = "/plant-health-records"
@@ -42,6 +45,29 @@ def _client():
     return current_app.extensions["ollama"]
 
 
+def _loop():
+    """The Perceive → Reason → Act → Observe → Repeat loop (see agentic.py)."""
+
+    return current_app.extensions["health_loop"]
+
+
+HISTORY_LIMIT = 3
+
+
+def _history(plant_ref: str | None) -> list[dict]:
+    """This plant's most recent earlier assessments, as context for the model."""
+
+    if not plant_ref:
+        return []
+    earlier = (
+        Assessment.query.filter(func.lower(Assessment.plant_ref) == plant_ref.lower())
+        .order_by(Assessment.created_at.desc(), Assessment.id.desc())
+        .limit(HISTORY_LIMIT)
+        .all()
+    )
+    return [a.history_entry for a in earlier]
+
+
 @root_bp.route("/")
 def root_redirect():
     return redirect(url_for("health.index"))
@@ -54,14 +80,21 @@ def healthz():
     body = {
         "service": "health-monitoring-service",
         "status": "ok" if ai_up else "degraded",
-        "ai": {"url": client.base_url, "model": client.model, "reachable": ai_up},
+        "ai": {
+            "url": client.base_url,
+            "model": client.model,
+            "reachable": ai_up,
+            # Startup preload progress: not_started / pending / loading / retrying /
+            # loaded / failed. "loaded" means the first assessment will be warm.
+            "preload": getattr(client, "preload_state", None),
+        },
     }
     return jsonify(body), 200 if ai_up else 503
 
 
 @bp.route("/")
 def index():
-    return render_template("index.html", recent=_recent())
+    return render_template("index.html", recent=_recent(), plants=Plant.ordered())
 
 
 @bp.route("/<int:assessment_id>")
@@ -70,7 +103,10 @@ def view_assessment(assessment_id):
     if assessment is None:
         abort(404)
     return render_template(
-        "detail.html", assessment=assessment, recent=_recent(exclude_id=assessment_id)
+        "detail.html",
+        assessment=assessment,
+        recent=_recent(exclude_id=assessment_id),
+        plants=Plant.ordered(),
     )
 
 
@@ -108,13 +144,11 @@ def create_assessment():
 
     client = _client()
     try:
-        result = client.assess(
-            description=description, image_b64=image_b64, plant_ref=plant_ref
-        )
+        outcome = _loop().run(description, image_b64, plant_ref, history=_history(plant_ref))
     except AIUnavailableError as exc:
         return _error(str(exc), 503, wants_html)
 
-    assessment = _persist(result, client, plant_ref, description, image_b64, image_mime)
+    assessment = _persist(outcome, client, plant_ref, description, image_b64, image_mime)
 
     if wants_html:
         return render_template("_assessment.html", assessment=assessment)
@@ -134,32 +168,57 @@ def stream_assessment():
 
 
 def _stream(plant_ref, description, image_b64, image_mime) -> Response:
-    client = _client()
-    app = current_app._get_current_object()
+    """Run the loop on a worker thread and relay its events as they happen.
 
-    def generate():
+    The loop reports progress through a callback, so it runs on its own thread
+    and hands events over a queue to the generator, which stays on the request
+    thread (with its app context) and does the database work at the end.
+    """
+
+    client = _client()
+    loop = _loop()
+    history = _history(plant_ref)
+    app = current_app._get_current_object()
+    events: queue.Queue = queue.Queue()
+
+    def work():
         try:
-            for event in client.assess_stream(
-                description=description, image_b64=image_b64, plant_ref=plant_ref
-            ):
-                if event["type"] == "result":
-                    assessment = _persist(
-                        event["result"], client, plant_ref, description, image_b64, image_mime
-                    )
-                    html = render_template("_assessment.html", assessment=assessment)
-                    yield _sse(
-                        {"type": "done", "id": assessment.id, "html": html}
-                    )
-                    return
-                if event["type"] == "error":
-                    yield _sse({"type": "error", "message": event["message"]})
-                    return
-                yield _sse(event)
+            outcome = loop.run(
+                description, image_b64, plant_ref, history=history, progress=events.put
+            )
+            events.put({"type": "_outcome", "outcome": outcome})
+        except AIUnavailableError as exc:
+            events.put({"type": "error", "message": str(exc)})
         except Exception:  # noqa: BLE001 - the stream must always terminate cleanly
             app.logger.exception("streaming assessment failed")
-            yield _sse(
-                {"type": "error", "message": "The assessment failed unexpectedly."}
-            )
+            events.put({"type": "error", "message": "The assessment failed unexpectedly."})
+
+    def generate():
+        threading.Thread(target=work, name="health-assessment-loop", daemon=True).start()
+        while True:
+            event = events.get()
+            if event["type"] == "_outcome":
+                outcome = event["outcome"]
+                assessment = _persist(
+                    outcome, client, plant_ref, description, image_b64, image_mime
+                )
+                html = render_template("_assessment.html", assessment=assessment)
+                yield _sse(
+                    {
+                        "type": "done",
+                        "id": assessment.id,
+                        "html": html,
+                        "loop": {
+                            "iterations": outcome.iterations,
+                            "verdict": outcome.verdict,
+                            "reviewed": outcome.reviewed,
+                        },
+                    }
+                )
+                return
+            yield _sse(event)
+            if event["type"] == "error":
+                return
 
     return Response(
         stream_with_context(generate()),
@@ -180,9 +239,11 @@ def _sse_error(message: str) -> Response:
     )
 
 
-def _persist(result, client, plant_ref, description, image_b64, image_mime) -> Assessment:
+def _persist(outcome, client, plant_ref, description, image_b64, image_mime) -> Assessment:
+    """Store the loop's final assessment together with the run that produced it."""
+
     assessment = Assessment.from_result(
-        result,
+        outcome.result,
         model=client.model,
         plant_ref=plant_ref,
         description=description,
@@ -190,7 +251,10 @@ def _persist(result, client, plant_ref, description, image_b64, image_mime) -> A
         image_mime=image_mime,
         image_data=base64.b64decode(image_b64) if image_b64 else None,
     )
+    assessment.loop_run = AssessmentLoopRun.from_outcome(outcome)
     db.session.add(assessment)
+    # A name used for the first time becomes a title offered on the form.
+    Plant.register(plant_ref)
     db.session.commit()
     return assessment
 
@@ -267,10 +331,11 @@ def update_assessment(assessment_id):
 
     for field, value in changes.items():
         setattr(assessment, field, value)
+    Plant.register(changes.get("plant_ref"))
     db.session.commit()
 
     if wants_html:
-        return render_template("_submission.html", assessment=assessment)
+        return render_template("_submission.html", assessment=assessment, plants=Plant.ordered())
     return jsonify(assessment.to_dict())
 
 
@@ -309,13 +374,11 @@ def regenerate_assessment(assessment_id):
 
     client = _client()
     try:
-        result = client.assess(
-            description=description, image_b64=image_b64, plant_ref=plant_ref
-        )
+        outcome = _loop().run(description, image_b64, plant_ref, history=_history(plant_ref))
     except AIUnavailableError as exc:
         return _error(str(exc), 503, wants_html)
 
-    repeat = _persist(result, client, plant_ref, description, image_b64, image_mime)
+    repeat = _persist(outcome, client, plant_ref, description, image_b64, image_mime)
 
     if wants_html:
         return render_template("_assessment.html", assessment=repeat)
@@ -334,6 +397,24 @@ def stream_regenerate_assessment(assessment_id):
         return _sse_error(str(exc))
 
     return _stream(plant_ref, description, image_b64, image_mime)
+
+
+@bp.route("/assessments/<int:assessment_id>/loop", methods=["GET"])
+def get_loop_run(assessment_id):
+    """The Perceive → Reason → Act → Observe → Repeat trace behind an assessment."""
+
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None or assessment.loop_run is None:
+        return jsonify({"error": "no loop run recorded for this assessment"}), 404
+    return jsonify(assessment.loop_run.to_dict())
+
+
+@bp.route("/<int:assessment_id>/loop")
+def view_loop(assessment_id):
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None or assessment.loop_run is None:
+        abort(404)
+    return render_template("loop_trace.html", assessment=assessment, run=assessment.loop_run)
 
 
 def _source_input(assessment: Assessment):
@@ -440,7 +521,7 @@ def _read_json_image(data: dict) -> tuple[str | None, str | None]:
     if not decoded:
         raise ValueError("image_base64 decoded to an empty image")
     if len(decoded) > current_app.config["MAX_CONTENT_LENGTH"]:
-        raise ValueError("Image is too large")
+        raise ValueError(upload_limit_message(current_app.config["MAX_CONTENT_LENGTH"]))
 
     allowed = current_app.config["ALLOWED_IMAGE_TYPES"]
     if mime is not None and mime not in allowed:
@@ -481,6 +562,59 @@ def _clean(value, max_chars: int, field: str) -> str | None:
     if len(value) > max_chars:
         raise ValueError(f"{field} must be {max_chars} characters or fewer")
     return value
+
+
+# --------------------------------------------------------------------------- #
+# Plant names: the titles offered on the form, managed on their own page        #
+# --------------------------------------------------------------------------- #
+
+
+@bp.route("/plants", methods=["GET"])
+def list_plants():
+    """The plant names on offer. A browser gets the management page, API clients JSON."""
+
+    plants = Plant.ordered()
+    if _wants_html():
+        return render_template("plants.html", plants=plants)
+    return jsonify([p.to_dict() for p in plants])
+
+
+@bp.route("/plants", methods=["POST"])
+def create_plant():
+    """Add a plant name (JSON or form ``name``). Re-adding an existing name is a no-op."""
+
+    wants_html = _wants_html()
+    source = request.get_json(silent=True) or {} if request.is_json else request.form
+    try:
+        name = _clean(source.get("name"), MAX_PLANT_REF_CHARS, "name")
+        if not name:
+            raise ValueError("Provide a plant name.")
+    except ValueError as exc:
+        return _error(str(exc), 400, wants_html)
+
+    existed = Plant.find(name) is not None
+    plant = Plant.register(name)
+    db.session.commit()
+
+    if wants_html:
+        return render_template("_plant_list.html", plants=Plant.ordered())
+    return jsonify(plant.to_dict()), 200 if existed else 201
+
+
+@bp.route("/plants/<int:plant_id>", methods=["DELETE"])
+def delete_plant(plant_id):
+    """Remove a name from the list. Assessments recorded under it are untouched."""
+
+    plant = db.session.get(Plant, plant_id)
+    if plant is None:
+        return jsonify({"error": "plant not found"}), 404
+
+    db.session.delete(plant)
+    db.session.commit()
+
+    if request.headers.get("HX-Request") == "true":
+        return ""  # htmx never swaps a 204; an empty 200 removes the row
+    return "", 204
 
 
 # --------------------------------------------------------------------------- #

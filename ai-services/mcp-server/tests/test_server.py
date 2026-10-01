@@ -32,16 +32,10 @@ EXPECTED_TOOLS = {
     # Plant Almanac
     "search_almanac_catalogue",
     "get_almanac_plant",
-    # Virtual Garden (stubs)
+    # Virtual Garden
     "get_garden_snapshot",
     "list_garden_plantings",
 }
-
-# Virtual Garden tools are still registered stubs (tracked in issue #42).
-STUB_CALLS = [
-    ("get_garden_snapshot", {"garden_id": 1}),
-    ("list_garden_plantings", {"garden_id": 1}),
-]
 
 
 def run(coro):
@@ -82,22 +76,6 @@ def test_every_tool_is_discoverable_with_schemas_and_annotations():
     run(check())
 
 
-@pytest.mark.parametrize("name,args", STUB_CALLS)
-def test_stubs_return_an_honest_not_implemented_error(name, args):
-    server = create_server(Settings())
-
-    async def check():
-        async with Client(server) as client:
-            result = await client.call_tool(name, args)
-            assert result.is_error
-            message = result.content[0].text
-            assert "not implemented" in message and "No data was returned" in message
-            assert "issue #4" in message
-            assert result.structured_content in (None, {})
-
-    run(check())
-
-
 def test_invalid_inputs_are_rejected_before_any_work():
     server = create_server(Settings())
     bad = [
@@ -127,7 +105,13 @@ def test_disabled_server_still_discovers_but_refuses_every_call():
     async def check():
         async with Client(server) as client:
             assert {t.name for t in (await client.list_tools()).tools} == EXPECTED_TOOLS
-            for name, args in STUB_CALLS + [("list_health_assessments", {}), ("health_service_status", {})]:
+            calls = [
+                ("get_garden_snapshot", {"garden_id": 1}),
+                ("list_garden_plantings", {"garden_id": 1}),
+                ("list_health_assessments", {}),
+                ("health_service_status", {}),
+            ]
+            for name, args in calls:
                 result = await client.call_tool(name, args)
                 assert result.is_error
                 assert "disabled" in result.content[0].text

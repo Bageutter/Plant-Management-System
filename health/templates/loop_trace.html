@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Agentic loop trace — Plant Health{% endblock %}
+
+{% set phase_labels = {"perceive": "Perceive", "reason": "Reason", "act": "Act", "observe": "Observe", "repeat": "Repeat", "fallback": "Fallback"} %}
+{% set skip = ["phase", "iteration", "elapsed_ms", "ts", "run_id", "service", "question"] %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <a href="{{ url_for('health.view_assessment', assessment_id=assessment.id) }}" class="text-sm text-primary hover:underline">&larr; Back to the record</a>
+
+    <h1 class="text-2xl mt-3 mb-1">How this assessment was produced</h1>
+    <p class="text-sm text-muted-foreground mb-6">
+        Run <code>{{ run.run_id }}</code> &middot; workflow <strong>Perceive → Reason → Act → Observe → Repeat</strong>
+        &middot; {{ run.iterations }} iteration{{ '' if run.iterations == 1 else 's' }}
+        &middot; outcome <span class="badge loop-{{ run.verdict }}">{{ run.verdict_label }}</span>
+    </p>
+
+    <div class="border border-border rounded-lg p-6 mb-6 text-sm" data-loop-verdict="{{ run.verdict }}">
+        <p class="m-0">
+            <strong>Reason</strong> was the vision model <code>{{ assessment.model }}</code>.
+            {% if run.reviewer_model %}
+                <strong>Observe</strong> combined deterministic consistency checks with an independent
+                review by <code>{{ run.reviewer_model }}</code>, which cannot see the photo and judges
+                only what can be checked without it.
+            {% else %}
+                <strong>Observe</strong> ran the deterministic consistency checks only — no reviewer model
+                was available, so this run is marked as a fallback.
+            {% endif %}
+        </p>
+    </div>
+
+    <ol class="uk-list loop-trace">
+        {% for event in run.trace %}
+            <li class="border border-border rounded-lg p-4 mb-3" data-phase="{{ event.phase }}">
+                <header class="flex items-center justify-between gap-3 flex-wrap mb-2">
+                    <span class="font-semibold">
+                        <span class="badge phase-{{ event.phase }}">{{ phase_labels.get(event.phase, event.phase) }}</span>
+                        {% if event.iteration %}<span class="text-sm text-muted-foreground">iteration {{ event.iteration }}</span>{% endif %}
+                    </span>
+                    <span class="text-xs text-muted-foreground">+{{ event.elapsed_ms }} ms</span>
+                </header>
+                <dl class="text-sm m-0">
+                    {% for key, value in event.items() if key not in skip %}
+                        <div class="flex gap-3">
+                            <dt class="text-muted-foreground whitespace-nowrap min-w-32">{{ key }}</dt>
+                            <dd class="m-0 min-w-0 break-words">
+                                {% if key == "draft" %}<pre class="text-xs whitespace-pre-wrap m-0">{{ value }}</pre>{% else %}{{ value }}{% endif %}
+                            </dd>
+                        </div>
+                    {% endfor %}
+                </dl>
+            </li>
+        {% endfor %}
+    </ol>
+
+    {% if run.transcript_path %}
+        <p class="text-xs text-muted-foreground">
+            Transcript: <code>{{ run.transcript_path }}</code> &middot;
+            replay in a terminal with <code>python tools/ai-loop/view.py {{ run.run_id }}</code>
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

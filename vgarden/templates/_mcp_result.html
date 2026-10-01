@@ -1,0 +1,64 @@
+{# One MCP tool result for this garden, as returned by the shared server through
+   this backend (garden_integrations.py::run_tool). #}
+<article class="border border-border rounded-lg p-5 bg-muted" data-tool="{{ result.tool }}" data-error="{{ 'true' if result.is_error else 'false' }}">
+    <header class="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <h3 class="text-lg m-0"><code>{{ result.tool }}</code></h3>
+        <span class="text-xs text-muted-foreground">
+            {{ 'tool error' if result.is_error else 'structured result' }} · {{ result.duration_ms }} ms via the shared MCP server
+        </span>
+    </header>
+
+    {% if result.is_error %}
+        <p class="text-destructive m-0">{{ result.text }}</p>
+    {% else %}
+        {% set data = result.structured_content or {} %}
+
+        {% if data.areas is defined %}
+            {# get_garden_snapshot #}
+            <p class="text-sm mb-2">
+                <strong>{{ data.name }}</strong>
+                {% if data.location_label %}· {{ data.location_label }}{% endif %}
+                {% if data.climate_zone %}· {{ data.climate_zone }}{% endif %}
+            </p>
+            <p class="text-sm text-muted-foreground mb-2">
+                {{ data.areas|length }} area(s) · {{ data.containers|length }} container(s) · {{ data.plantings|length }} planting(s)
+            </p>
+            {% if data.plantings %}
+            <ul class="uk-list record-list">
+                {% for p in data.plantings %}
+                <li class="record-row">
+                    <span class="badge">{{ p.lifecycle_state or 'planned' }}</span>
+                    <span class="record-body">
+                        <strong>{{ p.crop_name }}</strong>{% if p.quantity %} × {{ p.quantity }}{% endif %}
+                        {% if p.location %}<span class="record-desc text-sm text-muted-foreground">{{ p.location }}</span>{% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+        {% elif data.items is defined and data.count is defined %}
+            {# list_garden_plantings #}
+            <p class="text-sm text-muted-foreground mb-2">{{ data.count }} planting(s).</p>
+            {% if data['items'] %}
+            <ul class="uk-list record-list">
+                {% for p in data['items'] %}
+                <li class="record-row">
+                    <span class="badge">{{ p.lifecycle_state or 'planned' }}</span>
+                    <span class="record-body">
+                        <strong>{{ p.crop_name }}</strong>{% if p.quantity %} × {{ p.quantity }}{% endif %}
+                        {% if p.location %}<span class="record-desc text-sm text-muted-foreground">{{ p.location }}</span>{% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        {% endif %}
+
+        <details class="mt-3">
+            <summary class="text-sm text-muted-foreground cursor-pointer">Raw structured result (JSON)</summary>
+            <pre class="text-xs mt-2 whitespace-pre-wrap">{{ result.structured_content | tojson(indent=2) }}</pre>
+        </details>
+        {% if data.evidence_note %}<p class="text-xs text-muted-foreground mt-3 mb-0">{{ data.evidence_note }}</p>{% endif %}
+    {% endif %}
+</article>

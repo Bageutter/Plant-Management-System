@@ -49,7 +49,7 @@ def create_server(settings: Settings | None = None, *, transport=None) -> MCPSer
 
     health.register(server, settings, transport=transport)
     almanac.register(server, settings, transport=transport)
-    vgarden.register(server, settings)
+    vgarden.register(server, settings, transport=transport)
 
     @server.resource("pms://about", mime_type="text/plain")
     def about() -> str:

@@ -62,6 +62,14 @@ JSON for text-only requests, so it is not recommended.
 
 Other optimisations applied automatically:
 
+* **Model is preloaded at startup** — as soon as the service starts, a background
+  thread pulls the model if needed and asks Ollama to load it (a chat request with no
+  messages, Ollama's documented preload). The first assessment is therefore warm instead
+  of paying the cold load. Startup is never blocked: if Ollama is still coming up the
+  load is retried (`OLLAMA_PRELOAD_RETRIES` × a growing delay from
+  `OLLAMA_PRELOAD_RETRY_SECONDS`), and `GET /healthz` reports the state under
+  `ai.preload.status` (`pending` → `loading` → `loaded`, or `retrying` / `failed`).
+  Set `OLLAMA_PRELOAD=false` to turn it off.
 * **Model stays resident** — `OLLAMA_KEEP_ALIVE=30m` avoids a 7-40 second reload on
   each request. Cold vs warm is the difference between ~16s and ~4s.
 * **Photos are downscaled** to `IMAGE_MAX_EDGE` (896px) before inference. Vision models
@@ -96,8 +104,53 @@ python app.py
 | `OLLAMA_KEEP_ALIVE` | `30m` | How long the model stays loaded between requests |
 | `OLLAMA_NUM_PREDICT` | `700` | Maximum generated tokens |
 | `OLLAMA_NUM_CTX` | `4096` | Context window |
-| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size |
+| `OLLAMA_PRELOAD` | `true` | Load the model in the background at startup |
+| `OLLAMA_PRELOAD_RETRIES` | `12` | Preload attempts while Ollama is still starting |
+| `OLLAMA_PRELOAD_RETRY_SECONDS` | `5` | Initial delay between attempts (grows ×1.5, capped at 60s) |
+| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `nginx.conf` above it) |
 | `IMAGE_MAX_EDGE` | `896` | Photos are downscaled to this longest edge before inference |
+
+## Agentic loop: Perceive → Reason → Act → Observe → Repeat
+
+Every assessment — from the form, the API, a rerun, or the MCP `assess_plant_health` tool
+— is produced by an explicit loop ([`agentic.py`](agentic.py)) rather than one bare model
+call:
+
+| Phase | What happens |
+| --- | --- |
+| **Perceive** | Build the grounding: exactly what was supplied (photo? description? plant name?) plus this plant's last three assessments, as context only. |
+| **Reason** | The vision model (`OLLAMA_MODEL`) drafts the structured assessment. From the second pass it also receives the reviewer's guidance. |
+| **Act** | The draft becomes the candidate report: normalised, clamped, score band derived. |
+| **Observe** | Deterministic checks in code (status vs score band, a photo described when none was given, no recommendation for a plant that needs action, …) and then an independent reviewer model (`OLLAMA_REVIEW_MODEL`) that reads the candidate against the same grounding and answers `approved` / `revise` with one concrete instruction. The reviewer cannot see the photo; it checks what can be checked without it. |
+| **Repeat** | `approved` → done. `revise` → the guidance is carried into the next Reason, up to `AI_LOOP_MAX_ITERATIONS`. Cap reached → the last candidate is kept, marked `revised_capped`. |
+
+If no review model is configured or it cannot be reached, the loop still runs with the
+code checks only and the run is marked `fallback`. A reviewer outage never blocks an
+assessment.
+
+**Evidence.** Each phase is logged to stdout (`ai_loop` logger), appended to
+`tools/ai-loop/logs/health.jsonl`, and written to a per-run markdown transcript under
+`tools/ai-loop/logs/reports/health/` (via the shared `shared/ai_loop.py` logger, mounted
+into the container like the other services). The run is stored with the assessment
+(`assessment_loop_runs`) and shown in the product as a
+`🔄 Perceive → Reason → Act → Observe → Repeat · N iterations` badge on every report,
+linking to `/plant-health-records/<id>/loop` — the full trace. The streaming endpoint
+emits `phase` events so the form shows which phase is running.
+
+```bash
+python tools/ai-loop/view.py --service health          # recent runs
+python tools/ai-loop/view.py <run_id>                  # one run, phase by phase
+curl -s localhost:3000/health/plant-health-records/assessments/1/loop   # the trace as JSON
+```
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OLLAMA_REVIEW_MODEL` | `qwen3:4b-instruct` | Independent reviewer (Observe). Empty → code checks only |
+| `AI_LOOP_MAX_ITERATIONS` | `2` | Maximum Reason/Observe rounds |
+| `AI_LOOP_LOG_DIR` | `tools/ai-loop/logs` (`/app/ai_loop_logs` in compose) | JSONL + transcripts |
+
+Compose sets `OLLAMA_MAX_LOADED_MODELS=2` on the Ollama service so the vision model and
+the reviewer stay resident together instead of evicting each other on every assessment.
 
 ## How the health score works
 
@@ -192,10 +245,25 @@ Responds `201` with:
 
 `status` is one of `healthy`, `at_risk`, `unhealthy`, `unknown`. When `status` is
 `unknown`, `health_score` and `score_band` are `null`. `confidence` is `low`, `medium`
-or `high`.
+or `high`. `loop` summarises the agentic run that produced the record:
+`{"run_id": "health-…", "iterations": 1, "verdict": "approved", "reviewed": true}`.
 
 Errors: `400` for invalid/missing input, `413` when the image exceeds the size limit,
 `503` when the local AI instance is unreachable or the model cannot be pulled.
+
+A `413` carries the reason and the limit: `{"error": "The upload is larger than the 12 MB
+limit. ...", "limit_bytes": 12582912}`. On the streaming endpoint the same reason is sent
+as a single `error` event, so a stream consumer sees it too.
+
+### Oversized photos
+
+`MAX_UPLOAD_BYTES` (12 MiB) is the app's limit, and `nginx.conf` allows `13m` on the
+`/health/` route so the app — not the proxy — is the one that answers. The upload form
+states the limit under the file picker, shows the chosen photo's size, and when a photo is
+over the limit it re-encodes it in the browser to `IMAGE_MAX_EDGE` pixels (the resolution
+the server downscales to anyway) before sending. A response that is not an event stream
+(the app's or the proxy's `413`, an error page) is turned into a visible message rather
+than being read as an empty stream. Nothing is sent anywhere but this service.
 
 ### `POST /plant-health-records/assessments/stream`
 
@@ -205,7 +273,8 @@ model works. Each event is a JSON object on a `data:` line:
 | Event | Fields | Meaning |
 | --- | --- | --- |
 | `progress` | `field`, `summary`, `chars`, `elapsed_ms` | Which part of the answer is being written, and the summary text so far |
-| `done` | `id`, `html` | Finished; the rendered assessment card and its record id |
+| `phase` | `phase`, `iteration`, `detail` | The loop moved to Perceive / Reason / Observe / Repeat |
+| `done` | `id`, `html`, `loop` | Finished; the rendered assessment card, its record id, and `{iterations, verdict, reviewed}` |
 | `error` | `message` | Validation failure or the local AI being unavailable |
 
 The stream ends after exactly one `done` or `error` event. `summary` is extracted from
@@ -246,6 +315,21 @@ photos were persisted), `404` if it does not exist, `503` if the local AI is unr
 `POST /plant-health-records/assessments/<id>/regenerate/stream` is the `text/event-stream`
 variant, emitting the same events as `/assessments/stream`.
 
+### Plant names
+
+The form offers the plant names used before, plus **Other / new plant…** for a new one. A
+name is stored in the `plants` table the first time an assessment (or an edit) uses it, so
+it is offered next time; migration `0004` backfills the table from existing records.
+Assessments keep their own `plant_ref` text rather than a foreign key, so removing a name on
+the **Manage plant names** page (`/plant-health-records/plants`) only stops it being offered
+— the assessments recorded under it are untouched.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/plant-health-records/plants` | Management page for a browser; JSON list (`id`, `name`, `assessments`, `created_at`) for API clients |
+| `POST` | `/plant-health-records/plants` | Add a name (`name`, JSON or form). `201` when created, `200` when it already existed, `400` when empty or over 200 characters |
+| `DELETE` | `/plant-health-records/plants/<id>` | Remove a name from the list (`204`; `404` if unknown). Assessments are kept |
+
 ### Other endpoints
 
 | Method | Path | Description |
@@ -253,7 +337,9 @@ variant, emitting the same events as `/assessments/stream`.
 | `GET` | `/plant-health-records/` | UI: submit a plant, plus the list of past records |
 | `GET` | `/plant-health-records/<id>` | Full record: photo, name, description and assessment |
 | `GET` | `/plant-health-records/<id>/image` | The photo the assessment was based on |
-| `GET` | `/healthz` | Liveness plus local AI reachability |
+| `GET` | `/plant-health-records/<id>/loop` | The Perceive → Reason → Act → Observe → Repeat trace behind a record |
+| `GET` | `/plant-health-records/assessments/<id>/loop` | The same trace as JSON (`run_id`, `iterations`, `verdict`, `reviewer_model`, `trace[]`) |
+| `GET` | `/healthz` | Liveness, local AI reachability, and the model preload state |
 | `GET` | `/plant-health-records/assessments?plant_ref=&limit=` | List assessments, newest first |
 | `GET` | `/plant-health-records/assessments/<id>` | Fetch a single assessment as JSON |
 | `PATCH` | `/plant-health-records/assessments/<id>` | Edit the plant name and description |
@@ -312,31 +398,47 @@ frontend → backend → MCP server → health API loop. `.github/workflows/heal
 lint, these tests, the image build, and a compose smoke test
 (`scripts/test/smoke-health.sh`) with `MCP_ENABLED=false RAG_ENABLED=false`.
 
-## Database schema changes
+## Database schema changes (Flask-Migrate / Alembic)
 
-The service has no migration tool — SQLite is the documented development default, and
-`db.create_all()` creates missing *tables* but never alters existing ones. A database
-created by an older build therefore kept its old columns, and every query failed with
-`no such column: assessments.image_data`.
+The schema is versioned under [`migrations/versions/`](migrations/versions/) and applied
+with Alembic through Flask-Migrate. `db.create_all()` is gone: it created missing tables
+but never altered existing ones, which is exactly what broke older `health.db` files when
+the model gained columns.
 
-On startup the service now compares each mapped table against the live database and adds
-any missing columns with `ALTER TABLE ... ADD COLUMN` (see [schema.py](schema.py)). This
-is deliberately limited:
+**Applying.** `create_app()` runs `flask db upgrade` on startup (`AUTO_MIGRATE`, default
+`true`), so a container or a local run is always at the latest revision. To apply as an
+explicit deploy step instead, set `AUTO_MIGRATE=false` and run:
 
-* It only **adds** columns. It never drops or retypes them — that needs a real migration
-  tool, and silently discarding data at startup would be worse than a stale column.
-* Added columns are nullable, so existing rows keep their data and simply have no value
-  for the new fields.
-* It is idempotent; a second run adds nothing.
+```bash
+cd health
+flask --app app db upgrade
+```
 
-Because of this, upgrading no longer requires deleting `health/instance/health.db`.
+**Adopting an existing database.** A `health.db` created by an earlier build has tables but
+no `alembic_version`. On first start it is stamped at revision `0001` — the schema
+`create_all()` originally produced — and then upgraded like any other database, so existing
+rows are preserved. Revision `0002` adds only the columns actually missing (a database that
+went through the old startup `ALTER TABLE` stop-gap already has them) and retypes
+`confidence` from a float to a label; `0003` clears legacy float confidences such as `0.7`
+and lower-cases valid labels.
 
-One consequence worth knowing: rows written before `confidence` became a graded level
-stored a float (e.g. `0.7`) in that column. Those values are not valid levels, so they are
-reported as "no confidence recorded" rather than rendered as a meaningless `0.7` badge.
+**Creating a migration.** Change the model, then let Alembic diff it against the database:
 
-**This is a stop-gap, not the intended long-term solution.** It keeps no history, cannot
-express a destructive change, and covers only this service — `auth` and `vgarden` still
-use bare `db.create_all()` and will hit the same problem when their models change.
-Replacing it with Flask-Migrate/Alembic across all services is tracked in
-[issue #10](https://github.com/Bageutter/Plant-Management-System/issues/10).
+```bash
+cd health
+flask --app app db migrate -m "add plant notes" --rev-id 0004
+```
+
+Review the generated file (autogenerate misses renames and cannot see data), commit it
+alongside the model change, and open a PR. A destructive change is expressed the same way —
+`op.drop_column(...)` in a reviewed, versioned file — never at startup by inference.
+Revision ids are sequential (`--rev-id`) so history reads in order.
+
+SQLite cannot `ALTER` most things, so revisions use `op.batch_alter_table` (Flask-Migrate's
+`render_as_batch`), which rebuilds the table; on PostgreSQL the same code issues ordinary
+`ALTER TABLE` statements. `flask --app app db upgrade --sql` prints the DDL for review.
+
+```bash
+flask --app app db current    # revision the database is at
+flask --app app db history    # every revision, newest first
+```

@@ -15,7 +15,8 @@ if os.path.isdir(_SHARED) and _SHARED not in sys.path:
     sys.path.insert(0, _SHARED)
 
 from config import Config
-from extensions import csrf, db
+from db_upgrade import upgrade_database
+from extensions import csrf, db, migrate
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -39,12 +40,15 @@ def create_app(config_class: type = Config) -> Flask:
         os.makedirs(os.path.dirname(db_uri.removeprefix("sqlite:///")), exist_ok=True)
 
     db.init_app(app)
+    migrate.init_app(app, db, directory=os.path.join(here, "migrations"))
     csrf.init_app(app)
 
     from ai import OllamaGardenAI
     from containers import bp as containers_bp
     from garden_ai import bp as garden_ai_bp
     from garden_areas import bp as garden_areas_bp
+    from garden_integrations import bp as garden_integrations_bp
+    from integrations import McpToolClient, RagClient
     from plantings import bp as plantings_bp
     from routes import bp as gardens_bp
     from weather import OpenMeteoClient
@@ -54,12 +58,26 @@ def create_app(config_class: type = Config) -> Flask:
     app.register_blueprint(containers_bp)
     app.register_blueprint(plantings_bp)
     app.register_blueprint(garden_ai_bp)
+    app.register_blueprint(garden_integrations_bp)
 
     app.extensions["garden_ai"] = OllamaGardenAI(
         base_url=app.config.get("OLLAMA_URL", "http://localhost:11434"),
         model=app.config.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
         timeout=app.config.get("OLLAMA_TIMEOUT", 120),
         auto_pull=app.config.get("OLLAMA_AUTO_PULL", False),
+    )
+
+    # Release 1: clients for the shared local MCP and RAG servers. The browser only
+    # ever reaches them through this backend (see garden_integrations.py).
+    app.extensions["mcp"] = McpToolClient(
+        app.config["MCP_SERVER_URL"],
+        enabled=app.config["MCP_ENABLED"],
+        timeout=app.config["INTEGRATION_TIMEOUT"],
+    )
+    app.extensions["rag"] = RagClient(
+        app.config["RAG_SERVER_URL"],
+        enabled=app.config["RAG_ENABLED"],
+        timeout=app.config["INTEGRATION_TIMEOUT"],
     )
 
     # Reviewer for the Plan -> Act -> Observe -> Adapt loop. None (single-shot)
@@ -83,6 +101,8 @@ def create_app(config_class: type = Config) -> Flask:
 
     @app.context_processor
     def inject_public_urls():
+        from integrations import TOOL_LABELS
+
         return {
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
             "health_public_url": app.config.get(
@@ -91,10 +111,15 @@ def create_app(config_class: type = Config) -> Flask:
             "almanac_public_url": app.config.get(
                 "ALMANAC_PUBLIC_URL", "http://localhost:5004/"
             ),
+            "mcp_enabled": app.extensions["mcp"].enabled,
+            "rag_enabled": app.extensions["rag"].enabled,
+            "mcp_tools": TOOL_LABELS,
         }
 
-    with app.app_context():
-        db.create_all()
+    # Schema is versioned (Flask-Migrate); see db_upgrade.py and migrations/.
+    # Models are imported above (via the blueprints) so the metadata is complete.
+    if app.config.get("AUTO_MIGRATE", True):
+        upgrade_database(app)
 
     return app
 

@@ -129,6 +129,14 @@ function recordActions() {
                     "{{ url_for('health.stream_regenerate_assessment', assessment_id=assessment.id) }}",
                     { method: "POST" });
 
+                if (!response.ok) {
+                    let message = "The server answered with status " + response.status + ".";
+                    try {
+                        const parsed = JSON.parse(await response.text());
+                        message = parsed.error || parsed.message || message;
+                    } catch (err) { /* keep the status-based message */ }
+                    throw new Error(message);
+                }
                 if (!response.body) throw new Error("Streaming is not supported by this browser.");
 
                 const reader = response.body.getReader();
@@ -157,9 +165,23 @@ function recordActions() {
             }
         },
 
+        // The loop reports its phases (Perceive → Reason → Act → Observe → Repeat).
+        phaseLabel(event) {
+            const labels = {
+                perceive: "Perceiving the evidence…",
+                reason: event.iteration > 1 ? "Reasoning again with the reviewer's guidance…" : "Reasoning about the plant…",
+                observe: "Observing: checking the draft against the evidence…",
+                repeat: "Repeat: the reviewer asked for a revision…",
+            };
+            return labels[event.phase] || (event.detail || "Working…");
+        },
+
         handle(event) {
-            if (event.type === "progress") {
-                if (event.field) this.stage = event.field + "…";
+            if (event.type === "phase") {
+                this.stage = this.phaseLabel(event);
+            } else if (event.type === "progress") {
+                const pass = event.iteration > 1 ? "Revising (pass " + event.iteration + " of " + event.iterations_max + "): " : "";
+                if (event.field) this.stage = pass + event.field + "…";
                 if (event.summary) this.liveSummary = event.summary;
                 this.chars = event.chars || 0;
             } else if (event.type === "done") {

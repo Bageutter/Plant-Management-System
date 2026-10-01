@@ -22,7 +22,11 @@ want_mcp=$(as_bool "${MCP_ENABLED:-true}")
 want_rag=$(as_bool "${RAG_ENABLED:-true}")
 
 echo "==> UI: $records/"
-curl "${retry[@]}" --fail "$records/" | grep -q "Plant Health Records"
+# Download first, then grep. Piping curl into `grep -q` is a race: grep exits on the
+# first match while curl is still writing the rest of the page, so curl gets a broken
+# pipe (exit 23) and, with pipefail, the check fails even though the page is fine.
+curl "${retry[@]}" --fail -o /tmp/ui.html "$records/"
+grep -q "Plant Health Records" /tmp/ui.html
 
 echo "==> /healthz (200 = model reachable, 503 = degraded; both must be JSON)"
 code=$(curl "${retry[@]}" -o /tmp/healthz.json -w '%{http_code}' "$health/healthz" || true)
@@ -66,5 +70,12 @@ code=$(curl --silent -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: ap
 [[ "$code" == "400" ]] || { echo "expected 400 for an empty submission, got $code"; exit 1; }
 code=$(curl --silent -o /dev/null -w '%{http_code}' "$records/assessments?status=dead")
 [[ "$code" == "400" ]] || { echo "expected 400 for an invalid status filter, got $code"; exit 1; }
+
+echo "==> oversized photo through the proxy gets the app's explanatory 413 (not nginx's)"
+# 13 000 000 bytes: over the app's 12 MiB MAX_UPLOAD_BYTES, under nginx's 13m client_max_body_size.
+head -c 13000000 /dev/zero > /tmp/big.jpg
+code=$(curl --silent -o /tmp/big.json -w '%{http_code}' -F 'description=too big' -F 'image=@/tmp/big.jpg;type=image/jpeg' "$records/assessments")
+[[ "$code" == "413" ]] || { echo "expected 413 for an oversized upload, got $code"; cat /tmp/big.json; exit 1; }
+python3 -c 'import json; d=json.load(open("/tmp/big.json")); assert "limit" in d["error"], d; print("    ", d["error"])'
 
 echo "health smoke test passed"

@@ -224,3 +224,4 @@ __marimo__/
 # a stray local copy (e.g. from a tool run) must not shadow it under pytest.
 /vgarden/ai_loop.py
 /almanac/ai_loop.py
+/health/ai_loop.py

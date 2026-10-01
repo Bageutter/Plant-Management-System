@@ -93,6 +93,16 @@
             {%- else %} your written description only{% endif %}.
             AI guidance is advisory only.
         </span>
+        {% if assessment.loop_run %}
+            <a class="badge loop-{{ assessment.loop_run.verdict }} whitespace-nowrap"
+               data-loop="{{ assessment.loop_run.verdict }}"
+               href="{{ url_for('health.view_loop', assessment_id=assessment.id) }}"
+               uk-tooltip="title: Perceive → Reason → Act → Observe → Repeat: {{ assessment.loop_run.verdict_label }}. Click for the full trace.; pos: top"
+               title="Perceive → Reason → Act → Observe → Repeat: {{ assessment.loop_run.verdict_label }}">
+                🔄 Perceive → Reason → Act → Observe → Repeat &middot;
+                {{ assessment.loop_run.iterations }} iteration{{ '' if assessment.loop_run.iterations == 1 else 's' }}
+            </a>
+        {% endif %}
         {% if not detail_view %}
             <a class="text-primary hover:underline whitespace-nowrap"
                href="{{ url_for('health.view_assessment', assessment_id=assessment.id) }}">

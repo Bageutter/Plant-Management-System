@@ -47,7 +47,8 @@ For a desktop MCP host use `--transport stdio`:
 | `MCP_ALLOWED_HOSTS` | `127.0.0.1:*,localhost:*,host.docker.internal:*` | `Host` header allow-list (DNS-rebinding protection stays on) |
 | `HEALTH_SERVICE_URL` | `http://127.0.0.1:3000/health` | Plant Health public API, via the proxy |
 | `ALMANAC_SERVICE_URL` | `http://127.0.0.1:3000/almanac` | public catalogue API |
-| `VGARDEN_SERVICE_URL` | `http://127.0.0.1:3000/vgarden` | reserved for the Virtual Garden tools |
+| `VGARDEN_SERVICE_URL` | `http://127.0.0.1:3000/vgarden` | Virtual Garden's snapshot API, via the proxy |
+| `VGARDEN_SERVICE_TOKEN` | `dev-inter-service-secret-change-me` | bearer token for vgarden's private snapshot/plantings endpoints — must match vgarden's own `INTER_SERVICE_SECRET` (garden data is private per-owner, unlike the Almanac catalogue or Health's assessment list) |
 | `SERVICE_TIMEOUT` | `10` | seconds per outbound call |
 | `ASSESS_TIMEOUT` | `200` | seconds allowed for `assess_plant_health` (it runs the vision model) |
 
@@ -62,16 +63,19 @@ For a desktop MCP host use `--transport stdio`:
 | `assess_plant_health` | Plant Health | **implemented** | **creates** one record via the health service's local model; text only |
 | `search_almanac_catalogue` | Plant Almanac | implemented | read-only |
 | `get_almanac_plant` | Plant Almanac | implemented | read-only |
-| `get_garden_snapshot` | Virtual Garden | stub — issue #42 | read-only |
-| `list_garden_plantings` | Virtual Garden | stub — issue #42 | read-only |
+| `get_garden_snapshot` | Virtual Garden | implemented | read-only; sends `VGARDEN_SERVICE_TOKEN`, since garden state is private per-owner |
+| `list_garden_plantings` | Virtual Garden | implemented | read-only; sends `VGARDEN_SERVICE_TOKEN` |
 
 Resources: `pms://about`, `health://assessments/{assessment_id}`.
 Prompt: `review_plant_health_history(plant_ref)`.
 
-Every tool has validated inputs and a pinned `outputSchema`. A **stub** is fully
-discoverable but returns a tool error that says it is not implemented — it never
-fabricates data. Tools cannot supply a URL, HTTP method, path or SQL; each tool calls a
-fixed endpoint on the configured feature origin.
+Every tool has validated inputs and a pinned `outputSchema`. Tools cannot supply a
+URL, HTTP method, path or SQL; each tool calls a fixed endpoint on the configured
+feature origin. The Virtual Garden tools additionally cannot be pointed at another
+garden: `garden_id` is a validated positive integer, but it is vgarden's own
+service-token-authenticated endpoint — not the tool — that is the actual trust
+boundary, since the token is a server-side constant the tool arguments can never
+set or omit.
 
 ## Validate from a terminal
 
@@ -102,7 +106,8 @@ python -m pytest -q
 ```
 
 The suite covers discovery (names, schemas, annotations, resources, prompt), input
-validation, the `MCP_ENABLED=false` switch, honest stub errors, a real
-streamable-http listener including the `Host` header check, and every Plant Health
-tool against a fake health API (filters, aggregation, 404/503/redirect/offline
-handling). No model or feature service is required.
+validation, the `MCP_ENABLED=false` switch, a real streamable-http listener including
+the `Host` header check, every Plant Health tool against a fake health API (filters,
+aggregation, 404/503/redirect/offline handling), and the Virtual Garden tools against
+a fake vgarden API, including that the configured `VGARDEN_SERVICE_TOKEN` is always
+sent and a client can never override it. No model or feature service is required.

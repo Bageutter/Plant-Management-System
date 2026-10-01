@@ -159,9 +159,10 @@ def answer(
     store,
     embedder=None,
     answerer=None,
+    source_id: str | None = None,
 ) -> dict:
     started = time.monotonic()
-    chunks = store.chunks(sources)
+    chunks = store.chunks(sources, source_id=source_id)
 
     today = datetime.now(ZoneInfo("Australia/Sydney"))
     if re.fullmatch(r"(?:what|which plants|what plants) can i (?:plant|sow|grow) (?:now|this month)[?.! ]*", question.strip(), re.I):
@@ -235,6 +236,7 @@ def answer(
         "top_k": top_k,
         "query_terms": result.query_terms,
         "sources": list(sources),
+        "source_id": source_id,
     }
     if not result.candidates:
         return insufficient(question, retrieval=retrieval, duration_ms=_ms(started), note=note)

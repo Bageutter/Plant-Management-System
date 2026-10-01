@@ -40,6 +40,14 @@ class Config:
     ALMANAC_SERVICE_URL = os.environ.get("ALMANAC_SERVICE_URL", "http://127.0.0.1:3000/almanac")
     ALMANAC_PUBLIC_URL = os.environ.get("ALMANAC_PUBLIC_URL", "http://localhost:3000/almanac")
     VGARDEN_SERVICE_URL = os.environ.get("VGARDEN_SERVICE_URL", "http://127.0.0.1:3000/vgarden")
+    VGARDEN_PUBLIC_URL = os.environ.get("VGARDEN_PUBLIC_URL", "http://localhost:3000/vgarden")
+    # Garden state is private per-owner (unlike the public Almanac catalogue or Plant
+    # Health assessments), so bulk ingestion authenticates with the same shared
+    # secret vgarden already uses for auth's server-to-server calls
+    # (INTER_SERVICE_SECRET in docker-compose.yml / vgarden's own config).
+    VGARDEN_SERVICE_TOKEN = os.environ.get(
+        "VGARDEN_SERVICE_TOKEN", "dev-inter-service-secret-change-me"
+    )
     SERVICE_TIMEOUT = float(os.environ.get("SERVICE_TIMEOUT", "15"))
 
     # Local Ollama only. Answering model matches the project's chat features;
