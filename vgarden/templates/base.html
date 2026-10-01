@@ -132,6 +132,42 @@
         }
         .htmx-indicator { opacity: 0; }
         .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+
+        /* Release 1: shared MCP/RAG panels (_mcp_result.html, _rag_answer.html) */
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            background-color: hsl(var(--muted));
+            color: hsl(var(--muted-foreground));
+        }
+        .status-on { background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+        .status-off { background-color: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+        .conf-high { background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+        .conf-medium { background-color: hsl(38 80% 42%); color: #fff; }
+        .conf-low { background-color: hsl(var(--muted)); color: hsl(var(--muted-foreground)); border: 1px solid hsl(var(--border)); }
+        .conf-insufficient { background-color: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); }
+        .help { cursor: help; }
+        .spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 999px;
+            animation: spin 700ms linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+        .record-list > li + li { border-top: 1px solid hsl(var(--border)); }
+        .record-row { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 0.5rem; border-radius: var(--uk-global-radius-s); }
+        .record-row:hover { background-color: hsl(var(--muted)); }
+        .record-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+        .record-desc { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
         @media (max-width: 40rem) {
             .ai-chat-launcher { right: 0.75rem; bottom: 0.75rem; }
             .ai-chat-panel {

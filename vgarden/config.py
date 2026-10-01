@@ -42,6 +42,17 @@ class Config:
         "AI_LOOP_LOG_DIR", os.path.join(BASE_DIR, "..", "tools", "ai-loop", "logs")
     )
 
+    # Release 1: shared local MCP + RAG servers. Both run OUTSIDE docker compose; from
+    # inside the vgarden container they are reached via host.docker.internal (see
+    # docker-compose.yml), the same approach already used for OLLAMA_URL above. CI
+    # sets both *_ENABLED flags to false.
+    MCP_ENABLED = os.environ.get("MCP_ENABLED", "true").lower() == "true"
+    MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://127.0.0.1:5105/mcp")
+    RAG_ENABLED = os.environ.get("RAG_ENABLED", "true").lower() == "true"
+    RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://127.0.0.1:5106").rstrip("/")
+    # Per-call timeout for the shared servers (a RAG answer includes a model call).
+    INTEGRATION_TIMEOUT = int(os.environ.get("INTEGRATION_TIMEOUT", "180"))
+
     # Open-Meteo (no API key): geocodes a garden's location and feeds current
     # conditions + a short forecast to the AI assistant.
     OPEN_METEO_GEOCODING_URL = os.environ.get(

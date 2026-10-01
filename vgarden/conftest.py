@@ -13,6 +13,12 @@ _SHARED = os.path.join(os.path.dirname(__file__), "..", "shared")
 if os.path.isdir(_SHARED) and _SHARED not in sys.path:
     sys.path.insert(0, _SHARED)
 
+# The shared MCP server package, so tests can run the real server in-process
+# (tests/test_integrations.py's `mcp` fixture), the same approach health uses.
+_MCP_SERVER = os.path.join(os.path.dirname(__file__), "..", "ai-services", "mcp-server")
+if os.path.isdir(_MCP_SERVER) and _MCP_SERVER not in sys.path:
+    sys.path.insert(0, _MCP_SERVER)
+
 
 class TestConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -24,6 +30,15 @@ class TestConfig:
     AI_LOOP_MAX_ITERATIONS = 2
     # OLLAMA_REVIEW_MODEL is deliberately unset -> build_reviewer() returns None;
     # the `ai_loop_reviewer` fixture below injects a fake instead.
+
+    # Release 1: shared local MCP + RAG servers. Overridden per test by the `mcp`/
+    # `rag` fixtures in tests/test_integrations.py; these are just safe defaults so
+    # every test can create the app (app.py reads them at startup).
+    MCP_ENABLED = True
+    MCP_SERVER_URL = "http://127.0.0.1:1/mcp"  # replaced per test
+    RAG_ENABLED = True
+    RAG_SERVER_URL = "http://127.0.0.1:1"  # replaced per test
+    INTEGRATION_TIMEOUT = 5
 
 
 @pytest.fixture

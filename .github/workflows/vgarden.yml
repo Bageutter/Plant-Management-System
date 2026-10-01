@@ -1,11 +1,21 @@
 name: Virtual Garden
 
+# Virtual Garden feature CI (Release 1): lint, unit/e2e tests, image build, and a
+# compose smoke test of the containerised service through the proxy. The MCP and
+# RAG integration stays in the code but both modes are DISABLED here
+# (MCP_ENABLED=false, RAG_ENABLED=false) — the shared servers are local,
+# non-containerised processes that never run in CI.
 on:
   push:
     branches: ["yunz/**"]
     paths:
       - "vgarden/**"
       - "shared/**"
+      - "ai-services/mcp-server/**"
+      - "ai-services/rag-server/**"
+      - "scripts/test/smoke-vgarden.sh"
+      - "docker-compose.yml"
+      - "nginx.conf"
       - "pyproject.toml"
       - ".github/workflows/vgarden.yml"
   pull_request:
@@ -13,6 +23,11 @@ on:
     paths:
       - "vgarden/**"
       - "shared/**"
+      - "ai-services/mcp-server/**"
+      - "ai-services/rag-server/**"
+      - "scripts/test/smoke-vgarden.sh"
+      - "docker-compose.yml"
+      - "nginx.conf"
       - "pyproject.toml"
       - ".github/workflows/vgarden.yml"
   workflow_dispatch:
@@ -23,6 +38,11 @@ permissions:
 concurrency:
   group: vgarden-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  # Release 1 rule: integration retained, both modes off during CI/CD.
+  MCP_ENABLED: "false"
+  RAG_ENABLED: "false"
 
 jobs:
   lint:
@@ -74,3 +94,31 @@ jobs:
 
       - name: Build image
         run: docker build --tag vgarden:ci ./vgarden
+
+  compose-smoke:
+    name: Compose smoke test (MCP + RAG disabled)
+    needs: [test, docker-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: plant-management-vgarden-ci
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate compose file
+        run: docker compose config --quiet
+      - name: Start the stack
+        run: docker compose up --detach --build
+      - name: Smoke-check the Virtual Garden service through the proxy
+        run: bash scripts/test/smoke-vgarden.sh http://127.0.0.1:3000
+      - name: Save logs
+        if: always()
+        run: docker compose logs --no-color vgarden proxy > vgarden-compose.log 2>&1 || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: vgarden-compose-logs-${{ github.run_id }}
+          path: vgarden-compose.log
+          retention-days: 7
+      - name: Tear down
+        if: always()
+        run: docker compose down --volumes --remove-orphans
