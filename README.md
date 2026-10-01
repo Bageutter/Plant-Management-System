@@ -117,9 +117,10 @@ curl -s http://localhost:3000/vgarden/integrations   # service-wide wiring statu
 Full design, including why Virtual Garden's integration differs (private per-owner
 data → service-token-authenticated endpoints + `source_id`-scoped retrieval):
 [docs/ai/mcp-rag-design.md](docs/ai/mcp-rag-design.md). The shared agentic loop's
-MCP/RAG validation modes (`tools/ai-loop/validate.py`) currently exercise the Almanac
-contract; extending them to Virtual Garden's authenticated, owner-scoped flow is
-tracked as group follow-up.
+MCP/RAG validation modes run from `tools/ai-loop/validate.py --feature {almanac,vgarden}`
+— the Virtual Garden mode registers a throwaway account through the real
+register → create-garden → SSO-handoff flow before validating its owner-scoped
+MCP/RAG routes (see [`tools/ai-loop/README.md`](tools/ai-loop/README.md#release-1-validate-mcp-and-rag-through-the-feature)).
 
 ## Agentic AI workflow
 
