@@ -136,7 +136,7 @@ class AlmanacPlantDetail(AlmanacReference):
 
 
 # --------------------------------------------------------------------------- #
-# Virtual Garden (stub contract — see the tracking issue in tools/vgarden.py) #
+# Virtual Garden                                                              #
 # --------------------------------------------------------------------------- #
 
 
