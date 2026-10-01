@@ -159,6 +159,8 @@
 
 </div>
 
+{% include "_integrations.html" %}
+
 {% call modal('showEditGarden', 'showEditGarden = false', 'Edit garden info', wide=true) %}
 <form method="post" action="{{ url_for('gardens.edit_garden', garden_id=garden.id) }}" class="flex flex-col gap-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

@@ -33,12 +33,21 @@ class Config:
         "RAG_DATABASE_PATH", os.path.join(BASE_DIR, "instance", "rag.db")
     )
 
-    # Feature services, via the proxy. Only the health source is implemented.
+    # Feature services, via the proxy. Health and Almanac sources are implemented.
     HEALTH_SERVICE_URL = os.environ.get("HEALTH_SERVICE_URL", "http://127.0.0.1:3000/health")
     # Browser-facing origin used in citation links (the proxy, as the user sees it).
     HEALTH_PUBLIC_URL = os.environ.get("HEALTH_PUBLIC_URL", "http://localhost:3000/health")
     ALMANAC_SERVICE_URL = os.environ.get("ALMANAC_SERVICE_URL", "http://127.0.0.1:3000/almanac")
+    ALMANAC_PUBLIC_URL = os.environ.get("ALMANAC_PUBLIC_URL", "http://localhost:3000/almanac")
     VGARDEN_SERVICE_URL = os.environ.get("VGARDEN_SERVICE_URL", "http://127.0.0.1:3000/vgarden")
+    VGARDEN_PUBLIC_URL = os.environ.get("VGARDEN_PUBLIC_URL", "http://localhost:3000/vgarden")
+    # Garden state is private per-owner (unlike the public Almanac catalogue or Plant
+    # Health assessments), so bulk ingestion authenticates with the same shared
+    # secret vgarden already uses for auth's server-to-server calls
+    # (INTER_SERVICE_SECRET in docker-compose.yml / vgarden's own config).
+    VGARDEN_SERVICE_TOKEN = os.environ.get(
+        "VGARDEN_SERVICE_TOKEN", "dev-inter-service-secret-change-me"
+    )
     SERVICE_TIMEOUT = float(os.environ.get("SERVICE_TIMEOUT", "15"))
 
     # Local Ollama only. Answering model matches the project's chat features;

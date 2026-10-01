@@ -76,8 +76,19 @@ services:
       - OLLAMA_REVIEW_MODEL=llama3.1:8b
       - AI_LOOP_MAX_ITERATIONS=2
       - AI_LOOP_LOG_DIR=/app/ai_loop_logs
+      # Release 1: shared local MCP + RAG servers. They run on the HOST, outside
+      # compose (never as services here); the container reaches them through
+      # host.docker.internal, the same approach already used for OLLAMA_URL on
+      # almanac above. CI sets both flags to false.
+      - MCP_ENABLED=${MCP_ENABLED:-true}
+      - MCP_SERVER_URL=${MCP_SERVER_URL:-http://host.docker.internal:5105/mcp}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
+      - RAG_SERVER_URL=${RAG_SERVER_URL:-http://host.docker.internal:5106}
     depends_on:
       - ollama
+    extra_hosts:
+      # Needed on Linux engines (incl. WSL); harmless on Docker Desktop.
+      - "host.docker.internal:host-gateway"
 
   almanac:
     build: ./almanac
@@ -92,9 +103,14 @@ services:
       - HEALTH_PUBLIC_URL=http://localhost:3000/health/plant-health-records/
       - DATABASE_URL=sqlite:////app/instance/almanac.db
       - FLASK_DEBUG=1
-      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_URL=${ALMANAC_OLLAMA_URL:-http://host.docker.internal:11434}
       - OLLAMA_MODEL=qwen3:4b-instruct
       - OLLAMA_AUTO_PULL=true
+      # Release 1 shared servers run on the host, never in this feature container.
+      - MCP_ENABLED=${MCP_ENABLED:-true}
+      - MCP_SERVER_URL=${MCP_SERVER_URL:-http://host.docker.internal:5105/mcp}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
+      - RAG_SERVER_URL=${RAG_SERVER_URL:-http://host.docker.internal:5106}
       # Plan -> Act -> Observe -> Adapt loop; see docs/agentic-ai-workflow.md.
       - OLLAMA_REVIEW_MODEL=llama3.1:8b
       - AI_LOOP_MAX_ITERATIONS=2
@@ -111,7 +127,8 @@ services:
       - almanac_data:/app/instance
     depends_on:
       - auth
-      - ollama
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   health:
     build: ./health

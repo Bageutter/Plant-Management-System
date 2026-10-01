@@ -1,0 +1,27 @@
+{% if result.error %}
+<p role="alert" class="guide-note">{{ result.error }}</p>
+{% elif mode == 'mcp' %}
+    {% if result.is_error %}<p role="alert" class="guide-note">{{ result.text }}</p>
+    {% elif result.tool == 'search_almanac_catalogue' %}
+    <p>{{ result.structured_content.total }} matching reference{{ '' if result.structured_content.total == 1 else 's' }}.</p>
+    <ul class="source-list" style="margin-top:.7rem;">
+        {% for item in result.structured_content['items'] %}
+        <li><a href="{{ url_for('plant_detail', slug=item.key) if item.kind == 'plant' else url_for(item.kind ~ '_detail', **{item.kind ~ '_id': item.id}) }}">{{ item.name }}</a> <span class="tag">{{ item.kind }}</span></li>
+        {% else %}<li>No matching reference is saved. Try a broader name.</li>{% endfor %}
+    </ul>
+    {% else %}<pre style="white-space:pre-wrap; overflow-wrap:anywhere;">{{ result.structured_content | tojson(indent=2) }}</pre>{% endif %}
+{% elif mode == 'rag' %}
+    {% if result.insufficient_context %}<h3>Not enough information</h3>{% else %}<span class="tag">{{ result.confidence | capitalize }} confidence</span>{% endif %}
+    <p style="white-space:pre-wrap; line-height:1.7; margin:.8rem 0;">{{ result.answer or 'The saved references do not contain enough information to answer this question.' }}</p>
+    <p class="text-muted-foreground" style="font-size:.85rem;">{{ result.confidence_reason }}</p>
+    {% if result.note %}<p class="guide-note" style="margin-top:.8rem;">{{ result.note }}</p>{% endif %}
+    {% if result.citations %}
+    <h3 style="margin-top:1rem;">References used</h3>
+    <ul class="source-list">
+        {% for citation in result.citations %}
+        <li><a href="{{ citation.url }}">{{ citation.title }}</a><p style="margin:.4rem 0; line-height:1.6;">{{ citation.excerpt }}</p></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+{% elif mode == 'sync' %}<p role="status">Refreshed {{ result.documents }} references ({{ result.chunks }} passages).</p>
+{% endif %}

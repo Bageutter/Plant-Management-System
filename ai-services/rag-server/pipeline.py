@@ -6,11 +6,13 @@ This module owns the response contract every feature frontend renders:
       "question": str,
       "answer": str | None,
       "confidence": "high" | "medium" | "low" | "insufficient",
+      "confidence_reason": str,                       # why that category, in plain words
+      "model_confidence": "weak" | "moderate" | "strong" | null,   # the model's own rating
       "insufficient_context": bool,
-      "citations": [ {chunk_id, source, source_id, title, url, excerpt, score} ],
+      "citations": [ {chunk_id, source, source_id, title, url, recorded_at, excerpt, score} ],
       "retrieval": {"mode": "lexical" | "hybrid", "candidates": int, "top_k": int,
-                    "considered": int, "query_terms": [...]},
-      "model": str | None,
+                    "considered": int, "query_terms": [...], "sources": [...]},
+      "model": str | None,                            # null when the model was not consulted
       "duration_ms": int,
       "note": str | None
     }
@@ -19,6 +21,13 @@ Refuse-don't-guess is enforced in three places: the relevance gate (nothing
 relevant retrieved → no model call at all), the model's own
 ``insufficient_context`` flag, and the code that drops citations the model did
 not actually receive.
+
+``model_confidence`` is the model's self-reported ``evidence_strength``. It is one
+input to the ``confidence`` category, which is otherwise derived from measurable
+retrieval evidence (``categorise``); ``confidence_reason`` is built from the same
+inputs (``explain``) so the category and its justification can never disagree. The
+model's rating is reported as given — ``null`` when the model was not consulted or
+did not supply one — never invented.
 """
 
 from __future__ import annotations
@@ -36,38 +45,106 @@ EXCERPT_CHARS = 240
 HIGH_MIN_SCORE = 0.6
 LOW_MAX_SCORE = 0.5
 
-__all__ = ["ModelUnavailable", "answer", "categorise", "insufficient"]
+__all__ = ["ModelUnavailable", "answer", "categorise", "explain", "insufficient"]
 
 
-def insufficient(question: str, *, retrieval: dict, duration_ms: int = 0, note: str | None = None) -> dict:
-    """The fixed refusal payload used whenever nothing relevant was retrieved."""
+def insufficient(
+    question: str,
+    *,
+    retrieval: dict,
+    duration_ms: int = 0,
+    note: str | None = None,
+    model: str | None = None,
+    model_confidence: str | None = None,
+    reason: str | None = None,
+) -> dict:
+    """The fixed refusal payload used whenever no grounded answer can be given.
 
+    ``model`` and ``model_confidence`` are None when the relevance gate refused before
+    the model was consulted; when the model itself declared the passages insufficient
+    they carry the model's name and its own evidence rating.
+    """
+
+    if reason is None:
+        if model is None:
+            reason = (
+                "No indexed passage passed the relevance gate, so the model was not consulted."
+            )
+        else:
+            reason = "The model judged the retrieved passages insufficient to answer this question"
+            reason += (
+                f" (its own evidence rating: {model_confidence})." if model_confidence else "."
+            )
     return {
         "question": question,
         "answer": None,
         "confidence": "insufficient",
+        "confidence_reason": reason,
+        "model_confidence": model_confidence,
         "insufficient_context": True,
         "citations": [],
         "retrieval": retrieval,
-        "model": None,
+        "model": model,
         "duration_ms": duration_ms,
         "note": note
         or "No indexed passage was relevant enough to this question, so no answer was generated.",
     }
 
 
-def categorise(cited: list[Candidate], evidence_strength: str, *, fallback: bool) -> str:
+def categorise(cited: list[Candidate], evidence_strength: str | None, *, fallback: bool) -> str:
     """Confidence category from measurable retrieval evidence plus the model's
-    self-reported strength. Documented in docs/ai/mcp-rag-design.md §3."""
+    self-reported strength (a missing rating counts as weak). Documented in
+    docs/ai/mcp-rag-design.md §3."""
 
     if not cited:
         return "insufficient"
+    strength = evidence_strength or "weak"
     top = max(c.score for c in cited)
-    if fallback or evidence_strength == "weak" or (len(cited) == 1 and top < LOW_MAX_SCORE):
+    if fallback or strength == "weak" or (len(cited) == 1 and top < LOW_MAX_SCORE):
         return "low"
-    if len(cited) >= 2 and top >= HIGH_MIN_SCORE and evidence_strength == "strong":
+    if len(cited) >= 2 and top >= HIGH_MIN_SCORE and strength == "strong":
         return "high"
     return "medium"
+
+
+def explain(cited: list[Candidate], evidence_strength: str | None, *, fallback: bool) -> str:
+    """Plain-words justification of the confidence category.
+
+    Derives the category with ``categorise`` from the same inputs, so the reason
+    always describes the rule that actually fired.
+    """
+
+    if not cited:
+        return "No passage was cited."
+    category = categorise(cited, evidence_strength, fallback=fallback)
+    top = max(c.score for c in cited)
+    count = len(cited)
+    rating = (
+        f"model rated its evidence {evidence_strength}"
+        if evidence_strength
+        else "model gave no evidence rating (treated as weak)"
+    )
+    text = f"{count} cited passage{'s' if count != 1 else ''}, top relevance {top:.0%}; {rating}"
+
+    if fallback:
+        text += ", but cited none of the passages it was given, so confidence is capped at low"
+    elif category == "high":
+        text += ", meeting every high-confidence rule"
+    elif category == "low":
+        if (evidence_strength or "weak") == "weak":
+            text += ", which caps confidence at low"
+        else:
+            text += ", but a single weakly relevant passage caps confidence at low"
+    else:  # medium: name the high-confidence rule(s) that were not met
+        unmet = []
+        if count < 2:
+            unmet.append("only one passage was cited")
+        if top < HIGH_MIN_SCORE:
+            unmet.append(f"top relevance is below {HIGH_MIN_SCORE:.0%}")
+        if evidence_strength != "strong":
+            unmet.append("the model did not rate its evidence strong")
+        text += ", but " + " and ".join(unmet) + ", so confidence stays at medium"
+    return text + "."
 
 
 def answer(
@@ -79,9 +156,10 @@ def answer(
     store,
     embedder=None,
     answerer=None,
+    source_id: str | None = None,
 ) -> dict:
     started = time.monotonic()
-    chunks = store.chunks(sources)
+    chunks = store.chunks(sources, source_id=source_id)
 
     # -- retrieve (dense is best-effort; lexical always works) ----------------
     query_embedding = None
@@ -109,6 +187,7 @@ def answer(
         "top_k": top_k,
         "query_terms": result.query_terms,
         "sources": list(sources),
+        "source_id": source_id,
     }
     if not result.candidates:
         return insufficient(question, retrieval=retrieval, duration_ms=_ms(started), note=note)
@@ -129,13 +208,22 @@ def answer(
     }
     answerer = answerer if answerer is not None else build_answerer(config)
     generated = answerer.generate(question, grounding)
+    strength = generated["evidence_strength"]  # None when the model did not report one
 
     if generated["insufficient_context"] or not generated["answer"]:
+        reason = None
+        if not generated["insufficient_context"]:
+            # The model did not claim insufficiency; it simply produced no answer.
+            reason = "The model returned no grounded answer from the retrieved passages"
+            reason += f" (its own evidence rating: {strength})." if strength else "."
         return insufficient(
             question,
             retrieval=retrieval,
             duration_ms=_ms(started),
             note="The retrieved passages did not contain enough to answer this question.",
+            model=answerer.model,
+            model_confidence=strength,
+            reason=reason,
         )
 
     # -- re-validate citations in code -------------------------------------------
@@ -156,7 +244,9 @@ def answer(
     return {
         "question": question,
         "answer": text,
-        "confidence": categorise(cited, generated["evidence_strength"], fallback=fallback),
+        "confidence": categorise(cited, strength, fallback=fallback),
+        "confidence_reason": explain(cited, strength, fallback=fallback),
+        "model_confidence": strength,
         "insufficient_context": False,
         "citations": [_citation(c) for c in cited],
         "retrieval": retrieval,

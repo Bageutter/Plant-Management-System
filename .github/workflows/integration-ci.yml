@@ -46,9 +46,9 @@ jobs:
           base=http://127.0.0.1:3000
           curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/"
           curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/auth/login"
-          curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/vgarden/healthz"
           curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/almanac/"
           bash scripts/test/smoke-health.sh "$base"
+          bash scripts/test/smoke-vgarden.sh "$base"
 
       - name: save logs
         if: always()

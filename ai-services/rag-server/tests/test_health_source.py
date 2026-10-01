@@ -207,7 +207,7 @@ def test_end_to_end_ingest_then_query_through_the_api(fake, tmp_path, monkeypatc
     assert ingested.status_code == 200 and ingested.get_json()["chunks"] == 6
     sources = {row["source"]: row for row in client.get("/rag/sources").get_json()}
     assert sources["health"]["implemented"] is True and sources["health"]["documents"] == 2
-    assert sources["almanac"]["implemented"] is False
+    assert sources["almanac"]["implemented"] is True
 
     response = client.post(
         "/rag/query", json={"question": "What should I do about the tomato in the back bed?", "sources": ["health"]}
@@ -223,4 +223,6 @@ def test_end_to_end_ingest_then_query_through_the_api(fake, tmp_path, monkeypatc
     )
     html = fragment.get_data(as_text=True)
     assert fragment.status_code == 200 and "Assessment #3" in html and "confidence" in html.lower()
+    assert 'data-model-confidence="strong"' in html and "Why " in html
+    assert "model rated its evidence strong" in html
     app.extensions["chunk_store"].close()

@@ -53,16 +53,7 @@ def test_sources_lists_every_known_source_as_unindexed(client):
     body = client.get("/rag/sources").get_json()
     assert [row["source"] for row in body] == ["health", "almanac", "vgarden"]
     assert all(row["chunks"] == 0 for row in body)
-    assert [row["implemented"] for row in body] == [True, False, False]
-
-
-@pytest.mark.parametrize("source", ["almanac", "vgarden"])
-def test_ingest_stubs_answer_501_and_name_the_tracking_reference(client, source):
-    response = client.post(f"/rag/ingest/{source}")
-    assert response.status_code == 501
-    body = response.get_json()
-    assert body["source"] == source and "not implemented" in body["error"]
-    assert "issue #4" in body["tracking"]
+    assert [row["implemented"] for row in body] == [True, True, True]
 
 
 def test_ingest_unknown_source_is_404(client):
@@ -81,12 +72,56 @@ def test_ingest_unknown_source_is_404(client):
         ({"question": "ok", "sources": []}, "non-empty list"),
         ({"question": "ok", "top_k": 0}, "between 1 and 10"),
         ({"question": "ok", "top_k": "many"}, "must be an integer"),
+        ({"question": "ok", "source_id": "   "}, "non-empty text"),
+        ({"question": "ok", "source_id": "x" * 121}, "120 characters"),
     ],
 )
 def test_query_validation(client, payload, fragment):
     response = client.post("/rag/query", json=payload)
     assert response.status_code == 400
     assert fragment in response.get_json()["error"]
+
+
+def test_source_id_scopes_retrieval_to_one_record(client, monkeypatch):
+    """Two gardens' chunks are both indexed under "vgarden"; a query scoped by
+    source_id must never retrieve or cite the other garden's chunks — this is
+    what keeps one owner's "ask about this garden" question from being grounded
+    in a different owner's garden."""
+
+    class Answerer:
+        model = "test-model"
+
+        def generate(self, question, grounding):
+            assert {p["source"] for p in grounding["passages"]} == {"vgarden"}
+            return {
+                "answer": "Tomato is growing.",
+                "cited_chunk_ids": [grounding["passages"][0]["chunk_id"]],
+                "evidence_strength": "strong",
+                "insufficient_context": False,
+            }
+
+    monkeypatch.setattr("pipeline.build_answerer", lambda config: Answerer())
+
+    store = client.application.extensions["chunk_store"]
+    store.replace_source(
+        "vgarden",
+        [
+            Chunk("vgarden", "1", "plantings", "Garden — Mine", "Plantings in Mine: Tomato growing."),
+            Chunk("vgarden", "2", "plantings", "Garden — Someone else's", "Plantings in Someone else's: Basil growing."),
+        ],
+        documents=2,
+    )
+
+    response = client.post(
+        "/rag/query",
+        json={"question": "What is growing?", "sources": ["vgarden"], "source_id": "1"},
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["retrieval"]["source_id"] == "1"
+    assert body["retrieval"]["considered"] == 1
+    assert body["citations"] and {c["source_id"] for c in body["citations"]} == {"1"}
+    assert "Someone else" not in body["answer"]
 
 
 def test_valid_query_on_an_empty_index_is_an_insufficient_context_answer(client):
@@ -102,6 +137,7 @@ def test_valid_query_on_an_empty_index_is_an_insufficient_context_answer(client)
         "top_k": 5,
         "query_terms": ["tomato", "leave", "yellow"],
         "sources": ["health", "almanac", "vgarden"],
+        "source_id": None,
     }
 
     # The HTMX path renders the insufficient-context state, never fabricated prose.

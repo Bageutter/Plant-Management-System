@@ -51,6 +51,10 @@ class FeatureClient:
     method or path. Redirects are not followed, the environment's proxy settings
     are ignored, and every failure becomes a ``ToolError`` whose text is safe to
     show to an AI host (no internal exception details).
+
+    ``headers`` is tool-code-supplied only (never from tool arguments) — used by
+    the Virtual Garden tools to send the shared service-token bearer auth that
+    feature's private, owner-scoped endpoints require (see tools/vgarden.py).
     """
 
     def __init__(self, name: str, base_url: str, timeout: float, *, transport=None):
@@ -59,13 +63,13 @@ class FeatureClient:
         self.timeout = timeout
         self.transport = transport
 
-    def get(self, path: str, *, ok=(200,), timeout: float | None = None, **params):
-        return self._request("GET", path, params=params or None, ok=ok, timeout=timeout)
+    def get(self, path: str, *, ok=(200,), timeout: float | None = None, headers=None, **params):
+        return self._request("GET", path, params=params or None, ok=ok, timeout=timeout, headers=headers)
 
-    def post(self, path: str, body: dict, *, ok=(200, 201), timeout: float | None = None):
-        return self._request("POST", path, json=body, ok=ok, timeout=timeout)
+    def post(self, path: str, body: dict, *, ok=(200, 201), timeout: float | None = None, headers=None):
+        return self._request("POST", path, json=body, ok=ok, timeout=timeout, headers=headers)
 
-    def _request(self, method, path, *, params=None, json=None, ok, timeout):
+    def _request(self, method, path, *, params=None, json=None, ok, timeout, headers=None):
         try:
             with httpx.Client(
                 base_url=self.base_url,
@@ -74,7 +78,7 @@ class FeatureClient:
                 trust_env=False,
                 transport=self.transport,
             ) as client:
-                response = client.request(method, path.lstrip("/"), params=params, json=json)
+                response = client.request(method, path.lstrip("/"), params=params, json=json, headers=headers)
         except httpx.HTTPError:
             raise ToolError(
                 f"The {self.name} service is unavailable or timed out at {self.base_url}. "
