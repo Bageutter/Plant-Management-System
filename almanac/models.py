@@ -14,6 +14,9 @@ class PlantReference(db.Model):
     scientific_name = db.Column(db.String(160), nullable=False)
     family = db.Column(db.String(120), nullable=False)
     summary = db.Column(db.Text, nullable=False)
+    plant_group = db.Column(db.String(120), nullable=True)
+    variety_name = db.Column(db.String(120), nullable=True)
+    plant_category = db.Column(db.String(40), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     yield_qty = db.Column(db.Float, nullable=True)
@@ -118,7 +121,7 @@ class PlantReference(db.Model):
         return {
             **{
                 key: getattr(self, key)
-                for key in [*NUMERIC, *TEXT, *CHOICES, "source_url"]
+                for key in [*NUMERIC, *TEXT, *CHOICES, "source_url", "plant_group", "variety_name", "plant_category"]
             },
             "rotation_group": self.rotation_group.to_dict() if self.rotation_group else None,
             **{
@@ -200,6 +203,7 @@ class AIChatMessage(db.Model):
     role = db.Column(db.String(16), nullable=False)
     content = db.Column(db.Text, nullable=False)
     source_slugs = db.Column(db.JSON, nullable=True)
+    evidence = db.Column(db.JSON, nullable=True)
     created_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

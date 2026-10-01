@@ -1,0 +1,8 @@
+{% macro confidence_pill(category, insufficient=false, explanation="") -%}
+{% set level = (category or 'unknown')|lower %}
+{% set colours = {'high':('#e4f1df','#24562b'), 'medium':('#fff0cc','#75500b'), 'low':('#fae5de','#853d2c')} %}
+{% set palette = colours.get(level, ('#edf0ed','#48574b')) %}
+<span class="confidence-pill" {% if explanation %}tabindex="0" title="{{ explanation }}" aria-label="{{ level|capitalize }} confidence: {{ explanation }}"{% endif %} style="display:inline-flex;padding:.25rem .65rem;border-radius:999px;font-size:.75rem;font-weight:600;background:{{ palette[0] }};color:{{ palette[1] }};">
+{{ 'Insufficient context' if insufficient else ((level|capitalize ~ ' confidence') if level in colours else 'Confidence unavailable') }}
+</span>
+{%- endmacro %}

@@ -1,0 +1,25 @@
+<form class="catalogue-toolbar" method="get" action="{{ url_for('index') }}" role="search">
+    <label class="catalogue-search"><span class="sr-only">Search plants or varieties</span>
+        <input name="q" type="search" value="{{ query }}" placeholder="Search plants or varieties…" maxlength="200">
+    </label>
+    <label class="catalogue-group-select">View
+        <select name="group"><option value="plant" {% if group_by == 'plant' %}selected{% endif %}>Grouped varieties</option><option value="none" {% if group_by == 'none' %}selected{% endif %}>Individual plants</option></select>
+    </label>
+    <nav class="catalogue-problems" aria-label="Plant problem library"><strong>Plant problems:</strong> <a href="{{ url_for('pest_index') }}">Pest guides</a><span aria-hidden="true">·</span><a href="{{ url_for('disease_index') }}">Disease guides</a></nav>
+    {% if auth_user %}<a class="uk-btn uk-btn-primary uk-btn-sm" href="{{ url_for('new_plant') }}">+ Add a plant</a>{% endif %}
+    <div class="catalogue-filters">
+      <fieldset class="sunlight-pills"><legend>Sunlight</legend>
+        <label><input type="radio" name="sun" value="" {% if not selected_sun %}checked{% endif %}><span>Any sunlight</span></label>
+        {% for value in sun_options %}<label><input type="radio" name="sun" value="{{ value }}" {% if selected_sun == value %}checked{% endif %}><span>{{ value|capitalize }}</span></label>{% endfor %}
+      </fieldset>
+      <label>Water<select name="water"><option value="">Any water needs</option>{% for value in water_options %}<option value="{{ value }}" {% if selected_water == value %}selected{% endif %}>{{ value|capitalize }}</option>{% endfor %}</select></label>
+      <label>Planting time<select name="month"><option value="">Any month</option><option value="now" {% if selected_month == 'now' %}selected{% endif %}>This month</option>{% for number, name in month_options %}<option value="{{ number }}" {% if selected_month == number|string %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+      <button class="uk-btn uk-btn-primary uk-btn-sm" name="category" value="{{ selected_category }}">Filter plants</button>
+      <a href="{{ url_for('index') }}">Clear filters</a>
+      <small>Planting time uses recorded months; check your local climate. Plants without recorded months are excluded.</small>
+    </div>
+    <div class="catalogue-categories" role="group" aria-label="Plant category">
+        <button name="category" value="" class="{% if not selected_category %}is-active{% endif %}" aria-pressed="{{ 'false' if selected_category else 'true' }}">All</button>
+        {% for category in categories %}<button name="category" value="{{ category }}" class="{% if selected_category == category %}is-active{% endif %}" aria-pressed="{{ 'true' if selected_category == category else 'false' }}">{{ category }}</button>{% endfor %}
+    </div>
+</form>

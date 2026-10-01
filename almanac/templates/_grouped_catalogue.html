@@ -1,0 +1,37 @@
+{% macro plant_card(plant, heading='h3') %}
+<a href="{{ url_for('plant_detail', slug=plant.slug) }}" class="variety-card">
+    {% if plant.image_url %}<img src="{{ plant.image_url }}" alt="{{ plant.common_name }}" loading="lazy">{% endif %}
+    <div class="variety-copy">
+        <p class="variety-scientific">{{ plant.scientific_name }}</p>
+        <{{ heading }}>{{ plant.common_name }}</{{ heading }}>
+        {% if plant.summary %}<p class="variety-description">{{ plant.summary }}</p>{% endif %}
+    </div>
+</a>
+{% endmacro %}
+<p class="catalogue-results" role="status">{{ visible_plants|length }} of {{ plants|length }} plant records</p>
+{% if visible_plants %}
+{% if group_by == 'plant' %}
+<div class="plant-groups">
+    {% for group in plant_groups %}
+    <section class="plant-group" style="--group-size:{{ [group.plants|length, 4]|min }}" x-data="{ expanded: true }" :class="{ 'is-collapsed': !expanded }" aria-label="{{ group.name }} group">
+        <header class="plant-group-heading">
+            <h2>{{ group.name }}</h2>
+            {% if group.plants|length > 1 %}
+            <button class="group-toggle" type="button" @click="expanded = !expanded; $nextTick(() => window.packPlantGroups())" :aria-expanded="expanded.toString()" aria-expanded="true" aria-controls="plant-group-{{ loop.index }}" aria-label="Toggle {{ group.name }} varieties"><span x-text="expanded ? 'Fold varieties' : 'Show varieties'">Fold varieties</span><span aria-hidden="true" class="group-chevron" :class="{ 'turned': !expanded }">⌃</span></button>
+            {% else %}<span class="single-plant-label">{{ 'Variety' if group.variety_count else 'Plant' }}</span>{% endif %}
+        </header>
+        <div id="plant-group-{{ loop.index }}" class="variety-grid">
+            {% for plant in group.plants %}
+            <div class="variety-slot" {% if loop.first %}data-group-first{% endif %} {% if not loop.first %}x-show="expanded"{% endif %}>{{ plant_card(plant) }}</div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+</div>
+<script src="{{ url_for('static', filename='catalogue-packing.js') }}" defer></script>
+{% else %}
+<div class="catalogue-flat">{% for plant in visible_plants %}{{ plant_card(plant, 'h2') }}{% endfor %}</div>
+{% endif %}
+{% else %}
+<div class="catalogue-empty"><p>{{ 'No plants match these filters.' if plants else 'No plants in the almanac yet.' }}</p>{% if plants %}<a href="{{ url_for('index') }}">Clear filters</a>{% endif %}</div>
+{% endif %}

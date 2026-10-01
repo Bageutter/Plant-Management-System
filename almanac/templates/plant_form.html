@@ -93,6 +93,23 @@
             <textarea class="uk-textarea" name="summary" rows="3">{{ f.summary if f else (plant.summary if is_edit else '') }}</textarea>
         </label>
 
+        {% for key, label in [('plant_group', 'Plant group (e.g. Carrot)'), ('variety_name', 'Variety name (optional)')] %}
+        <label style="display:grid; gap:0.35rem;">
+            <span class="uk-form-label">{{ label }}</span>
+            <input class="uk-input" name="{{ key }}" maxlength="120" value="{{ (f.get(key, '') if f else (plant[key] if is_edit else '')) or '' }}">
+        </label>
+        {% endfor %}
+        <label style="display:grid; gap:0.35rem;">
+            <span class="uk-form-label">Category</span>
+            {% set selected_category = f.get('plant_category', '') if f else (plant.plant_category if is_edit else '') %}
+            <select class="uk-select" name="plant_category">
+                <option value="">Not recorded</option>
+                {% for category in ['Vegetables', 'Herbs', 'Flowers', 'Fruit', 'Other'] %}
+                <option {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
         <div style="display:grid; gap:0.35rem;">
             <span class="uk-form-label">Plant image</span>
             <input id="plant-image-input" class="sr-only" type="file" name="image"

@@ -23,6 +23,7 @@ SUPPORTED_SNAPSHOT_FORMAT = 1
 
 PLANT_FIELDS = (
     "slug", "common_name", "scientific_name", "family", "summary",
+    "plant_group", "variety_name", "plant_category",
     "yield_qty", "in_row_spacing_cm", "row_spacing_cm",
     "succession_interval_days", "harvest_window_weeks", "soil_ph_min",
     "soil_ph_max", "yield_wording", "yield_unit", "management_notes",

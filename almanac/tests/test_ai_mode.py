@@ -73,6 +73,37 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.app.extensions["almanac_ai"] = ai
         return ai
 
+    def test_rag_chat_saves_evidence_and_displays_confidence(self):
+        evidence = {"answer": "Basil needs full sun.", "confidence": "high",
+                    "confidence_reason": "Supported by saved records.", "citations": [],
+                    "insufficient_context": False}
+        with patch("app.chat_reference_result", return_value=(evidence["answer"], evidence)):
+            response = self.client.post("/ai/ask", data={"question": "Basil sunlight?", "mode": "rag"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"High confidence", response.data)
+        self.assertNotIn(b"Ask more about this", response.data)
+        with self.app.app_context():
+            message = AIChatMessage.query.filter_by(role="assistant").one()
+            self.assertEqual(message.evidence["result"]["confidence"], "high")
+        self.assertIn(b"High confidence", self.client.get("/").data)
+
+    def test_mcp_chat_displays_tool_result(self):
+        evidence = {"tool": "search_almanac_catalogue", "is_error": False,
+                    "structured_content": {"total": 1, "items": [
+                        {"kind": "plant", "key": "basil", "name": "Basil"}]}}
+        with patch("app.chat_reference_result", return_value=("Found 1 matching reference.", evidence)):
+            response = self.client.post("/ai/ask", data={"question": "basil", "mode": "mcp"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"View lookup details", response.data)
+        self.assertIn(b"/plants/basil", response.data)
+
+    def test_reference_failure_does_not_save_unsupported_answer(self):
+        with patch("app.chat_reference_result", side_effect=ValueError("offline")):
+            response = self.client.post("/ai/ask", data={"question": "Basil?", "mode": "rag"})
+        self.assertEqual(response.status_code, 503)
+        with self.app.app_context():
+            self.assertEqual(AIChatMessage.query.count(), 0)
+
     def test_ai_mode_renders_on_almanac_page(self):
         response = self.client.get("/")
 

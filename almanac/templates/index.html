@@ -3,6 +3,8 @@
 {% block title %}Plant Almanac{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='catalogue-groups.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='chat-notebook.css') }}">
 <style>
     .ai-validation-link {
         display: flex;
@@ -67,87 +69,22 @@
         overflow: auto;
         padding: 1.25rem;
     }
-    .problem-hub {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
-        margin: -0.75rem 0 2.5rem;
-    }
-    .problem-hub-card {
-        position: relative;
-        display: flex;
-        min-height: 9.5rem;
-        overflow: hidden;
-        flex-direction: column;
-        justify-content: space-between;
-        padding: 1.35rem;
-        border: 1px solid hsl(var(--border));
-        border-radius: 1rem;
-        transition: transform .15s ease, box-shadow .15s ease;
-    }
-    .problem-hub-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 24px hsl(150 20% 10% / .09);
-    }
-    .problem-hub-card--pests { background: linear-gradient(135deg, hsl(41 66% 94%), hsl(24 55% 91%)); }
-    .problem-hub-card--diseases { background: linear-gradient(135deg, hsl(105 30% 93%), hsl(174 24% 91%)); }
-    .problem-hub-card::after {
-        position: absolute;
-        right: 1rem;
-        top: .65rem;
-        color: hsl(var(--foreground) / .13);
-        font-family: 'Fraunces', serif;
-        font-size: 4.5rem;
-        line-height: 1;
-    }
-    .problem-hub-card--pests::after { content: "01"; }
-    .problem-hub-card--diseases::after { content: "02"; }
-    .problem-hub-card__label { margin: 0 0 .45rem; color: hsl(var(--muted-foreground)); font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-    .problem-hub-card h2 { margin: 0; font-size: 1.5rem; }
-    .problem-hub-card p { max-width: 25rem; margin: .55rem 0 1.1rem; color: hsl(var(--muted-foreground)); font-size: .9rem; line-height: 1.55; }
-    .problem-hub-card__link { color: hsl(var(--primary)); font-size: .85rem; font-weight: 700; }
-    @media (max-width: 38rem) {
-        .problem-hub { grid-template-columns: 1fr; }
-        .problem-hub-card { min-height: 8.5rem; }
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div style="max-width:56rem; margin:0 auto;">
-    <div style="margin-bottom:2.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
-        <h1 style="font-size:2.25rem; font-weight:700; margin:0;">Plant Almanac</h1>
-        {% if auth_user %}
-        <a href="{{ url_for('new_plant') }}" class="uk-btn uk-btn-primary uk-btn-sm">+ Add a plant</a>
-        {% endif %}
-    </div>
-
-    <section class="problem-hub" aria-label="Plant problem library">
-        <a class="problem-hub-card problem-hub-card--pests" href="{{ url_for('pest_index') }}">
-            <div>
-                <p class="problem-hub-card__label">Identify & respond</p>
-                <h2>Pests</h2>
-                <p>Spot chewing and sap-feeding visitors, then start with the lightest effective response.</p>
-            </div>
-            <span class="problem-hub-card__link">Browse {{ pest_count }} {{ 'guide' if pest_count == 1 else 'guides' }} →</span>
-        </a>
-        <a class="problem-hub-card problem-hub-card--diseases" href="{{ url_for('disease_index') }}">
-            <div>
-                <p class="problem-hub-card__label">Diagnose & prevent</p>
-                <h2>Diseases</h2>
-                <p>Compare visible signs, improve growing conditions and know when a treatment may help.</p>
-            </div>
-            <span class="problem-hub-card__link">Browse {{ disease_count }} {{ 'guide' if disease_count == 1 else 'guides' }} →</span>
-        </a>
-    </section>
+<div style="max-width:84rem; margin:0 auto;">
+    <h1 class="sr-only">Plant Almanac</h1>
+    {% include '_catalogue_toolbar.html' %}
 
     {% if auth_user %}
     <div x-data="{
              chatOpen: false,
+             chatMode: 'rag',
              question: '',
              pendingQuestion: '',
-             chatWidth: Number(localStorage.getItem('almanac-chat-width')) || 416,
-             chatHeight: Number(localStorage.getItem('almanac-chat-height')) || 608,
+             chatWidth: Number(localStorage.getItem('almanac-chat-width')) || 520,
+             chatHeight: Number(localStorage.getItem('almanac-chat-height')) || 720,
              setChatSize(width, height) {
                  this.chatWidth = Math.min(window.innerWidth - 32, Math.max(360, width));
                  this.chatHeight = Math.min(window.innerHeight - 40, Math.max(400, height));
@@ -195,14 +132,18 @@
                x-show="chatOpen"
                :style="'--chat-width:' + chatWidth + 'px; --chat-height:' + chatHeight + 'px'"
                x-transition.origin.bottom.right>
-            <div class="ai-chat-resize-corner"
-                 aria-hidden="true"
-                 @pointerdown.prevent="startResize($event)"></div>
+            <button type="button" class="ai-chat-resize-corner" aria-label="Resize chat: drag, or use arrow keys" title="Drag to resize · arrow keys also work"
+                 @pointerdown.prevent="startResize($event)"
+                 @keydown.left.prevent="setChatSize(chatWidth + 40, chatHeight)"
+                 @keydown.right.prevent="setChatSize(chatWidth - 40, chatHeight)"
+                 @keydown.up.prevent="setChatSize(chatWidth, chatHeight + 40)"
+                 @keydown.down.prevent="setChatSize(chatWidth, chatHeight - 40)"></button>
             <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem; border-bottom:1px solid hsl(var(--border));">
                 <div style="display:flex; align-items:center; gap:0.75rem;">
-                    <h2 style="font-size:1.15rem; margin:0;">Ask the Almanac</h2>
+                    <div><h2 style="font-size:1.15rem; margin:0;">Ask the Almanac</h2></div>
                     <form hx-post="{{ url_for('clear_ai_chat') }}"
-                          hx-target="#ai-messages"
+                          hx-on::before-swap="if (event.detail.xhr.status >= 400) { event.detail.shouldSwap = true; }"
+                      hx-target="#ai-messages"
                           hx-swap="innerHTML"
                           hx-confirm="Start a new chat? This removes the current conversation."
                           x-on:htmx:after-request="if ($event.detail.successful) { question = ''; pendingQuestion = ''; }"
@@ -252,27 +193,36 @@
                     {% endfor %}
                 </div>
 
+                <div class="chat-mode-tabs" role="tablist" aria-label="Chat mode">
+                  <button type="button" role="tab" :aria-selected="chatMode !== 'mcp'" :class="{active: chatMode !== 'mcp'}" @click="chatMode = 'rag'">♧ Ask a question</button>
+                  <button type="button" role="tab" :aria-selected="chatMode === 'mcp'" :class="{active: chatMode === 'mcp'}" @click="chatMode = 'mcp'">▤ Find a reference</button>
+                </div>
+
                 <form hx-post="{{ url_for('ask_almanac') }}"
+                      hx-on::before-swap="if (event.detail.xhr.status >= 400) { event.detail.shouldSwap = true; }"
                       hx-target="#ai-messages"
                       hx-swap="innerHTML"
                       hx-indicator="#ai-loading"
+                      hx-disabled-elt="find button[type=submit]"
                       x-on:htmx:before-request="pendingQuestion = question.trim(); question = ''; $nextTick(() => { $refs.conversation.scrollTop = $refs.conversation.scrollHeight; })"
-                      x-on:htmx:after-request="pendingQuestion = ''"
+                      x-on:htmx:after-request="if (!$event.detail.successful) question = pendingQuestion; pendingQuestion = ''"
                       style="display:flex; align-items:flex-end; gap:0.5rem;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="mode" :value="chatMode">
                     <label class="sr-only" for="ai-question">Your question</label>
                     <textarea id="ai-question"
                               x-ref="question"
                               name="question"
                               x-model="question"
+                              @keydown.enter="if (!$event.shiftKey &amp;&amp; !$event.isComposing) { $event.preventDefault(); if (question.trim() &amp;&amp; !pendingQuestion) $el.form.requestSubmit(); }"
                               maxlength="500"
                               required
                               rows="2"
-                              placeholder="Ask about a plant…"
+                              :placeholder="chatMode === 'mcp' ? 'Search a plant, pest or disease…' : 'What would you like to grow?'"
                               style="min-height:2.6rem; flex:1; box-sizing:border-box; padding:0.65rem 0.75rem; resize:none; border:1px solid hsl(var(--border)); border-radius:0.75rem; background:hsl(var(--background)); color:hsl(var(--foreground));"></textarea>
                     <button type="submit" class="uk-btn uk-btn-primary uk-btn-sm" style="height:2.6rem;">Send</button>
                 </form>
-                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="display:block; font-size:0.7rem; margin-top:0.35rem;">Planning · drafting · reviewing locally… The first answer may take several minutes while the models load.</span>
+                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="display:block; font-size:0.7rem; margin-top:0.35rem;">Checking saved references locally… This can take a little while.</span>
             </footer>
         </aside>
     </div>
@@ -283,31 +233,7 @@
     </a>
     {% endif %}
 
-    {% if plants %}
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(17rem, 1fr)); gap:1.25rem;">
-        {% for plant in plants %}
-        <a href="{{ url_for('plant_detail', slug=plant.slug) }}"
-           class="card-interactive"
-           style="display:block; padding:1.5rem; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); background-color:hsl(var(--card));">
-            {% if plant.image_url %}
-            <img src="{{ plant.image_url }}" alt="{{ plant.common_name }}"
-                 loading="lazy"
-                 style="display:block; width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:var(--uk-global-radius-s); margin-bottom:1rem;">
-            {% endif %}
-            <p style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.07em; color:hsl(var(--muted-foreground)); margin:0 0 0.35rem;">{{ plant.scientific_name }}</p>
-            <h2 style="font-size:1.2rem; font-weight:600; margin:0;">{{ plant.common_name }}</h2>
-            {% if plant.summary %}
-            <p class="text-muted-foreground" style="font-size:0.875rem; margin:0.75rem 0 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">{{ plant.summary }}</p>
-            {% endif %}
-        </a>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div style="text-align:center; padding:4rem 0; color:hsl(var(--muted-foreground));">
-        <p style="font-size:2rem; margin:0 0 0.5rem;">🌿</p>
-        <p style="margin:0;">No plants in the almanac yet.</p>
-    </div>
-    {% endif %}
+    {% include '_grouped_catalogue.html' %}
 </div>
 
 <dialog id="validation-report-dialog" class="validation-report-dialog" aria-labelledby="validation-report-dialog-title">

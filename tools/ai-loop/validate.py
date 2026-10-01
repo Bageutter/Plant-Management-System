@@ -129,7 +129,7 @@ def cases_for(mode: str) -> list[dict]:
 def run(args: argparse.Namespace) -> dict:
     run_id = f"validate-{args.mode}-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}"
     logger = LoopLogger(
-        "almanac", str(ROOT / "tools" / "ai-loop" / "logs"), run_id,
+        "almanac", str(getattr(args, "log_dir", None) or ROOT / "tools" / "ai-loop" / "logs"), run_id,
         f"Validate {args.mode} integration",
     )
     pending = cases_for(args.mode)
@@ -201,6 +201,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("mcp", "rag"), required=True)
     parser.add_argument("--base-url", default="http://localhost:3000/almanac")
+    parser.add_argument("--log-dir", type=Path, help="directory for private validation transcripts")
     parser.add_argument("--output", type=Path, help="also save the JSON result to this file")
     args = parser.parse_args()
     if urlparse(args.base_url).scheme not in ("http", "https"):

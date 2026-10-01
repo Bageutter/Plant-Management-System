@@ -133,3 +133,21 @@ def sync():
     except (httpx.HTTPError, ValueError):
         return _respond({"error": "The index could not be refreshed. Check that both local services are running."}, "sync", 502)
     return _respond(result, "sync")
+
+
+def chat_reference_result(question, mode):
+    """Use the same bounded, read-only services as the reference tools page."""
+    if not _enabled(mode):
+        raise ValueError("Reference answers are unavailable in this environment.")
+    if mode == "mcp":
+        result = asyncio.run(_call_tool(
+            current_app.config["MCP_SERVER_URL"], "search_almanac_catalogue",
+            {"query": question, "kind": "all", "limit": 20}))
+        if result.get("is_error"):
+            raise ValueError("The reference lookup could not be completed. Try again.")
+        count = (result.get("structured_content") or {}).get("total", 0)
+        return f"Found {count} matching references." if count else "No matching references found. Try a plant, pest or disease name.", result
+    result = _rag_request("/rag/query", {"question": question, "sources": ["almanac"]})
+    if result.get("error"):
+        raise ValueError("The reference service could not answer. Please try again.")
+    return result.get("answer") or "The saved references do not contain enough information to answer that.", result

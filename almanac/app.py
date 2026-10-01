@@ -38,11 +38,12 @@ from schema import upgrade_schema
 from garden_data import seed_lookups
 from public_seed import fetch_snapshot, import_snapshot
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
+from plant_groups import catalogue_view
 from growing_details import parse_details, apply_details
 from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 from catalogue_api import catalogue_api
-from integrations import integrations
+from integrations import integrations, chat_reference_result
 
 try:
     import ai_loop
@@ -252,8 +253,16 @@ def _chat_history(owner_key: str) -> list[AIChatMessage]:
 def _chat_context(owner_key: str) -> tuple[list[AIChatMessage], dict[str, dict]]:
     messages = _chat_history(owner_key)
     source_slugs = {slug for message in messages for slug in (message.source_slugs or [])}
+    for message in messages:
+        evidence = message.evidence or {}
+        result = evidence.get("result", {})
+        for citation in result.get("citations", []):
+            source_slugs.add(citation.get("url", "").split("?")[0].rstrip("/").rsplit("/", 1)[-1])
+        for item in (result.get("structured_content") or {}).get("items", []):
+            if item.get("kind") == "plant":
+                source_slugs.add(item.get("key"))
     source_records = PlantReference.query.filter(PlantReference.slug.in_(source_slugs)).all()
-    sources = {record.slug: record.to_dict() for record in source_records}
+    sources = {record.slug: _plant_payload(record) for record in source_records}
     return messages, sources
 
 
@@ -370,6 +379,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             plants=plants,
             messages=messages,
             sources=sources,
+            **catalogue_view(plants, request.args),
             pest_count=Pest.query.count(),
             disease_count=Disease.query.count(),
         )
@@ -382,6 +392,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         return render_template(
             "plant_detail.html",
             plant=_plant_payload(plant),
+            related_varieties=[_plant_payload(p) for p in
+                PlantReference.query.filter_by(plant_group=plant.plant_group)
+                .order_by(PlantReference.common_name).all()] if plant.plant_group else [],
             guild_candidates=PlantReference.query.filter(PlantReference.id != plant.id)
             .order_by(PlantReference.common_name)
             .all(),
@@ -630,6 +643,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     *TEXT,
                     *CHOICES,
                     "rotation_group_id",
+                    "plant_group", "variety_name", "plant_category",
                 ]
             }
             previous["months"] = [month.month_number for month in plant.planting_months]
@@ -702,6 +716,25 @@ def create_app(test_config: dict | None = None) -> Flask:
             return _render_chat(owner_key, "Enter a question first."), 400
         if len(question) > 500:
             return _render_chat(owner_key, "Keep your question under 500 characters."), 400
+
+        mode = request.form.get("mode", "planning")
+        if mode not in ("planning", "rag", "mcp"):
+            return _render_chat(owner_key, "Choose an answer or reference search."), 400
+        if mode in ("rag", "mcp"):
+            if mode == "mcp" and len(question) > 120:
+                return _render_chat(owner_key, "For reference search, enter a name under 120 characters."), 400
+            try:
+                answer, evidence = chat_reference_result(question, mode)
+            except Exception:
+                app.logger.warning("Chat reference service unavailable", exc_info=True)
+                return _render_chat(owner_key, "The local reference service is unavailable. Your question has not been saved; please try again."), 503
+            db.session.add_all([
+                AIChatMessage(owner_key=owner_key, role="user", content=question),
+                AIChatMessage(owner_key=owner_key, role="assistant", content=answer,
+                              evidence={"mode": mode, "result": evidence, "question": question}),
+            ])
+            db.session.commit()
+            return _render_chat(owner_key)
 
         all_records = PlantReference.query.order_by(PlantReference.common_name).all()
         records = _records_for_question(question, all_records)
