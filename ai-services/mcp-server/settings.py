@@ -54,6 +54,11 @@ class Settings:
     timeout: float = 10.0
     # A text assessment runs the vision model; allow the health service's own 180 s.
     assess_timeout: float = 200.0
+    # Virtual Garden state is private per-owner (unlike the public Almanac catalogue
+    # or Plant Health assessments), so its snapshot endpoints require this bearer
+    # token — the same shared secret vgarden already uses for auth's server-to-server
+    # calls (INTER_SERVICE_SECRET in docker-compose.yml / vgarden's own config).
+    vgarden_service_token: str = "dev-inter-service-secret-change-me"
 
     def __post_init__(self) -> None:
         for name in ("health_url", "almanac_url", "vgarden_url"):
@@ -74,4 +79,7 @@ class Settings:
             vgarden_url=env.get("VGARDEN_SERVICE_URL", "http://127.0.0.1:3000/vgarden"),
             timeout=float(env.get("SERVICE_TIMEOUT", "10")),
             assess_timeout=float(env.get("ASSESS_TIMEOUT", "200")),
+            vgarden_service_token=env.get(
+                "VGARDEN_SERVICE_TOKEN", "dev-inter-service-secret-change-me"
+            ),
         )
