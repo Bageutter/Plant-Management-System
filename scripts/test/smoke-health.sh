@@ -22,7 +22,11 @@ want_mcp=$(as_bool "${MCP_ENABLED:-true}")
 want_rag=$(as_bool "${RAG_ENABLED:-true}")
 
 echo "==> UI: $records/"
-curl "${retry[@]}" --fail "$records/" | grep -q "Plant Health Records"
+# Save the page, then grep it. Piping curl straight into `grep -q` is a race: grep exits
+# on its first match, curl then cannot write the rest of the body (exit 23),
+# --retry-all-errors retries that twenty times, and pipefail makes it the script's result.
+curl "${retry[@]}" --fail -o /tmp/ui.html "$records/"
+grep -q "Plant Health Records" /tmp/ui.html
 
 echo "==> /healthz (200 = model reachable, 503 = degraded; both must be JSON)"
 code=$(curl "${retry[@]}" -o /tmp/healthz.json -w '%{http_code}' "$health/healthz" || true)
