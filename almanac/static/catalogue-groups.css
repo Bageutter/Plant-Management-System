@@ -54,19 +54,7 @@
 .is-packed .plant-group-heading{min-height:1.9rem;flex-wrap:wrap}
 .is-packed .group-toggle{font-size:.65rem}
 
-.catalogue-filters{display:flex;flex-wrap:wrap;gap:1rem;align-items:end;width:100%;padding:1rem;background:#f0f4ed;border-radius:.8rem}
-.catalogue-filters label{display:grid;gap:.35rem;font-size:.8rem}
-.catalogue-filters select{padding:.5rem;border:1px solid #cddbc9;border-radius:.5rem;background:white;font:inherit}
-.catalogue-filters small{flex-basis:100%;color:#516454}
 .catalogue-problems{padding:.5rem;border-radius:.5rem;background:#f5eee4;font-size:.8rem}
 .ai-chat-panel,.variety-copy,.plant-group-heading{user-select:text}
 .ai-chat-resize-corner{width:1.65rem!important;height:1.65rem!important;background:#e2ebdc!important;color:#285c3b;border:0;border-radius:.4rem;font-size:1.2rem}
 .ai-chat-panel>header{padding-left:2rem!important}
-
-.sunlight-pills{border:0;padding:0;margin:0;display:flex;gap:.4rem;flex-wrap:wrap}
-.sunlight-pills legend{font-size:.8rem;margin-bottom:.5rem}
-.catalogue-filters .sunlight-pills label{display:inline-flex;position:relative;cursor:pointer}
-.sunlight-pills input{position:absolute;opacity:0;width:1px;height:1px}
-.sunlight-pills span{padding:.55rem .85rem;border-radius:999px;background:#fff;border:1px solid #d9e3d3;font-size:.8rem;color:#35553d}
-.sunlight-pills input:checked+span{background:#286442;color:#fff;border-color:#286442}
-.sunlight-pills input:focus-visible+span{outline:3px solid #7b9f70;outline-offset:3px}
