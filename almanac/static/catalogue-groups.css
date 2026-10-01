@@ -58,3 +58,9 @@
 .ai-chat-panel,.variety-copy,.plant-group-heading{user-select:text}
 .ai-chat-resize-corner{width:1.65rem!important;height:1.65rem!important;background:#e2ebdc!important;color:#285c3b;border:0;border-radius:.4rem;font-size:1.2rem}
 .ai-chat-panel>header{padding-left:2rem!important}
+
+/* Keep each plant family inside one rounded, softly outlined panel. */
+.plant-group{border-width:2px;border-color:#cdddc6;border-radius:1rem}
+.plant-group:nth-child(4n+2){border-color:#e9cfb6}
+.plant-group:nth-child(4n+3){border-color:#dac7da}
+.plant-group:nth-child(4n){border-color:#c2dad2}
