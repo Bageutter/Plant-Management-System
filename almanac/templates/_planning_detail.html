@@ -26,9 +26,9 @@
 <div class="guild-grid">
 {% for link in plant.guild_links %}<article class="guild-card"><a class="guild-plant" href="{{ url_for('plant_detail',slug=link.slug) }}">{{ link.name }} <span aria-hidden="true">↗</span></a><span class="tag">{{ link.function|capitalize }}</span>{% if link.notes %}<p>{{ link.notes }}</p>{% endif %}</article>{% else %}<p>No companions added yet.</p>{% endfor %}
 </div>
-{% if auth_user %}<form method="post" action="{{ url_for('save_guild',slug=plant.slug) }}" style="display:grid; gap:.6rem; margin-top:1rem;">
+{% if auth_user %}<details class="guild-editor"><summary>Edit companion suggestions</summary><form method="post" action="{{ url_for('save_guild',slug=plant.slug) }}" style="display:grid; gap:.6rem; margin-top:1rem;">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Companion plant<select class="uk-select" name="companion_id" required>{% for candidate in guild_candidates %}<option value="{{ candidate.id }}">{{ candidate.common_name }}</option>{% endfor %}</select></label>
 <label>Function<select class="uk-select" name="function_id" required>{% for option in function_options %}<option value="{{ option.id }}">{{ option.name }}</option>{% endfor %}</select></label>
 <label>Notes<textarea class="uk-textarea" name="notes" rows="2"></textarea></label>
-<div><button class="uk-btn uk-btn-primary" name="action" value="save">Save suggestion</button> <button class="uk-btn uk-btn-default" name="action" value="remove">Remove matching suggestion</button></div></form>{% endif %}
+<div><button class="uk-btn uk-btn-primary" name="action" value="save">Save suggestion</button> <button class="uk-btn uk-btn-default" name="action" value="remove">Remove matching suggestion</button></div></form></details>{% endif %}
 </section>

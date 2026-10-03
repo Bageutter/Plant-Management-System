@@ -1,0 +1,15 @@
+{% macro plant_card(plant) %}
+<a class="chat-plant-card" href="{{ url_for('plant_detail', slug=plant.slug) }}">
+{% if plant.image_url %}<img src="{{ plant.image_url }}" alt="{{ plant.common_name }}" loading="lazy">{% endif %}
+<span class="chat-plant-copy"><strong>{{ plant.common_name }}</strong><em>{{ plant.scientific_name }}</em>
+<span class="chat-plant-needs">{% if plant.sun_needs %}☀ {{ plant.sun_needs|capitalize }}{% endif %}{% if plant.sun_needs and plant.water_needs %} · {% endif %}{% if plant.water_needs %}{{ plant.water_needs|capitalize }} water{% endif %}</span>
+{% if plant.summary %}<span class="chat-plant-summary">{{ plant.summary }}</span>{% endif %}</span><span aria-hidden="true">›</span>
+</a>
+{% endmacro %}
+
+{% macro problem_card(name, kind, href) %}
+<a class="chat-plant-card chat-problem-card" href="{{ href }}">
+<span class="chat-problem-icon" aria-hidden="true">{{ '✿' if kind == 'disease' else '♧' }}</span>
+<span class="chat-plant-copy"><strong>{{ name }}</strong><span class="chat-plant-needs">{{ 'Disease' if kind == 'disease' else 'Pest' }} guide · Signs & prevention</span></span><span aria-hidden="true">›</span>
+</a>
+{% endmacro %}

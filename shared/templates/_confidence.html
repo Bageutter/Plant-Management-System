@@ -1,0 +1,18 @@
+{% macro confidence_pill(category, insufficient=false, explanation="") -%}
+{% set level = (category or 'unknown')|lower %}
+{% set colours = {'high':('#e4f1df','#24562b'), 'medium':('#fff0cc','#75500b'), 'low':('#fae5de','#853d2c')} %}
+{% set tooltip = (explanation or '').replace('top relevance', 'search match') %}
+{% if ';' in tooltip %}{% set tooltip = tooltip.split(';', 1)[0].replace(', ', '\n') ~ '\n\n' ~ tooltip.split(';', 1)[1].strip() %}{% endif %}
+{% set palette = colours.get(level, ('#edf0ed','#48574b')) %}
+<span class="confidence-wrap" style="position:relative;display:inline-flex;">
+<span class="confidence-pill" {% if explanation %}tabindex="0"  aria-label="{{ level|capitalize }} confidence: {{ explanation }}"{% endif %} style="display:inline-flex;padding:.25rem .65rem;border-radius:999px;font-size:.75rem;font-weight:600;background:{{ palette[0] }};color:{{ palette[1] }};">
+{{ 'Insufficient context' if insufficient else ((level|capitalize ~ ' confidence') if level in colours else 'Confidence unavailable') }}
+</span>
+{% if explanation %}<span class="confidence-breakdown" role="tooltip"><strong>Why this confidence?</strong><span>Search match measures retrieval similarity, not answer accuracy.</span>{% for line in tooltip.split('\n') %}{% if line %}<span>{{ line|capitalize }}</span>{% endif %}{% endfor %}</span>{% endif %}
+</span>
+<style>
+.confidence-breakdown{display:none;position:absolute;z-index:100;top:100%;left:0;width: min(19rem,65vw);padding:.8rem 1rem;background:#fffdf6;border:1px solid #d7e1cd;border-radius:.8rem;box-shadow:0 8px 24px #203a2520;color:#304737;font-size:.78rem;font-weight:400;line-height:1.5;text-transform:none;letter-spacing:normal;white-space:normal}
+.confidence-breakdown strong,.confidence-breakdown>span{display:block;margin-bottom:.35rem}
+.confidence-wrap:hover .confidence-breakdown,.confidence-wrap:focus-within .confidence-breakdown{display:block}
+</style>
+{%- endmacro %}

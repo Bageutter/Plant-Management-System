@@ -2,6 +2,8 @@ import os
 import re
 import sys
 import uuid
+import calendar
+from zoneinfo import ZoneInfo
 from datetime import datetime
 
 from flask import (
@@ -18,6 +20,7 @@ from flask import (
     url_for,
 )
 from jinja2 import ChoiceLoader, FileSystemLoader
+from markupsafe import Markup, escape
 from sqlalchemy import text
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -38,11 +41,12 @@ from schema import upgrade_schema
 from garden_data import seed_lookups
 from public_seed import fetch_snapshot, import_snapshot
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
+from plant_groups import catalogue_view
 from growing_details import parse_details, apply_details
 from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 from catalogue_api import catalogue_api
-from integrations import integrations
+from integrations import integrations, chat_reference_result
 
 try:
     import ai_loop
@@ -252,9 +256,83 @@ def _chat_history(owner_key: str) -> list[AIChatMessage]:
 def _chat_context(owner_key: str) -> tuple[list[AIChatMessage], dict[str, dict]]:
     messages = _chat_history(owner_key)
     source_slugs = {slug for message in messages for slug in (message.source_slugs or [])}
+    for message in messages:
+        evidence = message.evidence or {}
+        result = evidence.get("result", {})
+        for citation in result.get("citations", []):
+            source_slugs.add(citation.get("url", "").split("?")[0].rstrip("/").rsplit("/", 1)[-1])
+        for item in (result.get("structured_content") or {}).get("items", []):
+            if item.get("kind") == "plant":
+                source_slugs.add(item.get("key"))
     source_records = PlantReference.query.filter(PlantReference.slug.in_(source_slugs)).all()
-    sources = {record.slug: record.to_dict() for record in source_records}
+    sources = {record.slug: _plant_payload(record) for record in source_records}
     return messages, sources
+
+
+def _highlight_excerpt(content, terms):
+    if not terms:
+        return escape(content)
+    pattern = re.compile(r"\b(" + "|".join(re.escape(term) for term in sorted(terms, key=len, reverse=True)) + r")\b", re.I)
+    parts, end = [], 0
+    for match in pattern.finditer(content):
+        parts.extend([escape(content[end:match.start()]), Markup("<mark>{}</mark>").format(match.group())])
+        end = match.end()
+    parts.append(escape(content[end:]))
+    return Markup("").join(parts)
+
+
+def _chat_fact_text(content, shared_months=None):
+    """Format a known field label while keeping all answer text escaped."""
+    if shared_months is not None:
+        parts, end = [], 0
+        for match in re.finditer(r"[ \t]*Recorded planting months:\s*([A-Za-z, ]+)\.?", content):
+            parts.append(escape(content[end:match.start()]))
+            parts.append(Markup('<br><strong>When to Plant</strong><span class="planting-timeline">'))
+            recorded = {month.strip() for month in match.group(1).split(",")}
+            current_month = datetime.now(ZoneInfo("Australia/Sydney")).month
+            for number in range(1, 13):
+                month = calendar.month_name[number]
+                state = "shared" if month in recorded and month in shared_months else "unique" if month in recorded else "inactive"
+                label = f"{month}: " + ("shared planting month" if state == "shared" else "planting month for this plant only" if state == "unique" else "not recorded for planting")
+                parts.append(Markup('<span class="timeline-month {} {}" title="{}" aria-label="{}"><span class="timeline-bar"></span><span class="timeline-label">{}</span></span>').format(
+                    state, "current" if number == current_month else "", label, label, calendar.month_abbr[number]))
+            parts.append(Markup('</span>'))
+            end = match.end()
+        parts.append(escape(content[end:]))
+        return Markup("").join(parts)
+    parts = re.split(r"[ \t]*Recorded planting months:\s*", content)
+    return Markup('<br><strong>When to Plant:</strong> ').join(escape(part) for part in parts)
+
+
+def _plant_mentions(content, sources, comparison=False):
+    """Link known reference names without interpreting answer text as HTML."""
+    content = re.sub(r"(?i)\s*\(\s*cited[ _]chunk[ _]ids\s*:\s*\[[^\]]*\]\s*\)", "", content)
+    content = re.sub(r"(?im)^\s*(?:evidence[ _]strength|cited[ _]chunk[ _]ids)\s*:.*$", "", content).strip()
+    paragraphs = []
+    for paragraph in re.split(r"\n\s*\n", content):
+        sentences = re.split(r"(?<=[.!?]) (?=[A-Z])", paragraph) if len(paragraph) > 240 else [paragraph]
+        paragraphs.extend(" ".join(sentences[i:i + 2]) for i in range(0, len(sentences), 2))
+    content = "\n\n".join(paragraphs)
+    month_groups = [set(m.strip() for m in group.split(",")) for group in
+                    re.findall(r"Recorded planting months:\s*([A-Za-z, ]+)", content)]
+    shared_months = set.intersection(*month_groups) if comparison and len(month_groups) >= 2 else None
+    names = {}
+    for plant in sources.values():
+        name = plant["common_name"]
+        names[name.casefold()] = plant["slug"]
+        short = name.split(" - ")[0]
+        names.setdefault(short.casefold(), plant["slug"])
+    if not names:
+        return _chat_fact_text(content, shared_months)
+    pattern = re.compile(r"(?<!\w)(?:" + "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)) + r")(?!\w)", re.I)
+    parts, end = [], 0
+    for match in pattern.finditer(content):
+        parts.append(_chat_fact_text(content[end:match.start()], shared_months))
+        parts.append(Markup('<a class="chat-plant-mention" href="{}">{}</a>').format(
+            url_for("plant_detail", slug=names[match.group().casefold()]), match.group()))
+        end = match.end()
+    parts.append(_chat_fact_text(content[end:], shared_months))
+    return Markup("").join(parts)
 
 
 def _render_chat(owner_key: str, error: str | None = None):
@@ -331,6 +409,8 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     db.init_app(app)
     csrf.init_app(app)
+    app.jinja_env.filters["plant_mentions"] = _plant_mentions
+    app.jinja_env.filters["highlight_excerpt"] = _highlight_excerpt
     app.register_blueprint(catalogue_api)
     app.register_blueprint(integrations)
     app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])
@@ -370,6 +450,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             plants=plants,
             messages=messages,
             sources=sources,
+            **catalogue_view(plants, request.args),
             pest_count=Pest.query.count(),
             disease_count=Disease.query.count(),
         )
@@ -382,6 +463,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         return render_template(
             "plant_detail.html",
             plant=_plant_payload(plant),
+            related_varieties=[_plant_payload(p) for p in
+                PlantReference.query.filter_by(plant_group=plant.plant_group)
+                .order_by(PlantReference.common_name).all()] if plant.plant_group else [],
             guild_candidates=PlantReference.query.filter(PlantReference.id != plant.id)
             .order_by(PlantReference.common_name)
             .all(),
@@ -630,6 +714,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     *TEXT,
                     *CHOICES,
                     "rotation_group_id",
+                    "plant_group", "variety_name", "plant_category",
                 ]
             }
             previous["months"] = [month.month_number for month in plant.planting_months]
@@ -702,6 +787,25 @@ def create_app(test_config: dict | None = None) -> Flask:
             return _render_chat(owner_key, "Enter a question first."), 400
         if len(question) > 500:
             return _render_chat(owner_key, "Keep your question under 500 characters."), 400
+
+        mode = request.form.get("mode", "planning")
+        if mode not in ("planning", "rag", "mcp"):
+            return _render_chat(owner_key, "Choose an answer or reference search."), 400
+        if mode in ("rag", "mcp"):
+            if mode == "mcp" and len(question) > 120:
+                return _render_chat(owner_key, "For reference search, enter a name under 120 characters."), 400
+            try:
+                answer, evidence = chat_reference_result(question, mode)
+            except Exception:
+                app.logger.warning("Chat reference service unavailable", exc_info=True)
+                return _render_chat(owner_key, "The local reference service is unavailable. Your question has not been saved; please try again."), 503
+            db.session.add_all([
+                AIChatMessage(owner_key=owner_key, role="user", content=question),
+                AIChatMessage(owner_key=owner_key, role="assistant", content=answer,
+                              evidence={"mode": mode, "result": evidence, "question": question}),
+            ])
+            db.session.commit()
+            return _render_chat(owner_key)
 
         all_records = PlantReference.query.order_by(PlantReference.common_name).all()
         records = _records_for_question(question, all_records)

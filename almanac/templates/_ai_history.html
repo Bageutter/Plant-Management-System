@@ -1,3 +1,5 @@
+{% from "_confidence.html" import confidence_pill %}
+{% from "_chat_plant_card.html" import plant_card, problem_card %}
 {% if error %}
 <div role="alert" style="padding:1rem; border-radius:var(--uk-global-radius-s); background:hsl(0 70% 96%); color:hsl(0 55% 32%);">
     {{ error }}
@@ -8,11 +10,53 @@
 <div style="display:grid; gap:0.75rem;">
     {% for message in messages %}
     <div style="display:flex; justify-content:{{ 'flex-end' if message.role == 'user' else 'flex-start' }};">
-    <article style="max-width:82%; padding:0.8rem 0.95rem; border-radius:1rem; {% if message.role == 'user' %}border-bottom-right-radius:0.3rem; background:hsl(var(--primary)); color:hsl(var(--primary-foreground));{% else %}border-bottom-left-radius:0.3rem; border:1px solid hsl(var(--border)); background:hsl(var(--card));{% endif %}">
+    <article class="chat-message chat-message-{{ message.role }}" style="max-width:82%; padding:0.8rem 0.95rem; border-radius:1rem; {% if message.role == 'user' %}border-bottom-right-radius:0.3rem; background:hsl(var(--primary)); color:hsl(var(--primary-foreground));{% else %}border-bottom-left-radius:0.3rem; border:1px solid hsl(var(--border)); background:hsl(var(--card));{% endif %}">
+        <header class="chat-message-heading">
         <p style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin:0 0 0.3rem; opacity:0.75; color:{% if message.role == 'user' %}hsl(var(--primary-foreground)){% else %}hsl(var(--muted-foreground)){% endif %};">
             {{ "You" if message.role == "user" else "Almanac" }}
         </p>
-        <p style="margin:0; line-height:1.6; white-space:pre-wrap;">{{ message.content }}</p>
+        {% if message.evidence and message.evidence.mode == 'rag' %}{{ confidence_pill(message.evidence.result.confidence, message.evidence.result.insufficient_context, message.evidence.result.confidence_reason) }}{% endif %}
+        </header>
+        {% if not message.evidence or message.evidence.mode != 'mcp' %}<p style="margin:0; line-height:1.6; white-space:pre-wrap;">{% if message.role == 'assistant' and message.evidence and message.evidence.result.insufficient_context %}I couldn’t find enough information. Try a plant or problem name.{% elif message.role == 'assistant' %}{{ message.content|plant_mentions(sources, message.evidence and message.evidence.result.retrieval and message.evidence.result.retrieval.mode == 'record_comparison') }}{% else %}{{ message.content }}{% endif %}</p>{% endif %}
+        {% if message.evidence %}
+        {% set result = message.evidence.result %}
+        {% set mode = message.evidence.mode %}
+        {% if mode == 'mcp' %}
+        <p>{{ message.content }}</p>
+        {% for item in (result.structured_content or {}).get('items', []) %}
+        {% if item.kind == 'plant' and item.key in sources %}{{ plant_card(sources[item.key]) }}
+        {% else %}{{ problem_card(item.name, item.kind, url_for(item.kind ~ '_detail', **{item.kind ~ '_id': item.id})) }}{% endif %}
+        {% endfor %}
+        {% elif result.citations %}
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.6rem;" aria-label="Answer sources">
+          {% for citation in result.citations %}
+          {% set slug = citation.url.split('?')[0].rstrip('/').split('/')[-1] %}
+          {% if slug in sources %}{{ plant_card(sources[slug]) }}{% elif '/diseases/' in citation.url or '/pests/' in citation.url %}{{ problem_card(citation.title.split(' — ')[0], 'disease' if '/diseases/' in citation.url else 'pest', citation.url) }}{% else %}<a class="tag" href="{{ citation.url }}">{{ citation.title }}</a>{% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+        <details class="chat-evidence" style="margin-top:.8rem;">
+          <summary style="cursor:pointer;color:#28653e;">{{ 'Evidence & sources · RAG' if mode == 'rag' else 'View lookup details · MCP' }}</summary>
+          {% if mode == 'rag' %}
+          {% set reason = result.confidence_reason or '' %}
+          {% if ';' in reason %}
+          <div class="chat-evidence-stats">{% for stat in reason.split(';')[0].split(',') %}<p>{{ stat.strip().replace("top relevance", "Search match")|capitalize }}</p>{% endfor %}</div>
+          {% elif result.insufficient_context %}<p>No supporting passages found.</p>{% endif %}
+
+          {% for citation in result.citations or [] %}<blockquote style="margin:.6rem 0;padding-left:.7rem;border-left:2px solid #c7d9be;"><a href="{{ citation.url }}">{{ citation.title }}</a><br>{{ citation.excerpt|highlight_excerpt(citation.highlight_terms or []) }}</blockquote>{% endfor %}
+          {% endif %}
+          <div class="chat-technical">
+            <button type="button" class="chat-technical-open" @click="$el.nextElementSibling.showModal()">View technical response ↗</button>
+            <dialog class="chat-technical-dialog" @click="if ($event.target === $el) $el.close()" @keydown.escape.stop>
+              <header><h2>Technical response · {{ mode|upper }}</h2><button type="button" aria-label="Close technical response" @click="$el.closest('dialog').close()">×</button></header>
+              <pre>{{ result|tojson(indent=2) }}</pre>
+            </dialog>
+          </div>
+          <a href="{{ url_for('integrations.index') }}">Open reference tools →</a>
+        </details>
+
+        {% endif %}
+
         {% if message.role == 'assistant' and message.loop_run %}
         {% set run = message.loop_run %}
         <a class="ai-validation-link" href="{{ url_for('ai_loop_trace', run_id=run.id) }}" data-validation-report>

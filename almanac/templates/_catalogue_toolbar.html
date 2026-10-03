@@ -1,0 +1,11 @@
+<form class="catalogue-toolbar" method="get" action="{{ url_for('index') }}" role="search">
+    <label class="catalogue-search"><span class="sr-only">Search plants or varieties</span>
+        <input name="q" type="search" value="{{ query }}" placeholder="Search plants or varieties…" maxlength="200">
+    </label>
+    <nav class="catalogue-problems" aria-label="Plant problem library"><strong>Plant problems:</strong> <a href="{{ url_for('pest_index') }}">Pest guides</a><span aria-hidden="true">·</span><a href="{{ url_for('disease_index') }}">Disease guides</a></nav>
+    {% if auth_user %}<a class="uk-btn uk-btn-primary uk-btn-sm" href="{{ url_for('new_plant') }}">+ Add a plant</a>{% endif %}
+    <div class="catalogue-categories" role="group" aria-label="Plant category">
+        <button name="category" value="" class="{% if not selected_category %}is-active{% endif %}" aria-pressed="{{ 'false' if selected_category else 'true' }}">All</button>
+        {% for category in categories %}<button name="category" value="{{ category }}" class="{% if selected_category == category %}is-active{% endif %}" aria-pressed="{{ 'true' if selected_category == category else 'false' }}">{{ category }}</button>{% endfor %}
+    </div>
+</form>

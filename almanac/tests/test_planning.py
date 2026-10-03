@@ -413,7 +413,7 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
         assert plant.yield_qty is None
         assert plant.image.filename == "original.png"
         assert plant.planting_months[0].month_number == 3
-        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "005"
+        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "007"
         assert any(
             c["name"] == "ck_yield_qty_positive"
             for c in inspect(db.engine).get_check_constraints("plant_references")

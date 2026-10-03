@@ -10,6 +10,7 @@ category can be derived from measurable evidence rather than from the model.
 from __future__ import annotations
 
 import math
+from difflib import get_close_matches
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -25,7 +26,7 @@ STOPWORDS = frozenset(
     itself just me more most my no nor not of off on once only or other our ours out over
     own same she should so some such than that the their theirs them then there these they
     this those through to too under until up very was we were what when where which while
-    who whom why will with would you your yours
+    who whom why will with would you your yours compare versus vs
     """.split()
 )
 
@@ -144,6 +145,22 @@ def retrieve(
         return Retrieval([], "lexical", len(chunks), terms)
 
     documents = [tokenize(f"{c.title} {c.text}") for c in chunks]
+    # Correct only close misspellings of names in this corpus, not arbitrary facts.
+    vocabulary = {term for doc in documents for term in doc}
+    names = sorted({term for c in chunks for term in tokenize(c.title.split(" — ")[0])})
+    corrected = []
+    for term in terms:
+        matches = get_close_matches(term, names, n=2, cutoff=0.84) if len(term) >= 5 and term not in vocabulary else []
+        corrected.append(matches[0] if len(matches) == 1 else term)
+    # A second word can be corrected more leniently when its paired name is known.
+    for title in (tokenize(c.title.split(" — ")[0]) for c in chunks):
+        if len(title) == 2 and set(title) & set(corrected):
+            for i, term in enumerate(corrected):
+                if len(term) >= 5 and term not in vocabulary:
+                    match = get_close_matches(term, title, n=1, cutoff=.75)
+                    if match:
+                        corrected[i] = match[0]
+    terms = corrected
     bm25 = BM25(documents)
     raw = [bm25.score(terms, i) for i in range(len(chunks))]
     best = max(raw) or 1.0
@@ -169,5 +186,13 @@ def retrieve(
         candidates.append(candidate)
 
     relevant = [c for c in candidates if c.relevant and c.score > 0]
+    # A named problem question should use its guide, not plants merely listing it.
+    named_guides = [c for c in relevant if c.chunk.source == "almanac"
+                    and c.chunk.title.endswith((" — disease reference", " — pest reference"))
+                    and set(tokenize(c.chunk.title.split(" — ")[0])).issubset(set(terms))]
+    named_plants = [c for c in relevant if c.chunk.title.endswith(" — plant reference")
+                    and set(tokenize(c.chunk.title.split(" — ")[0])).issubset(set(terms))]
+    if named_guides and not named_plants:
+        relevant = named_guides
     relevant.sort(key=lambda c: (-c.score, c.chunk.chunk_id))
     return Retrieval(relevant[:top_k], mode, len(chunks), terms)

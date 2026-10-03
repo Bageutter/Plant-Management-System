@@ -265,3 +265,59 @@ def _cand(score):
     from retrieval import Candidate
 
     return Candidate(Chunk("health", "1", "p", "t", "x"), 1.0, 1.0, None, score)
+
+
+def test_plant_now_uses_sydney_calendar_not_model_guess(store, monkeypatch):
+    from datetime import datetime
+    class OctoberClock:
+        @staticmethod
+        def now(tz):
+            return datetime(2026, 10, 2, tzinfo=tz)
+    monkeypatch.setattr(pipeline, "datetime", OctoberClock)
+    store.replace_source("almanac", [
+        Chunk("almanac", "basil", "reference", "Basil — plant reference", "Recorded planting months: September, October, November."),
+        Chunk("almanac", "strawberry", "reference", "Strawberry — plant reference", "Recorded planting months: June, July."),
+    ], documents=2)
+    model = FakeAnswerer(AssertionError("Calendar lookup must not ask the model"))
+    result = pipeline.answer("What can I plant now?", sources=("almanac",), top_k=5,
+                             config=CONFIG, store=store, answerer=model)
+    assert "October" in result["answer"] and "Basil" in result["answer"]
+    assert "Strawberry" not in result["answer"]
+    assert result["retrieval"]["current_date"] == "2026-10-02"
+    assert result["model"] is None and not model.groundings
+    assert [c["source_id"] for c in result["citations"]] == ["basil"]
+
+
+def test_comparison_uses_both_saved_records(store):
+    store.replace_source("almanac", [
+        Chunk("almanac", "basil", "reference", "Basil — plant reference", "Sun needs: full sun. Water needs: moderate."),
+        Chunk("almanac", "zucchini", "reference", "Zucchini — plant reference", "Sun needs: full sun. Water needs: high."),
+    ], documents=2)
+    model = FakeAnswerer(AssertionError("Direct record comparison must not need generation"))
+    result = pipeline.answer("Compare basil and zucchini", sources=("almanac",), top_k=5,
+                             config=CONFIG, store=store, answerer=model)
+    assert "Water needs: moderate" in result["answer"]
+    assert "Water needs: high" in result["answer"]
+    assert len(result["citations"]) == 2 and not result["insufficient_context"]
+    assert not model.groundings
+
+
+def test_citation_quotes_relevant_sentence_instead_of_record_intro():
+    from retrieval import Candidate
+    chunk = Chunk("almanac", "disease:1", "record", "Powdery mildew — disease reference",
+                  "A fungal disease. Improve airflow by spacing and pruning plants. Other background.")
+    citation = pipeline._citation(Candidate(chunk, 1, 1, None, .8),
+                                  "How to prevent powdery mildew?", "Improve airflow by spacing and pruning plants.")
+    assert citation["excerpt"] == "Improve airflow by spacing and pruning plants."
+    assert "airflow" in citation["highlight_terms"]
+
+
+def test_inline_citation_metadata_is_removed_without_losing_answer():
+    import json
+    result = parse_generation(json.dumps({
+        "answer": "Improve airflow. (cited_chunk_ids: ['almanac:disease:1:record'])",
+        "cited_chunk_ids": ["almanac:disease:1:record"],
+        "evidence_strength": "strong", "insufficient_context": False,
+    }))
+    assert result["answer"] == "Improve airflow."
+    assert result["cited_chunk_ids"] == ["almanac:disease:1:record"]

@@ -33,11 +33,14 @@ did not supply one — never invented.
 from __future__ import annotations
 
 import logging
+import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import time
 
 from embeddings import EmbeddingUnavailable, build_embedder
 from generation import ModelUnavailable, build_answerer
-from retrieval import Candidate, retrieve
+from retrieval import Candidate, retrieve, tokenize
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +164,52 @@ def answer(
     started = time.monotonic()
     chunks = store.chunks(sources, source_id=source_id)
 
+    today = datetime.now(ZoneInfo("Australia/Sydney"))
+    if re.fullmatch(r"(?:what|which plants|what plants) can i (?:plant|sow|grow) (?:now|this month)[?.! ]*", question.strip(), re.I):
+        month = today.strftime("%B")
+        matches = []
+        for chunk in chunks:
+            recorded = re.search(r"Recorded planting months: ([^.]+)", chunk.text)
+            if chunk.source == "almanac" and recorded and month.casefold() in {m.strip().casefold() for m in recorded.group(1).split(",")}:
+                matches.append(chunk)
+        retrieval = {"mode": "calendar", "candidates": len(matches), "considered": len(chunks),
+                     "top_k": top_k, "query_terms": [month], "sources": list(sources),
+                     "current_date": today.date().isoformat(), "timezone": "Australia/Sydney"}
+        if not matches:
+            return insufficient(question, retrieval=retrieval, duration_ms=_ms(started), note=f"No saved planting records match {month}.")
+        unique = {c.source_id: c for c in matches}
+        matches = sorted(unique.values(), key=lambda c: c.title)
+        names = [c.title.split(" — ")[0] for c in matches]
+        return {"question": question, "answer": f"For {month}, your saved planting calendar lists: " + ", ".join(names) + ".",
+                "confidence": "medium", "confidence_reason": f"Exact match to recorded {month} planting months; local growing conditions are not recorded here.",
+                "model_confidence": None, "insufficient_context": False,
+                "citations": [_citation(Candidate(c, 1, 1, None, 1)) for c in matches],
+                "retrieval": retrieval, "model": None, "duration_ms": _ms(started), "note": None}
+
+    comparison = re.fullmatch(r"compare (.+?) (?:and|with|versus|vs\.?) (.+?)[?.!]*", question.strip(), re.I)
+    if comparison:
+        selected = []
+        for name in comparison.groups():
+            found = next((c for c in chunks if c.source == "almanac" and c.title.split(" — ")[0].casefold() == name.strip().casefold()), None)
+            if found:
+                selected.append(found)
+        if len(selected) == 2:
+            lines = []
+            for chunk in selected:
+                facts = []
+                for label in ("Summary", "Sun needs", "Water needs", "Recorded planting months", "Care"):
+                    match = re.search(re.escape(label) + r": ([^.]+)", chunk.text)
+                    if match:
+                        facts.append(f"{label}: {match.group(1)}.")
+                lines.append(chunk.title.split(" — ")[0] + " — " + " ".join(facts))
+            return {"question": question, "answer": "\n\n".join(lines), "confidence": "medium",
+                    "confidence_reason": "Direct comparison of the two saved plant records; no growing conditions were inferred.",
+                    "model_confidence": None, "insufficient_context": False,
+                    "citations": [_citation(Candidate(c, 1, 1, None, 1)) for c in selected],
+                    "retrieval": {"mode": "record_comparison", "candidates": 2, "considered": len(chunks),
+                                  "top_k": top_k, "query_terms": list(comparison.groups()), "sources": list(sources)},
+                    "model": None, "duration_ms": _ms(started), "note": None}
+
     # -- retrieve (dense is best-effort; lexical always works) ----------------
     query_embedding = None
     note = None
@@ -195,6 +244,8 @@ def answer(
     # -- ground + generate -------------------------------------------------------
     grounding = {
         "question": question,
+        "current_date": today.date().isoformat(),
+        "timezone": "Australia/Sydney",
         "passages": [
             {
                 "chunk_id": c.chunk.chunk_id,
@@ -248,7 +299,7 @@ def answer(
         "confidence_reason": explain(cited, strength, fallback=fallback),
         "model_confidence": strength,
         "insufficient_context": False,
-        "citations": [_citation(c) for c in cited],
+        "citations": [_citation(c, question, text) for c in cited],
         "retrieval": retrieval,
         "model": answerer.model,
         "duration_ms": _ms(started),
@@ -256,9 +307,22 @@ def answer(
     }
 
 
-def _citation(candidate: Candidate) -> dict:
+def _citation(candidate: Candidate, question: str = "", answer_text: str = "") -> dict:
     chunk = candidate.chunk
-    excerpt = chunk.text if len(chunk.text) <= EXCERPT_CHARS else chunk.text[: EXCERPT_CHARS - 1] + "…"
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+|\n+", chunk.text) if part.strip()]
+    query_terms = set(tokenize(question))
+    answer_terms = set(tokenize(answer_text))
+    if question and sentences:
+        # Quote an actual source sentence, selected for question and answer overlap.
+        ranked = sorted(enumerate(sentences), key=lambda pair: (
+            -(len(set(tokenize(pair[1])) & answer_terms) + 2 * len(set(tokenize(pair[1])) & query_terms)), pair[0]))
+        index, excerpt = ranked[0]
+        if index and excerpt.startswith(("This ", "These ", "It ")):
+            excerpt = sentences[index - 1] + " " + excerpt
+        if len(excerpt) > 360:
+            excerpt = excerpt[:359] + "…"
+    else:
+        excerpt = chunk.text if len(chunk.text) <= EXCERPT_CHARS else chunk.text[: EXCERPT_CHARS - 1] + "…"
     return {
         "chunk_id": chunk.chunk_id,
         "source": chunk.source,
@@ -267,6 +331,8 @@ def _citation(candidate: Candidate) -> dict:
         "url": chunk.url,
         "recorded_at": chunk.recorded_at,
         "excerpt": excerpt,
+        "highlight_terms": sorted({word for word in re.findall(r"[A-Za-z]+", excerpt)
+                                   if set(tokenize(word)) & (query_terms | answer_terms)}),
         "score": candidate.score,
     }
 

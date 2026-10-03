@@ -67,6 +67,14 @@ def parse_details(form):
             if not set(values) <= allowed:
                 raise ValueError("Choose existing function tags and uses.")
         fields[key] = sorted(set(values))
+    for key, limit in (("plant_group", 120), ("variety_name", 120), ("plant_category", 40)):
+        if key in form:
+            value = str(form.get(key) or "").strip()
+            if len(value) > limit:
+                raise ValueError(f"{key.replace('_', ' ').title()} must be at most {limit} characters.")
+            if key == "plant_category" and value not in ("", "Vegetables", "Herbs", "Flowers", "Fruit", "Other"):
+                raise ValueError("Choose a valid plant category.")
+            fields[key] = value or None
     return fields
 
 

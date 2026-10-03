@@ -1,0 +1,34 @@
+{% macro plant_card(plant, heading='h3') %}
+<a href="{{ url_for('plant_detail', slug=plant.slug) }}" class="variety-card">
+    {% if plant.image_url %}<img src="{{ plant.image_url }}" alt="{{ plant.common_name }}" loading="lazy">{% endif %}
+    <div class="variety-copy">
+        <p class="variety-scientific">{{ plant.scientific_name }}</p>
+        <{{ heading }}>{{ plant.common_name }}</{{ heading }}>
+        {% if plant.summary %}<p class="variety-description">{{ plant.summary }}</p>{% endif %}
+    </div>
+</a>
+{% endmacro %}
+<p class="catalogue-results" role="status">{{ visible_plants|length }} of {{ plants|length }} plant records</p>
+{% if visible_plants %}
+{% if group_by == 'plant' %}
+<div class="plant-groups">
+    {% for group in plant_groups %}
+    <section class="plant-group" style="--group-size:{{ [group.plants|length, 4]|min }}" aria-label="{{ group.name }} group">
+        <header class="plant-group-heading">
+            <h2>{{ group.name }}</h2>
+        </header>
+        <div id="plant-group-{{ loop.index }}" class="variety-grid">
+            {% for plant in group.plants %}
+            <div class="variety-slot" {% if loop.first %}data-group-first{% endif %}>{{ plant_card(plant) }}</div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="catalogue-flat">{% for plant in visible_plants %}{{ plant_card(plant, 'h2') }}{% endfor %}</div>
+{% endif %}
+{% else %}
+<div class="catalogue-empty"><p>{{ 'No plants match these filters.' if plants else 'No plants in the almanac yet.' }}</p>{% if plants %}<a href="{{ url_for('index') }}">Clear filters</a>{% endif %}</div>
+{% endif %}

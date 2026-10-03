@@ -59,7 +59,7 @@ def test_rag_preserves_grounding_refusal_and_unavailable_states(app, monkeypatch
     assert calls[0] == ("/rag/query", {"question": "Mildew prevention?", "sources": ["almanac"]})
     answer.update(answer="Not enough saved information.", insufficient_context=True, confidence="insufficient", citations=[])
     result = client.post("/integrations/rag", data={"question": "Who won the football?"})
-    assert b"Not enough information" in result.data and b"References used" not in result.data
+    assert b"Insufficient context" in result.data and b"References used" not in result.data
     for body in [[], {"question": ""}, {"question": "x" * 501}, {"question": 123}]:
         assert client.post("/integrations/rag", json=body).status_code == 400
 

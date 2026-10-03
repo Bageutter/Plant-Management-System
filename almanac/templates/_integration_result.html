@@ -1,3 +1,4 @@
+{% from "_confidence.html" import confidence_pill %}
 {% if result.error %}
 <p role="alert" class="guide-note">{{ result.error }}</p>
 {% elif mode == 'mcp' %}
@@ -11,7 +12,7 @@
     </ul>
     {% else %}<pre style="white-space:pre-wrap; overflow-wrap:anywhere;">{{ result.structured_content | tojson(indent=2) }}</pre>{% endif %}
 {% elif mode == 'rag' %}
-    {% if result.insufficient_context %}<h3>Not enough information</h3>{% else %}<span class="tag">{{ result.confidence | capitalize }} confidence</span>{% endif %}
+    {{ confidence_pill(result.confidence, result.insufficient_context) }}
     <p style="white-space:pre-wrap; line-height:1.7; margin:.8rem 0;">{{ result.answer or 'The saved references do not contain enough information to answer this question.' }}</p>
     <p class="text-muted-foreground" style="font-size:.85rem;">{{ result.confidence_reason }}</p>
     {% if result.note %}<p class="guide-note" style="margin-top:.8rem;">{{ result.note }}</p>{% endif %}
@@ -19,7 +20,7 @@
     <h3 style="margin-top:1rem;">References used</h3>
     <ul class="source-list">
         {% for citation in result.citations %}
-        <li><a href="{{ citation.url }}">{{ citation.title }}</a><p style="margin:.4rem 0; line-height:1.6;">{{ citation.excerpt }}</p></li>
+        <li><a href="{{ citation.url }}">{{ citation.title }}</a><p style="margin:.4rem 0; line-height:1.6;">{{ citation.excerpt|highlight_excerpt(citation.highlight_terms or []) }}</p></li>
         {% endfor %}
     </ul>
     {% endif %}

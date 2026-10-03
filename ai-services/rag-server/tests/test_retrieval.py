@@ -79,3 +79,26 @@ def test_hybrid_mode_uses_embeddings_when_both_sides_have_them():
 
     assert cosine([1, 0], [0, 1]) == 0.0 and round(cosine([1, 1], [1, 1]), 6) == 1.0
     assert cosine([], [1.0]) == 0.0
+
+
+def test_comparison_and_name_typos_still_retrieve_without_admitting_unrelated_queries():
+    chunks = [
+        Chunk("almanac", "basil", "reference", "Basil — plant reference", "Basil needs full sun."),
+        Chunk("almanac", "zucchini", "reference", "Zucchini — plant reference", "Zucchini needs full sun."),
+        Chunk("almanac", "mildew", "reference", "Powdery mildew — disease reference", "Improve airflow to prevent powdery mildew."),
+    ]
+    def search(question):
+        return retrieve(question, chunks, top_k=5, min_coverage=.34, min_similarity=.45)
+    assert {c.chunk.source_id for c in search("Compare basil and zucchini").candidates} == {"basil", "zucchini"}
+    for question in ("powdery mildew", "powedery mildrew", "what prevent powedery mildren", "how do i deal with powdery mildrew"):
+        assert search(question).candidates[0].chunk.source_id == "mildew"
+    assert not search("What is the orbital period of Neptune?").candidates
+
+
+def test_named_disease_uses_guide_not_associated_plant_records():
+    chunks = [
+        Chunk("almanac", "disease:1", "record", "Powdery mildew — disease reference", "Prevent powdery mildew with airflow."),
+        Chunk("almanac", "plant:pea", "record", "Pea — plant reference", "Associated diseases: Powdery mildew."),
+    ]
+    result = retrieve("How to prevent powdery mildew?", chunks, top_k=5, min_coverage=.34, min_similarity=.45)
+    assert [c.chunk.source_id for c in result.candidates] == ["disease:1"]

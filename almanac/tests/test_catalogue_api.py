@@ -77,3 +77,11 @@ def test_public_details_preserve_evidence_and_make_no_writes(catalogue):
         assert method("/api/catalogue/plant/lettuce").status_code in (400, 405)
     assert [p.to_dict() for p in PlantReference.query.order_by(PlantReference.id)] == before
     assert "PRIVATE_CHAT_SENTINEL" not in json.dumps([payload, guide])
+
+
+def test_catalogue_tolerates_close_disease_name_typos(catalogue):
+    client = catalogue.test_client()
+    for query in ("powdery mildew", "powedery mildew", "powedery mildrew"):
+        result = client.get("/api/catalogue", query_string={"q": query, "kind": "disease"}).json
+        assert [item["name"] for item in result["items"]] == ["Powdery mildew"]
+    assert client.get("/api/catalogue?q=Neptune").json["items"] == []

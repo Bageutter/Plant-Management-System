@@ -1,5 +1,8 @@
 """Public, read-only catalogue views used by the MCP adapter and other services."""
 
+from difflib import SequenceMatcher
+import re
+
 from flask import Blueprint, jsonify, request, url_for
 from sqlalchemy import func, literal, or_, select, union_all
 
@@ -74,6 +77,22 @@ def search():
         queries.append(statement)
     combined = union_all(*queries).subquery()
     total = db.session.scalar(select(func.count()).select_from(combined))
+    if not total and query:
+        # A conservative name-only fallback: every query word must closely match.
+        words = re.findall(r"[a-z0-9]+", query.lower())
+        matches = []
+        for item_kind, model in KINDS.items():
+            if kind not in ("all", item_kind):
+                continue
+            for record in db.session.scalars(select(model)):
+                name = record.common_name if item_kind == "plant" else record.name
+                name_words = re.findall(r"[a-z0-9]+", name.lower())
+                if words and all(any(word == target or (len(word) >= 5 and SequenceMatcher(None, word, target).ratio() >= .84) for target in name_words) for word in words):
+                    matches.append(reference(item_kind, record))
+        matches.sort(key=lambda item: (item["name"].lower(), item["kind"], item["id"]))
+        total = len(matches)
+        return jsonify(items=matches[offset:offset + limit], total=total, limit=limit, offset=offset,
+                       next_offset=offset + limit if offset + limit < total else None)
     rows = db.session.execute(
         select(combined)
         .order_by(func.lower(combined.c.name), combined.c.kind, combined.c.id)

@@ -2,17 +2,20 @@
 
 {% block title %}{{ plant.common_name }} — Almanac{% endblock %}
 
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='plant-detail.css') }}">{% endblock %}
 {% block content %}
-<div style="max-width:44rem; margin:0 auto;">
+<div class="plant-detail">
     <a href="{{ url_for('index') }}" class="text-muted-foreground" style="font-size:0.875rem; display:inline-flex; align-items:center; gap:0.3rem; margin-bottom:2rem;">
         ← Back to Almanac
     </a>
 
+    <div class="plant-hero">
     {% if plant.image_url %}
     <img src="{{ plant.image_url }}" alt="{{ plant.common_name }}"
-         style="display:block; width:100%; max-height:24rem; object-fit:cover; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); margin-bottom:1.5rem;">
+         class="plant-hero-image">
     {% endif %}
 
+    <div class="plant-intro">
     <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
         <div>
             <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:hsl(var(--muted-foreground)); margin:0 0 0.4rem;">{{ plant.scientific_name }}</p>
@@ -59,6 +62,16 @@
         {% endif %}
         <p class="text-muted-foreground" style="font-size:0.75rem; margin:1rem 0 0;">Timing depends on your local climate.</p>
     </div>
-    {% include "_planning_detail.html" %}
+    </div>
+    </div>
+    {% if related_varieties|length > 1 %}
+    <nav class="plant-siblings" aria-label="Other plants in this group">
+      <span>{{ plant.plant_group }}</span>
+      {% for sibling in related_varieties %}
+      <a href="{{ url_for('plant_detail', slug=sibling.slug) }}" {% if sibling.slug == plant.slug %}aria-current="page"{% endif %}>{{ sibling.variety_name or sibling.common_name }}</a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+    <div class="plant-sections">{% include "_planning_detail.html" %}</div>
 </div>
 {% endblock %}
