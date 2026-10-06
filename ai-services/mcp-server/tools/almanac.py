@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from tools.common import READ_ONLY, FeatureClient, guard
 from tools.schemas import AlmanacPlantDetail, AlmanacSearchPage, Limit, Query, Slug
 
-Kind = Literal["all", "plant", "pest", "disease"]
+Kind = Literal["all", "plant", "pest", "disease", "ailment"]
 
 
 def register(server: MCPServer, settings, *, transport=None) -> None:

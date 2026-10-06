@@ -15,7 +15,7 @@ Open **Reference tools** for read-only MCP catalogue search and RAG answers with
 * Accepts JPEG, PNG, GIF, and WebP plant images by choosing, dropping, or pasting a
   file. Large browser uploads are compressed automatically before submission.
 * Provides public read JSON APIs for other services.
-* Provides a floating **Ask the Almanac** chat powered by local Ollama.
+* Provides a floating **Ask the Almanac** chat powered by local Ollama on every Almanac page, including plant, pest and disease guides. The shared widget loads the authenticated user’s existing conversation and preserves the validation report popup.
 * Grounds AI answers in Almanac records and displays the records used as sources.
 * Runs answers through Plan → Act → Observe → Adapt validation and opens the process
   summary in a report popup.

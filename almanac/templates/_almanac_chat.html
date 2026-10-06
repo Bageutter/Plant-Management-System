@@ -1,0 +1,164 @@
+    {% if auth_user %}
+    <div x-data="{
+             chatOpen: false,
+             chatMode: 'rag',
+             question: '',
+             pendingQuestion: '',
+             chatWidth: Number(localStorage.getItem('almanac-chat-width')) || 520,
+             chatHeight: Number(localStorage.getItem('almanac-chat-height')) || 720,
+             setChatSize(width, height) {
+                 this.chatWidth = Math.min(window.innerWidth - 32, Math.max(360, width));
+                 this.chatHeight = Math.min(window.innerHeight - 40, Math.max(400, height));
+                 localStorage.setItem('almanac-chat-width', this.chatWidth);
+                 localStorage.setItem('almanac-chat-height', this.chatHeight);
+             },
+             startResize(event) {
+                 if (window.matchMedia('(max-width: 40rem)').matches) return;
+                 const startX = event.clientX;
+                 const startY = event.clientY;
+                 const startWidth = this.chatWidth;
+                 const startHeight = this.chatHeight;
+                 const move = (moveEvent) => this.setChatSize(
+                     startWidth + startX - moveEvent.clientX,
+                     startHeight + startY - moveEvent.clientY
+                 );
+                 const stop = () => {
+                     window.removeEventListener('pointermove', move);
+                     window.removeEventListener('pointerup', stop);
+                     window.removeEventListener('pointercancel', stop);
+                 };
+                 window.addEventListener('pointermove', move);
+                 window.addEventListener('pointerup', stop, { once: true });
+                 window.addEventListener('pointercancel', stop, { once: true });
+             }
+         }"
+         @keydown.escape.window="chatOpen = false"
+         @resize.window="setChatSize(chatWidth, chatHeight)">
+        <button type="button"
+                class="ai-chat-launcher"
+                aria-controls="ai-chat-panel"
+                :aria-expanded="chatOpen.toString()"
+                x-show="!chatOpen"
+                x-transition
+                @click="chatOpen = true; $nextTick(() => { $refs.conversation.scrollTop = $refs.conversation.scrollHeight; $refs.question.focus(); })">
+            <span aria-hidden="true">🌱</span>
+            <span>Ask the Almanac</span>
+        </button>
+
+        <aside id="ai-chat-panel"
+               class="ai-chat-panel"
+               role="dialog"
+               aria-label="Plant Almanac chat"
+               x-cloak
+               x-show="chatOpen"
+               :style="'--chat-width:' + chatWidth + 'px; --chat-height:' + chatHeight + 'px'"
+               x-transition.origin.bottom.right>
+            <button type="button" class="ai-chat-resize-corner" aria-label="Resize chat: drag, or use arrow keys" title="Drag to resize · arrow keys also work"
+                 @pointerdown.prevent="startResize($event)"
+                 @keydown.left.prevent="setChatSize(chatWidth + 40, chatHeight)"
+                 @keydown.right.prevent="setChatSize(chatWidth - 40, chatHeight)"
+                 @keydown.up.prevent="setChatSize(chatWidth, chatHeight + 40)"
+                 @keydown.down.prevent="setChatSize(chatWidth, chatHeight - 40)"></button>
+            <header style="display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.9rem 1rem; border-bottom:1px solid hsl(var(--border));">
+                <div style="display:flex; align-items:center; gap:0.75rem;">
+                    <div><h2 style="font-size:1.15rem; margin:0;">Ask the Almanac</h2></div>
+                    <form hx-post="{{ url_for('clear_ai_chat') }}"
+                          hx-on::before-swap="if (event.detail.xhr.status >= 400) { event.detail.shouldSwap = true; }"
+                      hx-target="#ai-messages"
+                          hx-swap="innerHTML"
+                          hx-confirm="Start a new chat? This removes the current conversation."
+                          x-on:htmx:after-request="if ($event.detail.successful) { question = ''; pendingQuestion = ''; }"
+                          style="margin:0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit"
+                                style="padding:0.25rem 0.5rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--primary)); cursor:pointer; font:inherit; font-size:0.7rem; font-weight:600;">
+                            New chat
+                        </button>
+                    </form>
+                </div>
+                <button type="button"
+                        aria-label="Close Almanac chat"
+                        @click="chatOpen = false"
+                        style="width:2rem; height:2rem; border:0; border-radius:9999px; background:hsl(var(--muted)); color:hsl(var(--foreground)); cursor:pointer; font-size:1.1rem;">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </header>
+
+            <div id="ai-conversation"
+                 x-ref="conversation"
+                 aria-live="polite"
+                 style="min-height:0; flex:1; overflow-y:auto; padding:1rem; background:hsl(var(--background));">
+                <div id="ai-messages"
+                     hx-on::after-swap="this.parentElement.scrollTop = this.parentElement.scrollHeight">
+                    {% include "_ai_history.html" %}
+                </div>
+                <template x-if="pendingQuestion">
+                    <div style="display:flex; justify-content:flex-end; margin-top:0.75rem;">
+                        <article style="max-width:82%; padding:0.8rem 0.95rem; border-radius:1rem 1rem 0.3rem 1rem; background:hsl(var(--primary)); color:hsl(var(--primary-foreground));">
+                            <p style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin:0 0 0.3rem; opacity:0.75;">You</p>
+                            <p x-text="pendingQuestion" style="margin:0; line-height:1.6; white-space:pre-wrap;"></p>
+                            <p style="font-size:0.68rem; margin:0.35rem 0 0; opacity:0.7;">Sending…</p>
+                        </article>
+                    </div>
+                </template>
+            </div>
+
+            <footer style="padding:0.8rem 0.9rem; border-top:1px solid hsl(var(--border));">
+                <div style="display:flex; gap:0.35rem; margin-bottom:0.6rem; overflow-x:auto; padding-bottom:0.1rem;">
+                    {% for example in ["Plant tomatoes?", "What can I plant now?", "Compare basil and zucchini", "How to prevent powdery mildew?"] %}
+                    <button type="button"
+                            @click='question = {{ example|tojson }}; document.getElementById("ai-question").focus()'
+                            style="flex:none; padding:0.3rem 0.5rem; border:1px solid hsl(var(--border)); border-radius:9999px; background:hsl(var(--background)); color:hsl(var(--muted-foreground)); font-size:0.68rem; cursor:pointer;">
+                        {{ example }}
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <div class="chat-mode-tabs" role="tablist" aria-label="Chat mode">
+                  <button type="button" role="tab" :aria-selected="chatMode !== 'mcp'" :class="{active: chatMode !== 'mcp'}" @click="chatMode = 'rag'">♧ Ask a question</button>
+                  <button type="button" role="tab" :aria-selected="chatMode === 'mcp'" :class="{active: chatMode === 'mcp'}" @click="chatMode = 'mcp'">▤ Find a reference</button>
+                </div>
+
+                <form hx-post="{{ url_for('ask_almanac') }}"
+                      hx-on::before-swap="if (event.detail.xhr.status >= 400) { event.detail.shouldSwap = true; }"
+                      hx-target="#ai-messages"
+                      hx-swap="innerHTML"
+                      hx-indicator="#ai-loading"
+                      hx-disabled-elt="find button[type=submit]"
+                      x-on:htmx:before-request="pendingQuestion = question.trim(); question = ''; $nextTick(() => { $refs.conversation.scrollTop = $refs.conversation.scrollHeight; })"
+                      x-on:htmx:after-request="if (!$event.detail.successful) question = pendingQuestion; pendingQuestion = ''"
+                      style="display:flex; align-items:flex-end; gap:0.5rem;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="mode" :value="chatMode">
+                    <label class="sr-only" for="ai-question">Your question</label>
+                    <textarea id="ai-question"
+                              x-ref="question"
+                              name="question"
+                              x-model="question"
+                              @keydown.enter="if (!$event.shiftKey &amp;&amp; !$event.isComposing) { $event.preventDefault(); if (question.trim() &amp;&amp; !pendingQuestion) $el.form.requestSubmit(); }"
+                              maxlength="500"
+                              required
+                              rows="2"
+                              :placeholder="chatMode === 'mcp' ? 'Search a plant, pest or disease…' : 'What would you like to grow?'"
+                              style="min-height:2.6rem; flex:1; box-sizing:border-box; padding:0.65rem 0.75rem; resize:none; border:1px solid hsl(var(--border)); border-radius:0.75rem; background:hsl(var(--background)); color:hsl(var(--foreground));"></textarea>
+                    <button type="submit" class="uk-btn uk-btn-primary uk-btn-sm" style="height:2.6rem;">Send</button>
+                </form>
+                <span id="ai-loading" class="htmx-indicator text-muted-foreground" aria-live="polite" style="display:block; font-size:0.7rem; margin-top:0.35rem;">Checking saved references locally… This can take a little while.</span>
+            </footer>
+        </aside>
+    </div>
+    {% else %}
+    <a class="ai-chat-launcher" href="{{ auth_public_url }}/login">
+        <span aria-hidden="true">🌱</span>
+        <span>Log in to ask the Almanac</span>
+    </a>
+    {% endif %}
+
+
+<dialog id="validation-report-dialog" class="validation-report-dialog" aria-labelledby="validation-report-dialog-title">
+    <div class="validation-report-dialog__header">
+        <h2 id="validation-report-dialog-title">Answer validation report</h2>
+        <button type="button" class="validation-report-dialog__close" data-validation-report-close aria-label="Close validation report">×</button>
+    </div>
+    <div id="validation-report-dialog-content" class="validation-report-dialog__content" aria-live="polite"></div>
+</dialog>

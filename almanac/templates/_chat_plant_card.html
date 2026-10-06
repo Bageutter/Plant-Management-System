@@ -10,6 +10,6 @@
 {% macro problem_card(name, kind, href) %}
 <a class="chat-plant-card chat-problem-card" href="{{ href }}">
 <span class="chat-problem-icon" aria-hidden="true">{{ '✿' if kind == 'disease' else '♧' }}</span>
-<span class="chat-plant-copy"><strong>{{ name }}</strong><span class="chat-plant-needs">{{ 'Disease' if kind == 'disease' else 'Pest' }} guide · Signs & prevention</span></span><span aria-hidden="true">›</span>
+<span class="chat-plant-copy"><strong>{{ name }}</strong><span class="chat-plant-needs">{{ {'disease': 'Disease', 'pest': 'Pest', 'ailment': 'Ailment'}.get(kind, 'Reference') }} guide · Signs & prevention</span></span><span aria-hidden="true">›</span>
 </a>
 {% endmacro %}

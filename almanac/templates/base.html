@@ -198,6 +198,8 @@
         }
     </style>
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat-notebook.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat-shared.css') }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body style="background-color: hsl(var(--background)); color: hsl(var(--foreground));">
@@ -209,6 +211,7 @@
             {"label": "My Gardens", "url": auth_public_url ~ "/account"},
             {"label": "Plant Health", "url": health_public_url},
             {"label": "Almanac", "url": url_for('index')},
+            {"label": "Plant ailments", "url": url_for("ailment_index")},
             {"label": "Reference tools", "url": url_for('integrations.index')}
         ],
         cta=none if auth_user else {"label": "Log in", "url": auth_public_url ~ "/login"}
@@ -233,6 +236,8 @@
 
     <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/core.iife.js"></script>
     <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/icon.iife.js"></script>
+    {% include '_almanac_chat.html' %}
+    {% include '_almanac_chat_scripts.html' %}
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

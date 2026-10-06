@@ -17,7 +17,7 @@ SOURCE = "almanac"
 IMPLEMENTED = True
 PAGE_SIZE = 50  # the catalogue API's maximum
 MAX_PAGES = 100  # fail beyond 5,000 records, rather than index a partial catalogue
-PLURALS = {"plant": "plants", "pest": "pests", "disease": "diseases"}
+PLURALS = {"plant": "plants", "pest": "pests", "disease": "diseases", "ailment": "ailments"}
 
 
 def _get(config, path, params=None):
@@ -188,6 +188,8 @@ def chunk_for(detail: dict, public_url: str) -> Chunk:
                 lines.append(f"Management step — {step.get('title', '')}: {step.get('body', '')}")
             for companion in guide.get("companions") or []:
                 lines.append(f"Support — {companion.get('name', '')}: {companion.get('body', '')}")
+            for cause in guide.get("possible_causes") or []:
+                lines.append(f"Possible cause to check (not a diagnosis): {cause.rsplit('/', 1)[-1]}")
             for source in guide.get("sources") or []:
                 lines.append(f"Guide source: {source.get('label', '')} {source.get('url', '')}")
         # Related plants are paged separately by the API; do not index an incomplete list.

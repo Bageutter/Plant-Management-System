@@ -1,0 +1,44 @@
+
+<script>
+    const validationDialog = document.getElementById('validation-report-dialog');
+    const validationDialogContent = document.getElementById('validation-report-dialog-content');
+
+    document.addEventListener('click', async (event) => {
+        const closeButton = event.target.closest('[data-validation-report-close]');
+        if (closeButton) {
+            validationDialog.close();
+            return;
+        }
+
+        const reportLink = event.target.closest('[data-validation-report]');
+        if (!reportLink || typeof validationDialog.showModal !== 'function') return;
+
+        event.preventDefault();
+        validationDialogContent.textContent = 'Loading validation report…';
+        validationDialog.showModal();
+
+        try {
+            const response = await fetch(reportLink.href, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            });
+            if (!response.ok) throw new Error('Report unavailable');
+
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const report = page.querySelector('.validation-report');
+            if (!report) throw new Error('Report unavailable');
+            validationDialogContent.replaceChildren(report);
+        } catch (error) {
+            const message = document.createElement('p');
+            message.textContent = 'The validation report could not be loaded.';
+            const fallback = document.createElement('a');
+            fallback.href = reportLink.href;
+            fallback.textContent = 'Open the report as a page →';
+            validationDialogContent.replaceChildren(message, fallback);
+        }
+    });
+
+    validationDialog.addEventListener('click', (event) => {
+        if (event.target === validationDialog) validationDialog.close();
+    });
+</script>
+
