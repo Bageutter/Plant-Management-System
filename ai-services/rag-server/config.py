@@ -22,6 +22,8 @@ def _as_bool(value: str | None, default: bool) -> bool:
 
 
 class Config:
+    RAG_BACKEND = os.getenv("RAG_BACKEND", "sqlite")
+    RAG_CHROMA_PATH = os.getenv("RAG_CHROMA_PATH", os.path.join(BASE_DIR, "instance", "chroma"))
     # Operational switch. CI sets RAG_ENABLED=false: the server still starts and
     # answers /healthz, but every retrieval/ingest endpoint returns 503.
     RAG_ENABLED = _as_bool(os.environ.get("RAG_ENABLED"), True)

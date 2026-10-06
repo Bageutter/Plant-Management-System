@@ -51,6 +51,8 @@ class Settings:
     health_url: str = "http://127.0.0.1:3000/health"
     almanac_url: str = "http://127.0.0.1:3000/almanac"
     vgarden_url: str = "http://127.0.0.1:3000/vgarden"
+    rag_url: str = "http://127.0.0.1:5106"
+    rag_refresh_enabled: bool = False
     timeout: float = 10.0
     # A text assessment runs the vision model; allow the health service's own 180 s.
     assess_timeout: float = 200.0
@@ -61,7 +63,7 @@ class Settings:
     vgarden_service_token: str = "dev-inter-service-secret-change-me"
 
     def __post_init__(self) -> None:
-        for name in ("health_url", "almanac_url", "vgarden_url"):
+        for name in ("health_url", "almanac_url", "vgarden_url", "rag_url"):
             object.__setattr__(self, name, validate_service_url(getattr(self, name), name))
 
     @classmethod
@@ -77,6 +79,8 @@ class Settings:
             health_url=env.get("HEALTH_SERVICE_URL", "http://127.0.0.1:3000/health"),
             almanac_url=env.get("ALMANAC_SERVICE_URL", "http://127.0.0.1:3000/almanac"),
             vgarden_url=env.get("VGARDEN_SERVICE_URL", "http://127.0.0.1:3000/vgarden"),
+            rag_url=env.get("RAG_SERVICE_URL", "http://127.0.0.1:5106"),
+            rag_refresh_enabled=_as_bool(env.get("MCP_RAG_REFRESH_ENABLED"), False),
             timeout=float(env.get("SERVICE_TIMEOUT", "10")),
             assess_timeout=float(env.get("ASSESS_TIMEOUT", "200")),
             vgarden_service_token=env.get(

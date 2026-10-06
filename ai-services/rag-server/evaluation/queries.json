@@ -1,0 +1,497 @@
+[
+  {
+    "id": "almanac-01",
+    "category": "lookup",
+    "question": "What planting months are recorded for parsley?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:parsley:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-02",
+    "category": "paraphrase",
+    "question": "How do I pick parsley while allowing its centre to regrow?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:parsley:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-03",
+    "category": "lookup",
+    "question": "When should okra be sown in Sydney?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:okra:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-04",
+    "category": "paraphrase",
+    "question": "Why should okra pods be picked before becoming fibrous?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:okra:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-05",
+    "category": "lookup",
+    "question": "What support does Lazy Housewife bean need?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:bean-lazy-housewife:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-06",
+    "category": "lookup",
+    "question": "What is recorded about Scarlet Runner roots regrowing?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:bean-scarlet-runner:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-07",
+    "category": "lookup",
+    "question": "How do I contain Chocolate Mint roots?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:chocolate-mint:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-08",
+    "category": "paraphrase",
+    "question": "Can I propagate Chocolate Mint by division rather than seed?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:chocolate-mint:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-09",
+    "category": "lookup",
+    "question": "Does Vietnamese Mint need moist soil and dappled shade?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:vietnamese-mint:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-10",
+    "category": "missing_field",
+    "question": "Is a measured yield for Sweet 1000 tomatoes verified?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:tomato-sweet-1000:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-11",
+    "category": "comparison",
+    "question": "Compare recorded planting months for basil and zucchini.",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:basil:record",
+      "almanac:plant:zucchini:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-12",
+    "category": "comparison",
+    "question": "Compare the care of Vietnamese Mint and Chocolate Mint.",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:vietnamese-mint:record",
+      "almanac:plant:chocolate-mint:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-13",
+    "category": "lookup",
+    "question": "How should Black Krim tomatoes be supported?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:tomato-black-krim:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-14",
+    "category": "typo",
+    "question": "What sowing months are recorded for parsely?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:plant:parsley:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-15",
+    "category": "lookup",
+    "question": "How does the powdery mildew guide recommend improving airflow?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:disease:1:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-16",
+    "category": "paraphrase",
+    "question": "Find the guide describing flour-like patches on leaves and stems.",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:disease:1:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-17",
+    "category": "lookup",
+    "question": "How does the aphid guide describe rinsing insects off stems?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:pest:1:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-18",
+    "category": "missing_field",
+    "question": "Is a management guide available for slugs and snails?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "almanac:pest:2:record"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "health-01",
+    "category": "record_lookup",
+    "question": "What leaf damage was recorded for monsterra?",
+    "sources": [
+      "health"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "health:1:issues",
+      "health:1:summary"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "health-02",
+    "category": "record_lookup",
+    "question": "What pest inspection was recommended for monsterra?",
+    "sources": [
+      "health"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "health:1:recommendations"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "health-03",
+    "category": "record_lookup",
+    "question": "Which Rose assessment recorded a health score of 30?",
+    "sources": [
+      "health"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "health:2:summary"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "health-04",
+    "category": "record_lookup",
+    "question": "Which Rose assessment recorded a health score of 40?",
+    "sources": [
+      "health"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "health:3:summary"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "health-05",
+    "category": "record_lookup",
+    "question": "What light exposure was recommended for Rose?",
+    "sources": [
+      "health"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "health:3:recommendations"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "health-06",
+    "category": "record_lookup",
+    "question": "What information was missing in the low-confidence Rose assessment?",
+    "sources": [
+      "health"
+    ],
+    "source_id": null,
+    "relevant_ids": [
+      "health:2:summary"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "vgarden-01",
+    "category": "scoped_lookup",
+    "question": "How many plantings are recorded in this garden?",
+    "sources": [
+      "vgarden"
+    ],
+    "source_id": "1",
+    "relevant_ids": [
+      "vgarden:1:summary"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "vgarden-02",
+    "category": "scoped_lookup",
+    "question": "What plants and quantities are recorded in this garden?",
+    "sources": [
+      "vgarden"
+    ],
+    "source_id": "2",
+    "relevant_ids": [
+      "vgarden:2:plantings"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "vgarden-03",
+    "category": "scoped_lookup",
+    "question": "What are the dimensions of the garden bed?",
+    "sources": [
+      "vgarden"
+    ],
+    "source_id": "2",
+    "relevant_ids": [
+      "vgarden:2:areas"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "vgarden-04",
+    "category": "scoped_lookup",
+    "question": "What plants and quantities are recorded in this garden?",
+    "sources": [
+      "vgarden"
+    ],
+    "source_id": "3",
+    "relevant_ids": [
+      "vgarden:3:plantings"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "vgarden-05",
+    "category": "scoped_lookup",
+    "question": "What containers are recorded here?",
+    "sources": [
+      "vgarden"
+    ],
+    "source_id": "3",
+    "relevant_ids": [
+      "vgarden:3:containers"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "vgarden-06",
+    "category": "scoped_lookup",
+    "question": "What are the dimensions of the raised bed?",
+    "sources": [
+      "vgarden"
+    ],
+    "source_id": "3",
+    "relevant_ids": [
+      "vgarden:3:areas"
+    ],
+    "rationale": "Expected passages directly contain the requested recorded facts.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-19",
+    "category": "off_topic",
+    "question": "Who won the 1986 FIFA World Cup?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [],
+    "rationale": "No indexed passage supports this unrelated topic; expect the relevance gate to reject all candidates.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "almanac-20",
+    "category": "off_topic",
+    "question": "How do I replace a car alternator?",
+    "sources": [
+      "almanac"
+    ],
+    "source_id": null,
+    "relevant_ids": [],
+    "rationale": "No indexed passage supports this unrelated topic; expect the relevance gate to reject all candidates.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "health-07",
+    "category": "off_topic",
+    "question": "Who won the 1986 FIFA World Cup?",
+    "sources": [
+      "health"
+    ],
+    "source_id": null,
+    "relevant_ids": [],
+    "rationale": "No indexed passage supports this unrelated topic; expect the relevance gate to reject all candidates.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "health-08",
+    "category": "off_topic",
+    "question": "How do I replace a car alternator?",
+    "sources": [
+      "health"
+    ],
+    "source_id": null,
+    "relevant_ids": [],
+    "rationale": "No indexed passage supports this unrelated topic; expect the relevance gate to reject all candidates.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "vgarden-07",
+    "category": "off_topic",
+    "question": "Who won the 1986 FIFA World Cup?",
+    "sources": [
+      "vgarden"
+    ],
+    "source_id": "3",
+    "relevant_ids": [],
+    "rationale": "No indexed passage supports this unrelated topic; expect the relevance gate to reject all candidates.",
+    "label_status": "assistant_draft_human_review_pending"
+  },
+  {
+    "id": "vgarden-08",
+    "category": "off_topic",
+    "question": "How do I replace a car alternator?",
+    "sources": [
+      "vgarden"
+    ],
+    "source_id": "3",
+    "relevant_ids": [],
+    "rationale": "No indexed passage supports this unrelated topic; expect the relevance gate to reject all candidates.",
+    "label_status": "assistant_draft_human_review_pending"
+  }
+]

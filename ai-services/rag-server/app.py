@@ -38,7 +38,14 @@ def create_app(overrides: dict | None = None) -> Flask:
         [app.jinja_loader, FileSystemLoader(os.path.abspath(SHARED_TEMPLATES))]
     )
 
-    app.extensions["chunk_store"] = ChunkStore(app.config["RAG_DATABASE_PATH"])
+    if app.config["RAG_BACKEND"] == "chroma":
+        from chroma_store import ChromaStore
+        store = ChromaStore(app.config["RAG_CHROMA_PATH"], app.config["RAG_EMBED_MODEL"])
+    elif app.config["RAG_BACKEND"] == "sqlite":
+        store = ChunkStore(app.config["RAG_DATABASE_PATH"])
+    else:
+        raise ValueError("RAG_BACKEND must be chroma or sqlite")
+    app.extensions["chunk_store"] = store
 
     from routes import bp
 
