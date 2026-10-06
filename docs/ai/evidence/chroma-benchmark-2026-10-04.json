@@ -1,0 +1,2597 @@
+{
+  "timestamp_utc": "2026-10-04T05:12:08.305935+00:00",
+  "note": "Exploratory, assistant-authored labels based on indexed records; human review pending. Retrieval only, not answer factuality, UI, authentication or full release validation.",
+  "commit": "7e486adff12ef7d21a8c53a7bee50cbcb63f4587",
+  "working_tree_dirty": true,
+  "evaluator_sha256": "b1635d30e9ff4ccafa64e45c5f9141204f13371a62e7567f6284392a7089aa3b",
+  "embedding_model": "bge-m3:latest",
+  "embedding_dimensions": 1024,
+  "index_sources": [
+    {
+      "source": "almanac",
+      "collection": "pms-almanac-92f0f4034cde404c939662486c3ef3a8",
+      "model": "bge-m3:latest",
+      "documents": 44,
+      "chunks": 44,
+      "last_indexed_at": "2026-10-02T11:39:18.818733+00:00"
+    },
+    {
+      "source": "health",
+      "collection": "pms-health-6d809c29c9554ee9aa1e0e92df3bab8b",
+      "model": "bge-m3:latest",
+      "documents": 3,
+      "chunks": 6,
+      "last_indexed_at": "2026-10-02T10:10:09.024358+00:00"
+    },
+    {
+      "source": "vgarden",
+      "collection": "pms-vgarden-97793e3a9fec461887387cef7d861d4b",
+      "model": "bge-m3:latest",
+      "documents": 3,
+      "chunks": 8,
+      "last_indexed_at": "2026-10-02T10:10:09.474976+00:00"
+    }
+  ],
+  "dataset_sha256": "11a2b27fe8356278b99b1f38bbbfbdec29729b32616447d2353a9de646b5d0b9",
+  "labels_sha256": "ec0a30fa2ac7b2e3eb8fbbadcb666d9a407a05a1ead63bdd46c70539604e252e",
+  "thresholds": {
+    "RAG_MIN_COVERAGE": 0.34,
+    "RAG_MIN_SIMILARITY": 0.45
+  },
+  "summary": [
+    {
+      "mode": "lexical",
+      "source": "all",
+      "positive_queries": 30,
+      "negative_queries": 6,
+      "precision_at_5": 0.22000000000000003,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.9333333333333333,
+      "gated_recall_at_5": 1.0,
+      "negative_rejections": 6,
+      "scope_violations": 0
+    },
+    {
+      "mode": "lexical",
+      "source": "almanac",
+      "positive_queries": 18,
+      "negative_queries": 2,
+      "precision_at_5": 0.2222222222222222,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_recall_at_5": 1.0,
+      "negative_rejections": 2,
+      "scope_violations": 0
+    },
+    {
+      "mode": "lexical",
+      "source": "health",
+      "positive_queries": 6,
+      "negative_queries": 2,
+      "precision_at_5": 0.23333333333333336,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.9166666666666666,
+      "gated_recall_at_5": 1.0,
+      "negative_rejections": 2,
+      "scope_violations": 0
+    },
+    {
+      "mode": "lexical",
+      "source": "vgarden",
+      "positive_queries": 6,
+      "negative_queries": 2,
+      "precision_at_5": 0.20000000000000004,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.75,
+      "gated_recall_at_5": 1.0,
+      "negative_rejections": 2,
+      "scope_violations": 0
+    },
+    {
+      "mode": "chroma",
+      "source": "all",
+      "positive_queries": 30,
+      "negative_queries": 6,
+      "precision_at_5": 0.22000000000000003,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.9083333333333333,
+      "gated_recall_at_5": 1.0,
+      "negative_rejections": 6,
+      "scope_violations": 0
+    },
+    {
+      "mode": "chroma",
+      "source": "almanac",
+      "positive_queries": 18,
+      "negative_queries": 2,
+      "precision_at_5": 0.2222222222222222,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_recall_at_5": 1.0,
+      "negative_rejections": 2,
+      "scope_violations": 0
+    },
+    {
+      "mode": "chroma",
+      "source": "health",
+      "positive_queries": 6,
+      "negative_queries": 2,
+      "precision_at_5": 0.23333333333333336,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.8333333333333334,
+      "gated_recall_at_5": 1.0,
+      "negative_rejections": 2,
+      "scope_violations": 0
+    },
+    {
+      "mode": "chroma",
+      "source": "vgarden",
+      "positive_queries": 6,
+      "negative_queries": 2,
+      "precision_at_5": 0.20000000000000004,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.7083333333333334,
+      "gated_recall_at_5": 1.0,
+      "negative_rejections": 2,
+      "scope_violations": 0
+    }
+  ],
+  "results": [
+    {
+      "id": "almanac-01",
+      "question": "What planting months are recorded for parsley?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:parsley:record"
+      ],
+      "retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:strawberry:record",
+        "almanac:plant:zucchini:record",
+        "almanac:plant:lebanese-cucumber:record",
+        "almanac:plant:telegraph-improved-cucumber:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:strawberry:record",
+        "almanac:plant:zucchini:record",
+        "almanac:plant:lebanese-cucumber:record",
+        "almanac:plant:telegraph-improved-cucumber:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 5.18
+    },
+    {
+      "id": "almanac-01",
+      "question": "What planting months are recorded for parsley?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:parsley:record"
+      ],
+      "retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:carrot:record",
+        "almanac:plant:basil:record",
+        "almanac:plant:broccoli-purple-sprouting:record",
+        "almanac:plant:pea-greenfeast:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:carrot:record",
+        "almanac:plant:basil:record",
+        "almanac:plant:broccoli-purple-sprouting:record",
+        "almanac:plant:pea-greenfeast:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 2401.31
+    },
+    {
+      "id": "almanac-02",
+      "question": "How do I pick parsley while allowing its centre to regrow?",
+      "category": "paraphrase",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:parsley:record"
+      ],
+      "retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:sunflower-golden-prominence-f1:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:horseradish:record",
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:sunflower-golden-prominence-f1:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:horseradish:record",
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.48
+    },
+    {
+      "id": "almanac-02",
+      "question": "How do I pick parsley while allowing its centre to regrow?",
+      "category": "paraphrase",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:parsley:record"
+      ],
+      "retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:broccoli-purple-sprouting:record",
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:pea-greenfeast:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:broccoli-purple-sprouting:record",
+        "almanac:plant:pea-greenfeast:record",
+        "almanac:plant:bean-lazy-housewife:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 176.68
+    },
+    {
+      "id": "almanac-03",
+      "question": "When should okra be sown in Sydney?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:okra:record"
+      ],
+      "retrieved": [
+        "almanac:plant:okra:record",
+        "almanac:plant:carrot:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:carrot-solar-yellow:record",
+        "almanac:plant:vietnamese-mint:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:okra:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.25
+    },
+    {
+      "id": "almanac-03",
+      "question": "When should okra be sown in Sydney?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:okra:record"
+      ],
+      "retrieved": [
+        "almanac:plant:okra:record",
+        "almanac:plant:tomato-sweet-1000:record",
+        "almanac:plant:parsley:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:chocolate-mint:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:okra:record",
+        "almanac:plant:tomato-sweet-1000:record",
+        "almanac:plant:parsley:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:chocolate-mint:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 152.06
+    },
+    {
+      "id": "almanac-04",
+      "question": "Why should okra pods be picked before becoming fibrous?",
+      "category": "paraphrase",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:okra:record"
+      ],
+      "retrieved": [
+        "almanac:plant:okra:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:pea-greenfeast:record",
+        "almanac:plant:pea-oregon-dwarf:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:okra:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:pea-greenfeast:record",
+        "almanac:plant:pea-oregon-dwarf:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.98
+    },
+    {
+      "id": "almanac-04",
+      "question": "Why should okra pods be picked before becoming fibrous?",
+      "category": "paraphrase",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:okra:record"
+      ],
+      "retrieved": [
+        "almanac:plant:okra:record",
+        "almanac:plant:pea-oregon-dwarf:record",
+        "almanac:plant:horseradish:record",
+        "almanac:plant:pea-greenfeast:record",
+        "almanac:plant:broccoli-purple-sprouting:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:okra:record",
+        "almanac:plant:pea-greenfeast:record",
+        "almanac:plant:pea-oregon-dwarf:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 154.95
+    },
+    {
+      "id": "almanac-05",
+      "question": "What support does Lazy Housewife bean need?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:bean-lazy-housewife:record"
+      ],
+      "retrieved": [
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:alyssum:record",
+        "almanac:plant:pea-oregon-dwarf:record",
+        "almanac:plant:grass-jelly:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:alyssum:record",
+        "almanac:plant:pea-oregon-dwarf:record",
+        "almanac:plant:grass-jelly:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.09
+    },
+    {
+      "id": "almanac-05",
+      "question": "What support does Lazy Housewife bean need?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:bean-lazy-housewife:record"
+      ],
+      "retrieved": [
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:alyssum:record",
+        "almanac:plant:sweet-corn-terrific-f1:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:stepover-apples:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:alyssum:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 157.62
+    },
+    {
+      "id": "almanac-06",
+      "question": "What is recorded about Scarlet Runner roots regrowing?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:bean-scarlet-runner:record"
+      ],
+      "retrieved": [
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:horseradish:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:carrot-solar-yellow:record",
+        "almanac:plant:carrot-cosmic-purple:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:horseradish:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:carrot-solar-yellow:record",
+        "almanac:plant:carrot-cosmic-purple:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.74
+    },
+    {
+      "id": "almanac-06",
+      "question": "What is recorded about Scarlet Runner roots regrowing?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:bean-scarlet-runner:record"
+      ],
+      "retrieved": [
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:carrot:record",
+        "almanac:plant:broccoli-purple-sprouting:record",
+        "almanac:plant:grass-jelly:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:carrot:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 165.82
+    },
+    {
+      "id": "almanac-07",
+      "question": "How do I contain Chocolate Mint roots?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:chocolate-mint:record"
+      ],
+      "retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:horseradish:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:carrot-solar-yellow:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:horseradish:record",
+        "almanac:plant:vietnamese-mint:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.77
+    },
+    {
+      "id": "almanac-07",
+      "question": "How do I contain Chocolate Mint roots?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:chocolate-mint:record"
+      ],
+      "retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:carrot-cosmic-purple:record",
+        "almanac:plant:bean-scarlet-runner:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:carrot-cosmic-purple:record",
+        "almanac:plant:bean-scarlet-runner:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 148.39
+    },
+    {
+      "id": "almanac-08",
+      "question": "Can I propagate Chocolate Mint by division rather than seed?",
+      "category": "paraphrase",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:chocolate-mint:record"
+      ],
+      "retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:sweet-corn-terrific-f1:record",
+        "almanac:plant:alyssum:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:chocolate-mint:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.98
+    },
+    {
+      "id": "almanac-08",
+      "question": "Can I propagate Chocolate Mint by division rather than seed?",
+      "category": "paraphrase",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:chocolate-mint:record"
+      ],
+      "retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:sweet-corn-terrific-f1:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:sweet-corn-terrific-f1:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 159.39
+    },
+    {
+      "id": "almanac-09",
+      "question": "Does Vietnamese Mint need moist soil and dappled shade?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:vietnamese-mint:record"
+      ],
+      "retrieved": [
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:alyssum:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:parsley:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:alyssum:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:parsley:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 7.42
+    },
+    {
+      "id": "almanac-09",
+      "question": "Does Vietnamese Mint need moist soil and dappled shade?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:vietnamese-mint:record"
+      ],
+      "retrieved": [
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:lilly-of-the-valley:record",
+        "almanac:plant:carrot-nantes:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:lilly-of-the-valley:record",
+        "almanac:plant:carrot-nantes:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 162.11
+    },
+    {
+      "id": "almanac-10",
+      "question": "Is a measured yield for Sweet 1000 tomatoes verified?",
+      "category": "missing_field",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "retrieved": [
+        "almanac:plant:tomato-sweet-1000:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:sweet-corn-terrific-f1:record",
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:parsley:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.92
+    },
+    {
+      "id": "almanac-10",
+      "question": "Is a measured yield for Sweet 1000 tomatoes verified?",
+      "category": "missing_field",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "retrieved": [
+        "almanac:plant:tomato-sweet-1000:record",
+        "almanac:plant:sweet-corn-terrific-f1:record",
+        "almanac:plant:tomato-black-krim:record",
+        "almanac:plant:eggplant-tsakoniki:record",
+        "almanac:plant:sweet-potato:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:tomato-sweet-1000:record",
+        "almanac:plant:sweet-corn-terrific-f1:record",
+        "almanac:plant:sweet-potato:record",
+        "almanac:plant:tomato-black-krim:record",
+        "almanac:plant:eggplant-tsakoniki:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 147.3
+    },
+    {
+      "id": "almanac-11",
+      "question": "Compare recorded planting months for basil and zucchini.",
+      "category": "comparison",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:basil:record",
+        "almanac:plant:zucchini:record"
+      ],
+      "retrieved": [
+        "almanac:plant:zucchini:record",
+        "almanac:plant:tomato:record",
+        "almanac:plant:basil:record",
+        "almanac:plant:sweet-potato:record",
+        "almanac:plant:basil-genovese:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:zucchini:record",
+        "almanac:plant:tomato:record",
+        "almanac:plant:basil:record",
+        "almanac:plant:sweet-potato:record",
+        "almanac:plant:basil-genovese:record"
+      ],
+      "precision_at_5": 0.4,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.4,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.69
+    },
+    {
+      "id": "almanac-11",
+      "question": "Compare recorded planting months for basil and zucchini.",
+      "category": "comparison",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:basil:record",
+        "almanac:plant:zucchini:record"
+      ],
+      "retrieved": [
+        "almanac:plant:zucchini:record",
+        "almanac:plant:tomato:record",
+        "almanac:plant:basil:record",
+        "almanac:plant:basil-genovese:record",
+        "almanac:plant:broccoli-purple-sprouting:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:zucchini:record",
+        "almanac:plant:tomato:record",
+        "almanac:plant:basil:record",
+        "almanac:plant:basil-genovese:record",
+        "almanac:plant:broccoli-purple-sprouting:record"
+      ],
+      "precision_at_5": 0.4,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.4,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 154.1
+    },
+    {
+      "id": "almanac-12",
+      "question": "Compare the care of Vietnamese Mint and Chocolate Mint.",
+      "category": "comparison",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record"
+      ],
+      "retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:alyssum:record",
+        "almanac:plant:marigold-french-marigold:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:alyssum:record",
+        "almanac:plant:marigold-french-marigold:record"
+      ],
+      "precision_at_5": 0.4,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.4,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 5.67
+    },
+    {
+      "id": "almanac-12",
+      "question": "Compare the care of Vietnamese Mint and Chocolate Mint.",
+      "category": "comparison",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record"
+      ],
+      "retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:bergamot-lemon-mint:record",
+        "almanac:plant:carrot-nantes:record",
+        "almanac:plant:carrot-cosmic-purple:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:vietnamese-mint:record",
+        "almanac:plant:bergamot-lemon-mint:record"
+      ],
+      "precision_at_5": 0.4,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.4,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 156.55
+    },
+    {
+      "id": "almanac-13",
+      "question": "How should Black Krim tomatoes be supported?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:tomato-black-krim:record"
+      ],
+      "retrieved": [
+        "almanac:plant:tomato-black-krim:record",
+        "almanac:pest:1:record",
+        "almanac:plant:tomato-sweet-1000:record",
+        "almanac:plant:alyssum:record",
+        "almanac:plant:pea-oregon-dwarf:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:tomato-black-krim:record",
+        "almanac:pest:1:record",
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 7.53
+    },
+    {
+      "id": "almanac-13",
+      "question": "How should Black Krim tomatoes be supported?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:tomato-black-krim:record"
+      ],
+      "retrieved": [
+        "almanac:plant:tomato-black-krim:record",
+        "almanac:plant:tomato-sweet-1000:record",
+        "almanac:plant:tomato:record",
+        "almanac:plant:bunching-onion-winter-ishikura:record",
+        "almanac:plant:eggplant-tsakoniki:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:tomato-black-krim:record",
+        "almanac:plant:tomato-sweet-1000:record",
+        "almanac:plant:tomato:record",
+        "almanac:plant:bunching-onion-winter-ishikura:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 166.63
+    },
+    {
+      "id": "almanac-14",
+      "question": "What sowing months are recorded for parsely?",
+      "category": "typo",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:plant:parsley:record"
+      ],
+      "retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:okra:record",
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:okra:record",
+        "almanac:plant:tomato-sweet-1000:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 7.14
+    },
+    {
+      "id": "almanac-14",
+      "question": "What sowing months are recorded for parsely?",
+      "category": "typo",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:plant:parsley:record"
+      ],
+      "retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:broccoli-purple-sprouting:record",
+        "almanac:plant:pea-greenfeast:record",
+        "almanac:plant:tomato:record",
+        "almanac:plant:carrot:record"
+      ],
+      "gated_retrieved": [
+        "almanac:plant:parsley:record",
+        "almanac:plant:broccoli-purple-sprouting:record",
+        "almanac:plant:tomato:record",
+        "almanac:plant:carrot:record",
+        "almanac:plant:pea-greenfeast:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 175.47
+    },
+    {
+      "id": "almanac-15",
+      "question": "How does the powdery mildew guide recommend improving airflow?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:disease:1:record"
+      ],
+      "retrieved": [
+        "almanac:disease:1:record"
+      ],
+      "gated_retrieved": [
+        "almanac:disease:1:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.49
+    },
+    {
+      "id": "almanac-15",
+      "question": "How does the powdery mildew guide recommend improving airflow?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:disease:1:record"
+      ],
+      "retrieved": [
+        "almanac:disease:1:record",
+        "almanac:pest:1:record",
+        "almanac:plant:parsley:record",
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:pea-oregon-dwarf:record"
+      ],
+      "gated_retrieved": [
+        "almanac:disease:1:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 167.2
+    },
+    {
+      "id": "almanac-16",
+      "question": "Find the guide describing flour-like patches on leaves and stems.",
+      "category": "paraphrase",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:disease:1:record"
+      ],
+      "retrieved": [
+        "almanac:disease:1:record",
+        "almanac:pest:1:record",
+        "almanac:plant:parsley:record",
+        "almanac:pest:2:record",
+        "almanac:plant:vietnamese-mint:record"
+      ],
+      "gated_retrieved": [
+        "almanac:disease:1:record",
+        "almanac:pest:1:record",
+        "almanac:plant:parsley:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 6.51
+    },
+    {
+      "id": "almanac-16",
+      "question": "Find the guide describing flour-like patches on leaves and stems.",
+      "category": "paraphrase",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:disease:1:record"
+      ],
+      "retrieved": [
+        "almanac:disease:1:record",
+        "almanac:pest:1:record",
+        "almanac:pest:2:record",
+        "almanac:plant:parsley:record",
+        "almanac:plant:alyssum:record"
+      ],
+      "gated_retrieved": [
+        "almanac:disease:1:record",
+        "almanac:pest:1:record",
+        "almanac:plant:parsley:record",
+        "almanac:pest:2:record",
+        "almanac:plant:alyssum:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 162.79
+    },
+    {
+      "id": "almanac-17",
+      "question": "How does the aphid guide describe rinsing insects off stems?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:pest:1:record"
+      ],
+      "retrieved": [
+        "almanac:pest:1:record"
+      ],
+      "gated_retrieved": [
+        "almanac:pest:1:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 7.33
+    },
+    {
+      "id": "almanac-17",
+      "question": "How does the aphid guide describe rinsing insects off stems?",
+      "category": "lookup",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:pest:1:record"
+      ],
+      "retrieved": [
+        "almanac:pest:1:record",
+        "almanac:plant:hyssop:record",
+        "almanac:pest:2:record",
+        "almanac:plant:basil-genovese:record",
+        "almanac:plant:bergamot-lemon-mint:record"
+      ],
+      "gated_retrieved": [
+        "almanac:pest:1:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 162.24
+    },
+    {
+      "id": "almanac-18",
+      "question": "Is a management guide available for slugs and snails?",
+      "category": "missing_field",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "almanac:pest:2:record"
+      ],
+      "retrieved": [
+        "almanac:pest:2:record"
+      ],
+      "gated_retrieved": [
+        "almanac:pest:2:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 7.28
+    },
+    {
+      "id": "almanac-18",
+      "question": "Is a management guide available for slugs and snails?",
+      "category": "missing_field",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "almanac:pest:2:record"
+      ],
+      "retrieved": [
+        "almanac:pest:2:record",
+        "almanac:pest:1:record",
+        "almanac:plant:alyssum:record",
+        "almanac:plant:bean-lazy-housewife:record",
+        "almanac:plant:lettuce-buttercrunch:record"
+      ],
+      "gated_retrieved": [
+        "almanac:pest:2:record"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 157.07
+    },
+    {
+      "id": "health-01",
+      "question": "What leaf damage was recorded for monsterra?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "health:1:issues",
+        "health:1:summary"
+      ],
+      "retrieved": [
+        "health:1:summary",
+        "health:1:issues",
+        "health:1:recommendations",
+        "health:2:summary",
+        "health:3:summary"
+      ],
+      "gated_retrieved": [
+        "health:1:summary",
+        "health:1:issues",
+        "health:1:recommendations",
+        "health:2:summary"
+      ],
+      "precision_at_5": 0.4,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.4,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.46
+    },
+    {
+      "id": "health-01",
+      "question": "What leaf damage was recorded for monsterra?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "health:1:issues",
+        "health:1:summary"
+      ],
+      "retrieved": [
+        "health:1:issues",
+        "health:1:summary",
+        "health:1:recommendations",
+        "health:2:summary",
+        "health:3:summary"
+      ],
+      "gated_retrieved": [
+        "health:1:summary",
+        "health:1:issues",
+        "health:1:recommendations",
+        "health:2:summary"
+      ],
+      "precision_at_5": 0.4,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.4,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 154.05
+    },
+    {
+      "id": "health-02",
+      "question": "What pest inspection was recommended for monsterra?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "health:1:recommendations"
+      ],
+      "retrieved": [
+        "health:1:recommendations",
+        "health:1:issues",
+        "health:3:recommendations",
+        "health:1:summary"
+      ],
+      "gated_retrieved": [
+        "health:1:recommendations"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.57
+    },
+    {
+      "id": "health-02",
+      "question": "What pest inspection was recommended for monsterra?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "health:1:recommendations"
+      ],
+      "retrieved": [
+        "health:1:recommendations",
+        "health:1:issues",
+        "health:1:summary",
+        "health:2:summary",
+        "health:3:summary"
+      ],
+      "gated_retrieved": [
+        "health:1:recommendations",
+        "health:1:issues",
+        "health:1:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 161.52
+    },
+    {
+      "id": "health-03",
+      "question": "Which Rose assessment recorded a health score of 30?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "health:2:summary"
+      ],
+      "retrieved": [
+        "health:2:summary",
+        "health:1:summary",
+        "health:3:summary",
+        "health:3:recommendations",
+        "health:1:issues"
+      ],
+      "gated_retrieved": [
+        "health:2:summary",
+        "health:1:summary",
+        "health:3:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.52
+    },
+    {
+      "id": "health-03",
+      "question": "Which Rose assessment recorded a health score of 30?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "health:2:summary"
+      ],
+      "retrieved": [
+        "health:3:summary",
+        "health:2:summary",
+        "health:3:recommendations",
+        "health:1:summary",
+        "health:1:recommendations"
+      ],
+      "gated_retrieved": [
+        "health:2:summary",
+        "health:3:summary",
+        "health:1:summary",
+        "health:3:recommendations"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.5,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 161.2
+    },
+    {
+      "id": "health-04",
+      "question": "Which Rose assessment recorded a health score of 40?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "health:3:summary"
+      ],
+      "retrieved": [
+        "health:3:summary",
+        "health:2:summary",
+        "health:1:summary",
+        "health:3:recommendations",
+        "health:1:issues"
+      ],
+      "gated_retrieved": [
+        "health:3:summary",
+        "health:2:summary",
+        "health:1:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.56
+    },
+    {
+      "id": "health-04",
+      "question": "Which Rose assessment recorded a health score of 40?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "health:3:summary"
+      ],
+      "retrieved": [
+        "health:3:summary",
+        "health:2:summary",
+        "health:3:recommendations",
+        "health:1:summary",
+        "health:1:recommendations"
+      ],
+      "gated_retrieved": [
+        "health:3:summary",
+        "health:2:summary",
+        "health:1:summary",
+        "health:3:recommendations"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 158.31
+    },
+    {
+      "id": "health-05",
+      "question": "What light exposure was recommended for Rose?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "health:3:recommendations"
+      ],
+      "retrieved": [
+        "health:3:recommendations",
+        "health:2:summary",
+        "health:1:recommendations",
+        "health:3:summary"
+      ],
+      "gated_retrieved": [
+        "health:3:recommendations",
+        "health:2:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.47
+    },
+    {
+      "id": "health-05",
+      "question": "What light exposure was recommended for Rose?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "health:3:recommendations"
+      ],
+      "retrieved": [
+        "health:3:recommendations",
+        "health:2:summary",
+        "health:3:summary",
+        "health:1:recommendations",
+        "health:1:summary"
+      ],
+      "gated_retrieved": [
+        "health:3:recommendations",
+        "health:2:summary",
+        "health:3:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 160.97
+    },
+    {
+      "id": "health-06",
+      "question": "What information was missing in the low-confidence Rose assessment?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [
+        "health:2:summary"
+      ],
+      "retrieved": [
+        "health:1:summary",
+        "health:2:summary",
+        "health:3:summary",
+        "health:3:recommendations",
+        "health:1:recommendations"
+      ],
+      "gated_retrieved": [
+        "health:1:summary",
+        "health:2:summary",
+        "health:3:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.5,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.52
+    },
+    {
+      "id": "health-06",
+      "question": "What information was missing in the low-confidence Rose assessment?",
+      "category": "record_lookup",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [
+        "health:2:summary"
+      ],
+      "retrieved": [
+        "health:3:summary",
+        "health:2:summary",
+        "health:1:summary",
+        "health:3:recommendations",
+        "health:1:issues"
+      ],
+      "gated_retrieved": [
+        "health:1:summary",
+        "health:2:summary",
+        "health:3:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.5,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 169.3
+    },
+    {
+      "id": "vgarden-01",
+      "question": "How many plantings are recorded in this garden?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "1",
+      "mode": "lexical",
+      "relevant_ids": [
+        "vgarden:1:summary"
+      ],
+      "retrieved": [
+        "vgarden:1:summary"
+      ],
+      "gated_retrieved": [
+        "vgarden:1:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.22
+    },
+    {
+      "id": "vgarden-01",
+      "question": "How many plantings are recorded in this garden?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "1",
+      "mode": "chroma",
+      "relevant_ids": [
+        "vgarden:1:summary"
+      ],
+      "retrieved": [
+        "vgarden:1:summary"
+      ],
+      "gated_retrieved": [
+        "vgarden:1:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 161.83
+    },
+    {
+      "id": "vgarden-02",
+      "question": "What plants and quantities are recorded in this garden?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "2",
+      "mode": "lexical",
+      "relevant_ids": [
+        "vgarden:2:plantings"
+      ],
+      "retrieved": [
+        "vgarden:2:summary",
+        "vgarden:2:plantings",
+        "vgarden:2:areas"
+      ],
+      "gated_retrieved": [
+        "vgarden:2:summary",
+        "vgarden:2:plantings"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.5,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.22
+    },
+    {
+      "id": "vgarden-02",
+      "question": "What plants and quantities are recorded in this garden?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "2",
+      "mode": "chroma",
+      "relevant_ids": [
+        "vgarden:2:plantings"
+      ],
+      "retrieved": [
+        "vgarden:2:summary",
+        "vgarden:2:plantings",
+        "vgarden:2:areas"
+      ],
+      "gated_retrieved": [
+        "vgarden:2:summary",
+        "vgarden:2:plantings",
+        "vgarden:2:areas"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.5,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 164.6
+    },
+    {
+      "id": "vgarden-03",
+      "question": "What are the dimensions of the garden bed?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "2",
+      "mode": "lexical",
+      "relevant_ids": [
+        "vgarden:2:areas"
+      ],
+      "retrieved": [
+        "vgarden:2:areas",
+        "vgarden:2:summary",
+        "vgarden:2:plantings"
+      ],
+      "gated_retrieved": [
+        "vgarden:2:areas"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.29
+    },
+    {
+      "id": "vgarden-03",
+      "question": "What are the dimensions of the garden bed?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "2",
+      "mode": "chroma",
+      "relevant_ids": [
+        "vgarden:2:areas"
+      ],
+      "retrieved": [
+        "vgarden:2:areas",
+        "vgarden:2:summary",
+        "vgarden:2:plantings"
+      ],
+      "gated_retrieved": [
+        "vgarden:2:areas",
+        "vgarden:2:summary"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 163.36
+    },
+    {
+      "id": "vgarden-04",
+      "question": "What plants and quantities are recorded in this garden?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "lexical",
+      "relevant_ids": [
+        "vgarden:3:plantings"
+      ],
+      "retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:plantings",
+        "vgarden:3:areas",
+        "vgarden:3:containers"
+      ],
+      "gated_retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:plantings"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.5,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.26
+    },
+    {
+      "id": "vgarden-04",
+      "question": "What plants and quantities are recorded in this garden?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "chroma",
+      "relevant_ids": [
+        "vgarden:3:plantings"
+      ],
+      "retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:areas",
+        "vgarden:3:containers",
+        "vgarden:3:plantings"
+      ],
+      "gated_retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:plantings",
+        "vgarden:3:areas",
+        "vgarden:3:containers"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.25,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 160.94
+    },
+    {
+      "id": "vgarden-05",
+      "question": "What containers are recorded here?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "lexical",
+      "relevant_ids": [
+        "vgarden:3:containers"
+      ],
+      "retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:containers"
+      ],
+      "gated_retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:containers"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.5,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.29
+    },
+    {
+      "id": "vgarden-05",
+      "question": "What containers are recorded here?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "chroma",
+      "relevant_ids": [
+        "vgarden:3:containers"
+      ],
+      "retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:containers",
+        "vgarden:3:areas",
+        "vgarden:3:plantings"
+      ],
+      "gated_retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:containers"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 0.5,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 0.5
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 161.64
+    },
+    {
+      "id": "vgarden-06",
+      "question": "What are the dimensions of the raised bed?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "lexical",
+      "relevant_ids": [
+        "vgarden:3:areas"
+      ],
+      "retrieved": [
+        "vgarden:3:areas",
+        "vgarden:3:plantings"
+      ],
+      "gated_retrieved": [
+        "vgarden:3:areas"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 0.28
+    },
+    {
+      "id": "vgarden-06",
+      "question": "What are the dimensions of the raised bed?",
+      "category": "scoped_lookup",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "chroma",
+      "relevant_ids": [
+        "vgarden:3:areas"
+      ],
+      "retrieved": [
+        "vgarden:3:areas",
+        "vgarden:3:plantings",
+        "vgarden:3:summary",
+        "vgarden:3:containers"
+      ],
+      "gated_retrieved": [
+        "vgarden:3:areas"
+      ],
+      "precision_at_5": 0.2,
+      "recall_at_5": 1.0,
+      "reciprocal_rank": 1.0,
+      "gated_metrics": {
+        "precision_at_5": 0.2,
+        "recall_at_5": 1.0,
+        "reciprocal_rank": 1.0
+      },
+      "negative_rejected": null,
+      "scope_ok": true,
+      "latency_ms": 156.57
+    },
+    {
+      "id": "almanac-19",
+      "question": "Who won the 1986 FIFA World Cup?",
+      "category": "off_topic",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [],
+      "retrieved": [],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 7.09
+    },
+    {
+      "id": "almanac-19",
+      "question": "Who won the 1986 FIFA World Cup?",
+      "category": "off_topic",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [],
+      "retrieved": [
+        "almanac:plant:grass-jelly:record",
+        "almanac:plant:chocolate-mint:record",
+        "almanac:plant:bean-scarlet-runner:record",
+        "almanac:plant:okra:record",
+        "almanac:plant:sunflower-golden-prominence-f1:record"
+      ],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 161.7
+    },
+    {
+      "id": "almanac-20",
+      "question": "How do I replace a car alternator?",
+      "category": "off_topic",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [],
+      "retrieved": [],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 7.05
+    },
+    {
+      "id": "almanac-20",
+      "question": "How do I replace a car alternator?",
+      "category": "off_topic",
+      "sources": [
+        "almanac"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [],
+      "retrieved": [
+        "almanac:plant:carrot:record",
+        "almanac:plant:carrot-nantes:record",
+        "almanac:plant:carrot-cosmic-purple:record",
+        "almanac:plant:bunching-onion-winter-ishikura:record",
+        "almanac:plant:carrot-solar-yellow:record"
+      ],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 165.99
+    },
+    {
+      "id": "health-07",
+      "question": "Who won the 1986 FIFA World Cup?",
+      "category": "off_topic",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [],
+      "retrieved": [],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 0.44
+    },
+    {
+      "id": "health-07",
+      "question": "Who won the 1986 FIFA World Cup?",
+      "category": "off_topic",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [],
+      "retrieved": [
+        "health:3:summary",
+        "health:1:summary",
+        "health:2:summary",
+        "health:3:recommendations",
+        "health:1:recommendations"
+      ],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 164.38
+    },
+    {
+      "id": "health-08",
+      "question": "How do I replace a car alternator?",
+      "category": "off_topic",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "lexical",
+      "relevant_ids": [],
+      "retrieved": [],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 0.49
+    },
+    {
+      "id": "health-08",
+      "question": "How do I replace a car alternator?",
+      "category": "off_topic",
+      "sources": [
+        "health"
+      ],
+      "source_id": null,
+      "mode": "chroma",
+      "relevant_ids": [],
+      "retrieved": [
+        "health:1:recommendations",
+        "health:3:recommendations",
+        "health:2:summary",
+        "health:1:summary",
+        "health:3:summary"
+      ],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 166.66
+    },
+    {
+      "id": "vgarden-07",
+      "question": "Who won the 1986 FIFA World Cup?",
+      "category": "off_topic",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "lexical",
+      "relevant_ids": [],
+      "retrieved": [],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 0.19
+    },
+    {
+      "id": "vgarden-07",
+      "question": "Who won the 1986 FIFA World Cup?",
+      "category": "off_topic",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "chroma",
+      "relevant_ids": [],
+      "retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:containers",
+        "vgarden:3:areas",
+        "vgarden:3:plantings"
+      ],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 166.04
+    },
+    {
+      "id": "vgarden-08",
+      "question": "How do I replace a car alternator?",
+      "category": "off_topic",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "lexical",
+      "relevant_ids": [],
+      "retrieved": [],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 0.2
+    },
+    {
+      "id": "vgarden-08",
+      "question": "How do I replace a car alternator?",
+      "category": "off_topic",
+      "sources": [
+        "vgarden"
+      ],
+      "source_id": "3",
+      "mode": "chroma",
+      "relevant_ids": [],
+      "retrieved": [
+        "vgarden:3:summary",
+        "vgarden:3:plantings",
+        "vgarden:3:containers",
+        "vgarden:3:areas"
+      ],
+      "gated_retrieved": [],
+      "precision_at_5": null,
+      "recall_at_5": null,
+      "reciprocal_rank": null,
+      "gated_metrics": {
+        "precision_at_5": null,
+        "recall_at_5": null,
+        "reciprocal_rank": null
+      },
+      "negative_rejected": true,
+      "scope_ok": true,
+      "latency_ms": 163.58
+    }
+  ]
+}

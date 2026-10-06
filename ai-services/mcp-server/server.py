@@ -27,7 +27,7 @@ from starlette.requests import Request  # noqa: E402
 from starlette.responses import JSONResponse  # noqa: E402
 
 from settings import Settings  # noqa: E402
-from tools import almanac, health, vgarden  # noqa: E402
+from tools import almanac, health, vgarden, rag  # noqa: E402
 
 SERVER_NAME = "Plant Management System"
 VERSION = "0.1.0"
@@ -50,6 +50,7 @@ def create_server(settings: Settings | None = None, *, transport=None) -> MCPSer
     health.register(server, settings, transport=transport)
     almanac.register(server, settings, transport=transport)
     vgarden.register(server, settings, transport=transport)
+    rag.register(server, settings, transport=transport)
 
     @server.resource("pms://about", mime_type="text/plain")
     def about() -> str:

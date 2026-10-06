@@ -23,6 +23,7 @@ from server import create_server
 from settings import Settings
 
 EXPECTED_TOOLS = {
+    "retrieve_context", "answer_question", "refresh_corpus",
     # Plant Health
     "health_service_status",
     "list_health_assessments",
@@ -56,7 +57,7 @@ def test_every_tool_is_discoverable_with_schemas_and_annotations():
                 assert tool.annotations is not None, tool.name
                 assert tool.annotations.destructive_hint is False, tool.name
             creating = {t.name for t in tools if not t.annotations.read_only_hint}
-            assert creating == {"assess_plant_health"}
+            assert creating == {"assess_plant_health", "refresh_corpus"}
 
             resources = (await client.list_resources()).resources
             assert [str(r.uri) for r in resources] == ["pms://about"]

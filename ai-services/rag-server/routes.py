@@ -127,6 +127,8 @@ def ingest(source: str):
         result = module.ingest(current_app.config, _store())
     except SourceNotImplemented as exc:
         return _error(str(exc), 501, extra={"source": source, "tracking": exc.tracking})
+    except ValueError as exc:
+        return _error(str(exc), 503, extra={"source": source})
     except SourceUnavailable as exc:
         return _error(str(exc), 502, extra={"source": source})
     return jsonify(result)
@@ -205,3 +207,30 @@ def _read_query() -> tuple[str, tuple[str, ...], int, str | None]:
             raise ValueError("'source_id' must be non-empty text, at most 120 characters.")
 
     return question, chosen, top_k, source_id or None
+
+
+@bp.route('/rag/retrieve', methods=['POST'])
+def retrieve_context():
+    """Return relevant passages without asking the answer model to generate text."""
+    from embeddings import build_embedder, EmbeddingUnavailable
+    from retrieval import retrieve
+    try:
+        question, chosen, top_k, source_id = _read_query()
+    except ValueError as exc:
+        return _error(str(exc), 400)
+    store = _store()
+    chunks = store.chunks(chosen, source_id=source_id)
+    vector = None
+    if hasattr(store, 'vector_chunks') and chunks:
+        try:
+            vector = build_embedder(current_app.config).embed([question])[0]
+            chunks = store.vector_chunks(vector, chosen, source_id=source_id, top_k=top_k)
+        except EmbeddingUnavailable:
+            return _error('Embedding service unavailable; no vector retrieval performed.', 503)
+    result = retrieve(question, chunks, top_k=top_k,
+        min_coverage=current_app.config['RAG_MIN_COVERAGE'],
+        min_similarity=current_app.config['RAG_MIN_SIMILARITY'], query_embedding=vector)
+    return jsonify({'mode': 'chroma' if hasattr(store, 'vector_chunks') else result.mode,
+        'passages': [{'chunk_id': c.chunk.chunk_id, 'text': c.chunk.text,
+        'title': c.chunk.title, 'url': c.chunk.url, 'source': c.chunk.source,
+        'score': c.score} for c in result.candidates]})

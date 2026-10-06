@@ -221,6 +221,11 @@ def answer(
             logger.warning("dense retrieval unavailable, using lexical only: %s", exc)
             note = "Embedding model unavailable; retrieval was lexical only."
 
+    if hasattr(store, "vector_chunks"):
+        if query_embedding is None and chunks:
+            raise ModelUnavailable("Embedding service unavailable; Chroma retrieval could not run.")
+        chunks = store.vector_chunks(query_embedding, sources, source_id=source_id, top_k=top_k) if chunks else []
+
     result = retrieve(
         question,
         chunks,
@@ -230,7 +235,7 @@ def answer(
         query_embedding=query_embedding,
     )
     retrieval = {
-        "mode": result.mode,
+        "mode": "chroma" if hasattr(store, "vector_chunks") else result.mode,
         "candidates": len(result.candidates),
         "considered": result.considered,
         "top_k": top_k,

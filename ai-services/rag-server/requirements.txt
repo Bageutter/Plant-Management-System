@@ -1,2 +1,4 @@
 Flask
 requests
+
+chromadb==1.5.5
