@@ -112,7 +112,7 @@ class HealthHistorySummary(BaseModel):
 
 
 class AlmanacReference(BaseModel):
-    kind: Literal["plant", "pest", "disease"]
+    kind: Literal["plant", "pest", "disease", "ailment"]
     id: int
     key: str
     name: str

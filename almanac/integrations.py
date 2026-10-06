@@ -62,7 +62,7 @@ def mcp():
         tool = data.get("tool", "search_almanac_catalogue")
         if tool == "search_almanac_catalogue":
             kind = data.get("kind", "all")
-            if kind not in ("all", "plant", "pest", "disease"):
+            if kind not in ("all", "plant", "pest", "disease", "ailment"):
                 raise ValueError("Choose plants, pests, diseases, or all references.")
             raw_limit = data.get("limit", 20)
             if isinstance(raw_limit, bool) or not str(raw_limit).isdigit():
@@ -146,7 +146,7 @@ def chat_reference_result(question, mode):
         if result.get("is_error"):
             raise ValueError("The reference lookup could not be completed. Try again.")
         count = (result.get("structured_content") or {}).get("total", 0)
-        return f"Found {count} matching references." if count else "No matching references found. Try a plant, pest or disease name.", result
+        return f"Found {count} matching references." if count else "No matching references found. Try a plant or ailment name.", result
     result = _rag_request("/rag/query", {"question": question, "sources": ["almanac"]})
     if result.get("error"):
         raise ValueError("The reference service could not answer. Please try again.")

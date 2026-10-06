@@ -7,6 +7,7 @@ from urllib import request
 
 from extensions import db
 from models import (
+    Ailment,
     Disease,
     Pest,
     PlantCompanion,
@@ -68,6 +69,15 @@ def import_snapshot(
     if not isinstance(tables, dict) or not isinstance(tables.get("plant_references"), list):
         raise ValueError("My Garden snapshot is missing catalogue tables.")
 
+    for row in tables.get("ailments", []):
+        if type(row.get("id")) is not int or row.get("category") not in {"pest", "disease", "environment", "nutrient", "symptom"}:
+            raise ValueError("Invalid ailment identity or category")
+        existing = db.session.get(Ailment, row["id"])
+        if existing is None:
+            db.session.add(Ailment(id=row["id"], name=row["name"], category=row["category"],
+                                   description=row.get("description"), payload=row))
+        # Existing nonempty public/local values remain untouched by add-missing import.
+
     rotation_groups = _named_records(
         tables.get("rotation_groups", []), RotationGroup,
         ("feeder_weight", "is_rotation_exempt"),
@@ -95,6 +105,8 @@ def import_snapshot(
             for field in PLANT_FIELDS:
                 if getattr(existing, field) in (None, ""):
                     value = row.get(field)
+                    if value is None or value == "":
+                        continue
                     if field == "soil_ph_min" and existing.soil_ph_max is not None:
                         if value is not None and value > existing.soil_ph_max:
                             continue

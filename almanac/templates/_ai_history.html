@@ -31,7 +31,7 @@
         <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.6rem;" aria-label="Answer sources">
           {% for citation in result.citations %}
           {% set slug = citation.url.split('?')[0].rstrip('/').split('/')[-1] %}
-          {% if slug in sources %}{{ plant_card(sources[slug]) }}{% elif '/diseases/' in citation.url or '/pests/' in citation.url %}{{ problem_card(citation.title.split(' — ')[0], 'disease' if '/diseases/' in citation.url else 'pest', citation.url) }}{% else %}<a class="tag" href="{{ citation.url }}">{{ citation.title }}</a>{% endif %}
+          {% if slug in sources %}{{ plant_card(sources[slug]) }}{% elif '/diseases/' in citation.url or '/pests/' in citation.url or '/ailments/' in citation.url %}{{ problem_card(citation.title.split(' — ')[0], 'disease' if '/diseases/' in citation.url else ('ailment' if '/ailments/' in citation.url else 'pest'), citation.url) }}{% else %}<a class="tag" href="{{ citation.url }}">{{ citation.title }}</a>{% endif %}
           {% endfor %}
         </div>
         {% endif %}

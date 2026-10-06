@@ -43,7 +43,7 @@ from public_seed import fetch_snapshot, import_snapshot
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
 from plant_groups import catalogue_view
 from growing_details import parse_details, apply_details
-from models import Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
+from models import Ailment, Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 from catalogue_api import catalogue_api
 from integrations import integrations, chat_reference_result
@@ -426,7 +426,11 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.context_processor
     def inject_service_urls():
+        owner_key = _chat_owner_key()
+        messages, sources = _chat_context(owner_key) if owner_key else ([], {})
         return {
+            "messages": messages,
+            "sources": sources,
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
             "health_public_url": app.config["HEALTH_PUBLIC_URL"],
             "auth_user": _current_auth_user(),
@@ -443,13 +447,9 @@ def create_app(test_config: dict | None = None) -> Flask:
     def index():
         plants = PlantReference.query.order_by(PlantReference.common_name).all()
         plants = [_plant_payload(p) for p in plants]
-        owner_key = _chat_owner_key()
-        messages, sources = _chat_context(owner_key) if owner_key else ([], {})
         return render_template(
             "index.html",
             plants=plants,
-            messages=messages,
-            sources=sources,
             **catalogue_view(plants, request.args),
             pest_count=Pest.query.count(),
             disease_count=Disease.query.count(),
@@ -470,6 +470,36 @@ def create_app(test_config: dict | None = None) -> Flask:
             .order_by(PlantReference.common_name)
             .all(),
         )
+
+    @app.get("/ailments")
+    def ailment_index():
+        records = Ailment.query.order_by(Ailment.name).all()
+        return render_template("ailment_index.html", records=records)
+
+    @app.get("/ailments/<int:ailment_id>/photo")
+    def ailment_photo(ailment_id):
+        record = db.get_or_404(Ailment, ailment_id)
+        image = record.payload.get("image") or {}
+        filename = image.get("filename", "")
+        if not filename or os.path.basename(filename) != filename:
+            abort(404)
+        folder = os.path.join(app.instance_path, "reference_images")
+        if os.path.isfile(os.path.join(folder, filename)):
+            return send_from_directory(folder, filename)
+        remote = image.get("image_url", "")
+        if not remote.startswith("https://raw.githubusercontent.com/0melette/my_garden/"):
+            abort(404)
+        return redirect(remote)
+
+    @app.get("/ailments/<int:ailment_id>")
+    def ailment_detail(ailment_id):
+        record = db.get_or_404(Ailment, ailment_id)
+        causes = []
+        for path in record.payload.get("possible_causes", []):
+            cause = Ailment.query.filter_by(name=path.rsplit("/", 1)[-1]).first()
+            if cause:
+                causes.append(cause)
+        return render_template("ailment_detail.html", record=record, causes=causes)
 
     @app.get("/pests")
     def pest_index():
