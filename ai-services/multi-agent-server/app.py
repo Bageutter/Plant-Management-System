@@ -2,6 +2,8 @@ from uuid import uuid4
 
 from flask import Flask, jsonify, request
 
+from store import save_workflow
+
 app = Flask(__name__)
 
 
@@ -22,9 +24,13 @@ def create_workflow():
     if not isinstance(task, str) or not task.strip():
         return jsonify({"error": "task must be non-empty text"}), 400
 
+    workflow_id = str(uuid4())
+    task = task.strip()
+    save_workflow(workflow_id, task)
+
     return jsonify({
-        "workflow_id": str(uuid4()),
-        "task": task.strip(),
+        "workflow_id": workflow_id,
+        "task": task,
         "status": "received",
     }), 201
 
