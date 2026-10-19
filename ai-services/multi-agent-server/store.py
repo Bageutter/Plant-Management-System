@@ -30,3 +30,21 @@ def save_workflow(workflow_id, task):
         connection.commit()
     finally:
         connection.close()
+
+
+def get_workflow(workflow_id):
+    connection = get_connection()
+    try:
+        row = connection.execute(
+            "SELECT id, task, status FROM workflows WHERE id = ?",
+            (workflow_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "workflow_id": row["id"],
+            "task": row["task"],
+            "status": row["status"],
+        }
+    finally:
+        connection.close()

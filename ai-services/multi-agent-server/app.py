@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from flask import Flask, jsonify, request
 
-from store import save_workflow
+from store import get_workflow, save_workflow
 
 app = Flask(__name__)
 
@@ -33,6 +33,19 @@ def create_workflow():
         "task": task,
         "status": "received",
     }), 201
+
+
+@app.get("/workflow/status")
+def workflow_status():
+    workflow_id = request.args.get("id", "").strip()
+    if not workflow_id:
+        return jsonify({"error": "id is required"}), 400
+
+    workflow = get_workflow(workflow_id)
+    if workflow is None:
+        return jsonify({"error": "Workflow not found"}), 404
+
+    return jsonify(workflow)
 
 
 if __name__ == "__main__":
