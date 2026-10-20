@@ -1,4 +1,4 @@
-name: Student 1 — Plant Almanac (Amy)
+name: Plant Almanac (Amy)
 
 on:
   push:
@@ -8,14 +8,14 @@ on:
       - "shared/**"
       - "tools/ai-loop/**"
       - "pyproject.toml"
-      - ".github/workflows/student-1.yml"
+      - ".github/workflows/plant_almanac.yml"
   pull_request:
     paths:
       - "almanac/**"
       - "shared/**"
       - "tools/ai-loop/**"
       - "pyproject.toml"
-      - ".github/workflows/student-1.yml"
+      - ".github/workflows/plant_almanac.yml"
   workflow_dispatch:
 
 env:
@@ -84,10 +84,9 @@ jobs:
           from pathlib import Path
           evidence = {
               "workflow": os.environ["GITHUB_WORKFLOW"],
-              "student": "student-1",
               "owner": "Amy Zhou",
               "service": "almanac",
-              "workflow_file": ".github/workflows/student-1.yml",
+              "workflow_file": ".github/workflows/plant_almanac.yml",
               "event": os.environ["GITHUB_EVENT_NAME"],
               "source_sha": os.environ["SOURCE_SHA"],
               "tested_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
@@ -127,7 +126,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: student-1-almanac-test-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          name: almanac-test-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/almanac-results/
           if-no-files-found: warn
           retention-days: 30
