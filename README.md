@@ -10,7 +10,7 @@ The project is built around a **microservice architecture**, with the **Virtual 
 
 branch → PR → review → merge.
 
-service workflows cover contributor-owned areas. Amy's `plant_almanac.yml` runs
+service workflows cover contributor-owned areas. Amy's `student-1.yml` runs
 Ruff, Almanac tests, and an Almanac Docker build for relevant changes on `amy/**`.
 
 shared CI:

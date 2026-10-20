@@ -6,7 +6,7 @@
 | --- | --- |
 | `ruff.yml` | python lint gate — runs on **every PR and push** to `main` |
 | `integration-ci.yml` | integration CI — builds, smoke-checks, and tears down the stack |
-| `plant_almanac.yml` | Amy's Almanac CI — Ruff, compile check, two named endpoint tests, remaining pytest suite, retained test evidence, and Docker build; runs for matching `main`/`amy/**` pushes, PRs and manual runs |
+| `student-1.yml` | Amy's Almanac CI — Ruff, compile check, two named endpoint tests, remaining pytest suite, retained test evidence, and Docker build; runs for matching `main`/`amy/**` pushes, PRs and manual runs |
 | `vgarden.yml` | virtual garden service CI — triggers on `yunz/**` branches and `vgarden/` path changes |
 | `health.yml` | health monitoring service CI — triggers on `bageutter/**` branches and `health/` path changes |
 
@@ -37,7 +37,7 @@ all three gates need to be green before you merge:
 
 ## Amy's post-commit endpoint evidence
 
-`plant_almanac.yml` tests two assigned backend functions using Flask's test client:
+`student-1.yml` tests two assigned backend functions using Flask's test client:
 
 | Backend function | Route | Existing test |
 | --- | --- | --- |
@@ -54,3 +54,19 @@ The Tests job uploads `endpoints.xml`, `endpoints.log`, `regressions.xml`,
 files exist. `run.json` identifies the source SHA, tested SHA and Actions URL.
 Copy the successful run URL, commit SHA and relevant results into the group report
 before artifacts expire. A local pass is not proof that GitHub Actions passed.
+
+## Release 2 student workflow mapping
+
+This repository uses the following team mapping for the rubric's `student-x.yml`:
+
+| Student | Feature | Workflow | Status |
+| --- | --- | --- | --- |
+| 1 — Amy Zhou | Plant Almanac | `student-1.yml` | Implemented in PR #72 |
+| 2 — Guhan Sundar | Plant Health | `student-2.yml` | Follow-up #73; currently `health.yml` |
+| 3 — Yunus Sayed | Virtual Garden | `student-3.yml` | Follow-up #74; currently `vgarden.yml` |
+
+Each student's report contribution must identify their two backend functions,
+meaningful tests, successful **push** run, commit SHA and saved test evidence.
+Amy's passing run does not establish completion for the other students.
+Docker builds in `student-1.yml` depend on successful lint and endpoint/regression
+validation. Deployment and agentic-loop Testing Report Review are separate work.
