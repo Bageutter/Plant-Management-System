@@ -48,7 +48,8 @@ def create_app(config_class: type = Config) -> Flask:
     from garden_ai import bp as garden_ai_bp
     from garden_areas import bp as garden_areas_bp
     from garden_integrations import bp as garden_integrations_bp
-    from integrations import McpToolClient, RagClient
+    from garden_workflows import bp as garden_workflows_bp
+    from integrations import McpToolClient, MultiAgentClient, RagClient
     from plantings import bp as plantings_bp
     from routes import bp as gardens_bp
     from weather import OpenMeteoClient
@@ -59,6 +60,7 @@ def create_app(config_class: type = Config) -> Flask:
     app.register_blueprint(plantings_bp)
     app.register_blueprint(garden_ai_bp)
     app.register_blueprint(garden_integrations_bp)
+    app.register_blueprint(garden_workflows_bp)
 
     app.extensions["garden_ai"] = OllamaGardenAI(
         base_url=app.config.get("OLLAMA_URL", "http://localhost:11434"),
@@ -78,6 +80,12 @@ def create_app(config_class: type = Config) -> Flask:
         app.config["RAG_SERVER_URL"],
         enabled=app.config["RAG_ENABLED"],
         timeout=app.config["INTEGRATION_TIMEOUT"],
+    )
+    # Release 2: the shared local Multi-Agent Server, also reached only via this backend.
+    app.extensions["multi_agent"] = MultiAgentClient(
+        app.config["MULTI_AGENT_URL"],
+        enabled=app.config["MULTI_AGENT_ENABLED"],
+        timeout=app.config["MULTI_AGENT_TIMEOUT"],
     )
 
     # Reviewer for the Plan -> Act -> Observe -> Adapt loop. None (single-shot)
@@ -113,6 +121,7 @@ def create_app(config_class: type = Config) -> Flask:
             ),
             "mcp_enabled": app.extensions["mcp"].enabled,
             "rag_enabled": app.extensions["rag"].enabled,
+            "multi_agent_enabled": app.extensions["multi_agent"].enabled,
             "mcp_tools": TOOL_LABELS,
         }
 
@@ -127,4 +136,5 @@ def create_app(config_class: type = Config) -> Flask:
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # 0.0.0.0 inside the container only; compose exposes 5000 to the proxy, not the host.
+    app.run(host="0.0.0.0", port=5000, debug=True)  # noqa: S104

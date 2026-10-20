@@ -19,17 +19,35 @@ flowchart TD
     Human -->|Reject| Stop[Stop workflow]
 ```
 
-1. `POST /workflow` — save a task.
+1. `POST /workflow` — save a task. Optional `source` (`almanac` default, or `vgarden`)
+   and `evidence` (`{"mode": ..., "passages": [{chunk_id, title, text}, ...]}`, 1–10).
 2. `POST /workflow/run` — send `workflow_id` to run the agents; wait for the response.
 3. `GET /workflow/status?id=...` — read the answer, AI review and history.
 4. `POST /workflow/review` — send `workflow_id`, `reviewer_id`, `decision` and `feedback`.
 
 Decisions: `accept`, `partially_accept`, `request_changes`, `reject`.
+
+### Feature sources
+
+- **`almanac`** — public plant references. The Worker retrieves evidence itself through
+  the MCP `retrieve_context` tool.
+- **`vgarden`** — private, per-owner garden data. This server never reads it: the Virtual
+  Garden backend sends the one garden's records it has already authorised as `evidence`
+  (read through MCP `get_garden_snapshot` when MCP is on). A `vgarden` task without
+  evidence is rejected. The Planner and Worker get a garden-specific framing; the shared
+  grounding rules and the Reviewer are unchanged.
+
+Virtual Garden flow: garden page (HTMX) → `vgarden/garden_workflows.py` → `POST /workflow`
+→ `POST /workflow/run` (background thread; the page polls `GET /workflow/status`) →
+Planner → Worker → Reviewer → owner's Accept / Partially accept / Request changes / Reject
+→ `POST /workflow/review` (requested changes start a revised run). Reviewer id is
+`vgarden-user-<id>`. Disable with `MULTI_AGENT_ENABLED=false` (CI and cloud baseline).
 Partial acceptance needs feedback describing what is approved and what remains
 unresolved. It closes the review as `partially_accepted`; it does not rerun agents.
 Requested changes need feedback;
 run again to revise. Accepting despite AI issues also needs a reason.
-Human review currently uses these API calls; there is no review screen yet.
+Human review uses these API calls. Virtual Garden has a review screen on each garden
+page (see below); other features call the API directly.
 
 Tests (from this folder):
 

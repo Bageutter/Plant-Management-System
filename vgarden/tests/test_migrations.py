@@ -23,7 +23,7 @@ def test_fresh_database_is_at_head_and_matches_the_models(app):
     with app.app_context():
         config = app.extensions["migrate"].migrate.get_config()
     head = ScriptDirectory.from_config(config).get_current_head()
-    assert _revision(app) == head == "0001"
+    assert _revision(app) == head == "0002"
     with app.app_context(), db.engine.connect() as connection:
         context = MigrationContext.configure(connection, opts={"compare_type": True})
         assert compare_metadata(context, db.metadata) == []
@@ -42,7 +42,7 @@ def test_create_all_era_database_is_adopted_with_its_rows(tmp_path):
 
     older = [
         t for name, t in db.metadata.tables.items()
-        if name not in ("garden_chat_messages", "garden_ai_loop_runs")
+        if name not in ("garden_chat_messages", "garden_ai_loop_runs", "garden_workflows")
     ]
     db.metadata.create_all(engine, tables=older)
     with engine.begin() as connection:
@@ -67,7 +67,7 @@ def test_create_all_era_database_is_adopted_with_its_rows(tmp_path):
 
     app = app_module.create_app(Config)
 
-    assert _revision(app) == "0001"
+    assert _revision(app) == "0002"
     with app.app_context():
         from models import Garden
 
@@ -97,4 +97,4 @@ def test_auto_migrate_off_leaves_the_schema_to_the_cli(tmp_path):
         assert inspect(db.engine).get_table_names() == []
     result = app.test_cli_runner().invoke(args=["db", "upgrade"])
     assert result.exit_code == 0, result.output
-    assert _revision(app) == "0001"
+    assert _revision(app) == "0002"

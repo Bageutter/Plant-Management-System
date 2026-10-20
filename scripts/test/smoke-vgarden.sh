@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Smoke-check the Virtual Garden service through the nginx proxy.
 #
-# Used by .github/workflows/vgarden.yml (with MCP_ENABLED=false RAG_ENABLED=false,
-# as Release 1 requires during CI) and runnable locally against a running stack:
+# Used by .github/workflows/vgarden.yml (with MCP_ENABLED=false RAG_ENABLED=false
+# MULTI_AGENT_ENABLED=false, as CI requires) and runnable locally against a running stack:
 #
-#   MCP_ENABLED=false RAG_ENABLED=false docker compose up -d --build
+#   MCP_ENABLED=false RAG_ENABLED=false MULTI_AGENT_ENABLED=false docker compose up -d --build
 #   bash scripts/test/smoke-vgarden.sh http://127.0.0.1:3000
 #
 # It proves: the service answers, the MCP/RAG integration is *wired* and reports
@@ -19,19 +19,22 @@ retry=(--retry 20 --retry-delay 3 --retry-all-errors --silent --show-error)
 as_bool() { case "${1,,}" in 1|true|yes|on) echo true ;; *) echo false ;; esac; }
 want_mcp=$(as_bool "${MCP_ENABLED:-true}")
 want_rag=$(as_bool "${RAG_ENABLED:-true}")
+want_agents=$(as_bool "${MULTI_AGENT_ENABLED:-true}")
 
 echo "==> $vgarden/healthz"
 curl "${retry[@]}" --fail "$vgarden/healthz" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["service"]=="vgarden", d'
 
-echo "==> integrations wired with mcp=$want_mcp rag=$want_rag (service-level, no login needed)"
+echo "==> integrations wired with mcp=$want_mcp rag=$want_rag multi_agent=$want_agents (service-level, no login needed)"
 curl "${retry[@]}" --fail "$vgarden/integrations" > /tmp/vgarden-integrations.json
-WANT_MCP="$want_mcp" WANT_RAG="$want_rag" python3 - <<'EOF'
+WANT_MCP="$want_mcp" WANT_RAG="$want_rag" WANT_AGENTS="$want_agents" python3 - <<'EOF'
 import json, os
 d = json.load(open("/tmp/vgarden-integrations.json"))
 want_mcp = os.environ["WANT_MCP"] == "true"
 want_rag = os.environ["WANT_RAG"] == "true"
+want_agents = os.environ["WANT_AGENTS"] == "true"
 assert d["mcp"]["enabled"] is want_mcp, d
 assert d["rag"]["enabled"] is want_rag, d
+assert d["multi_agent"]["enabled"] is want_agents, d
 assert d["mcp"]["url"].endswith("/mcp"), d
 print("    ", json.dumps(d))
 EOF

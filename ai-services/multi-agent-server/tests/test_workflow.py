@@ -84,6 +84,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(self.decide("request_changes", "Compare water needs").status_code, 200)
         response = self.run_flow()
         self.assertIn("Compare water needs", self.planner.call_args.args[0])
+        self.assertEqual(self.worker.call_args.kwargs["feedback"], "Compare water needs")
         self.assertNotIn("human_review", response.json)
         self.assertTrue(any(e["status"] == "changes_requested" for e in response.json["history"]))
         self.assertEqual(self.decide("reject").json["status"], "rejected")

@@ -53,6 +53,14 @@ class Config:
     # Per-call timeout for the shared servers (a RAG answer includes a model call).
     INTEGRATION_TIMEOUT = int(os.environ.get("INTEGRATION_TIMEOUT", "180"))
 
+    # Release 2: shared local Multi-Agent Server (Planner -> Worker -> Reviewer ->
+    # Human Review). Runs on the host like MCP/RAG; CI and the cloud baseline set
+    # MULTI_AGENT_ENABLED=false. A run makes three local model calls, so it gets
+    # its own, longer timeout and runs in the background (garden_workflows.py).
+    MULTI_AGENT_ENABLED = os.environ.get("MULTI_AGENT_ENABLED", "true").lower() == "true"
+    MULTI_AGENT_URL = os.environ.get("MULTI_AGENT_URL", "http://127.0.0.1:8003").rstrip("/")
+    MULTI_AGENT_TIMEOUT = int(os.environ.get("MULTI_AGENT_TIMEOUT", "900"))
+
     # Open-Meteo (no API key): geocodes a garden's location and feeds current
     # conditions + a short forecast to the AI assistant.
     OPEN_METEO_GEOCODING_URL = os.environ.get(

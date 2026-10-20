@@ -35,6 +35,9 @@ class Garden(db.Model):
     loop_runs = db.relationship(
         "GardenAILoopRun", backref="garden", cascade="all, delete-orphan"
     )
+    workflows = db.relationship(
+        "GardenWorkflow", backref="garden", cascade="all, delete-orphan"
+    )
 
     def to_dict(self) -> dict:
         return {
@@ -239,3 +242,22 @@ class GardenAILoopRun(db.Model):
     created_at = db.Column(db.DateTime, default=_now, nullable=False)
 
     message = db.relationship("GardenChatMessage", backref=db.backref("loop_run", uselist=False))
+
+
+class GardenWorkflow(db.Model):
+    """One Multi-Agent Server workflow started from this garden (Release 2).
+
+    The workflow itself (plan, worker answer, AI review, human decision, history)
+    lives on the shared Multi-Agent Server; this row only ties its id to the garden
+    so the owner check stays here, and caches the last status seen. Added by the
+    0002 migration (vgarden/migrations/versions).
+    """
+
+    __tablename__ = "garden_workflows"
+
+    id = db.Column(db.Integer, primary_key=True)
+    garden_id = db.Column(db.Integer, db.ForeignKey("gardens.id"), nullable=False, index=True)
+    workflow_id = db.Column(db.String(64), nullable=False, unique=True)
+    task = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(40), nullable=False, default="received")
+    created_at = db.Column(db.DateTime, default=_now, nullable=False)
