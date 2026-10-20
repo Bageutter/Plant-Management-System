@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, request, render_template
 
 from audit import jsonl, metrics, records
 
@@ -84,6 +84,23 @@ def workflow_review():
         return jsonify({"error": str(error)}), 409
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
+
+
+@app.get("/dashboard")
+def dashboard():
+    snapshot = read_snapshot()
+    data = metrics(snapshot)
+    models = {}
+    if data["latest_agent_run"]:
+        for event in reversed(snapshot["events"]):
+            if (event["workflow_id"] == data["latest_agent_run"]["workflow_id"]
+                    and event["status"] == "planning"
+                    and (event["details"].get("run_id") or f"legacy-{event['sequence']}")
+                    == data["latest_agent_run"]["run_id"]):
+                models = event["details"].get("models", {})
+                break
+    return render_template("dashboard.html", data=data, models=models,
+                           workflows=list(reversed(snapshot["workflows"])))
 
 
 @app.get("/workflow/metrics")

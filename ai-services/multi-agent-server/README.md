@@ -54,3 +54,5 @@ Each new run records its model roles and run ID. Older model names remain unknow
 Exports are snapshots; run the command again to refresh saved files. Startup marks
 abandoned runs failed so they can be retried, while preserving live local owners
 and workflows waiting for human review. Recovery assumes processes on one host.
+
+Open `/dashboard` for the read-only metrics, timings, workflow states and audit downloads.
