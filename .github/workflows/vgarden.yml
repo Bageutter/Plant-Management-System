@@ -1,13 +1,14 @@
-name: Virtual Garden
+name: Virtual Garden (Yunus)
 
-# Virtual Garden feature CI (Release 1): lint, unit/e2e tests, image build, and a
-# compose smoke test of the containerised service through the proxy. The MCP and
-# RAG integration stays in the code but both modes are DISABLED here
-# (MCP_ENABLED=false, RAG_ENABLED=false) — the shared servers are local,
-# non-containerised processes that never run in CI.
+# Virtual Garden feature CI (Release 2): lint, post-commit tests of the two assigned
+# endpoint functions (routes.create_garden, routes.garden_snapshot) with retained
+# evidence, the remaining regression suite, image build, and a compose smoke test
+# through the proxy. The MCP and RAG integration stays in the code but both modes
+# are DISABLED here (MCP_ENABLED=false, RAG_ENABLED=false) — the shared servers are
+# local, non-containerised processes that never run in CI.
 on:
   push:
-    branches: ["yunz/**"]
+    branches: ["main", "yunz/**"]
     paths:
       - "vgarden/**"
       - "shared/**"
@@ -76,16 +77,71 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: vgarden/requirements-dev.txt
+          cache-dependency-path: |
+            vgarden/requirements.txt
+            vgarden/requirements-dev.txt
 
       - name: Install dependencies
+        id: install
         run: pip install -r vgarden/requirements-dev.txt
 
-      - name: Run tests
+      - name: Prepare test evidence
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/vgarden-results"
+          python - <<'PYTHON'
+          import json, os, platform, subprocess
+          from pathlib import Path
+          evidence = {
+              "workflow": os.environ["GITHUB_WORKFLOW"],
+              "owner": "Yunus Sayed",
+              "service": "vgarden",
+              "workflow_file": ".github/workflows/vgarden.yml",
+              "event": os.environ["GITHUB_EVENT_NAME"],
+              "source_sha": os.environ["SOURCE_SHA"],
+              "tested_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "run_url": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              "python": platform.python_version(),
+              "endpoint_functions": {
+                  "routes.create_garden": "POST /gardens",
+                  "routes.garden_snapshot": "GET /gardens/<id>/snapshot",
+              },
+          }
+          Path(os.environ["RUNNER_TEMP"], "vgarden-results", "run.json").write_text(json.dumps(evidence, indent=2))
+          PYTHON
+
+      - name: Test the two assigned endpoint functions
         working-directory: vgarden
-        run: python -m pytest -q
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -v tests/test_endpoints.py \
+            --junitxml="$RUNNER_TEMP/vgarden-results/endpoints.xml" \
+            2>&1 | tee "$RUNNER_TEMP/vgarden-results/endpoints.log"
+
+      - name: Run remaining Virtual Garden regression tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: vgarden
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q --ignore=tests/test_endpoints.py \
+            --junitxml="$RUNNER_TEMP/vgarden-results/regressions.xml" \
+            2>&1 | tee "$RUNNER_TEMP/vgarden-results/regressions.log"
+
+      - name: Save endpoint and regression test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vgarden-test-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vgarden-results/
+          if-no-files-found: warn
+          retention-days: 30
 
   docker-build:
+    needs: [lint, test]
     name: Docker image builds
     runs-on: ubuntu-latest
     timeout-minutes: 15
