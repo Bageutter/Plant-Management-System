@@ -24,7 +24,7 @@ def _review_record(plan: dict, result: dict, evidence: dict) -> dict:
         raise ValueError("Evidence passages are required")
 
     payload = {
-        "model": os.environ.get("REVIEWER_MODEL", "gemma4:12b"),
+        "model": os.environ.get("REVIEWER_MODEL", "llama3.1:8b"),
         "messages": [
             {"role": "system", "content": (
                 "Review only claims about the ONE source record supplied here. "

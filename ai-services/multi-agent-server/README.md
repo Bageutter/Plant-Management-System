@@ -36,3 +36,5 @@ Tests (from this folder):
 ```sh
 ../../almanac/.venv/bin/python -m unittest discover -s tests -p 'test_workflow.py' -v
 ```
+
+Models: Planner and Worker use `qwen3:4b-instruct`; Reviewer uses `llama3.1:8b`.
