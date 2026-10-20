@@ -33,7 +33,21 @@ def main():
         [str(python), "-m", "pre_commit", "install"],
     ):
         subprocess.run(command, cwd=ROOT, check=True)  # noqa: S603 -- fixed install commands, no shell
-    print("Installed. Security checks will run on git commit.")
+    service = sys.argv[1]
+    requirements = ROOT / service / "requirements-dev.txt"
+    if service in ("almanac", "health", "vgarden", "auth"):
+        tests_location = ROOT / ".venv-tests" / service
+        if not tests_location.exists():
+            venv.create(tests_location, with_pip=True)
+        test_python = tests_location / (
+            "Scripts/python.exe" if sys.platform == "win32" else "bin/python"
+        )
+        subprocess.run(  # noqa: S603 -- fixed dependency-install command, no shell
+            [str(test_python), "-m", "pip", "install", "-r", str(requirements)],
+            cwd=ROOT,
+            check=True,
+        )
+    print("Installed. Security checks and assigned feature tests will run on git commit.")
 
 
 if __name__ == "__main__":

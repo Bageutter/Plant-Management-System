@@ -1,6 +1,7 @@
-"""Run a security gate and retain local evidence."""
+"""Run a commit check and retain local evidence."""
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -58,6 +59,8 @@ def main():
     if not PYTHON.exists():
         sys.exit("Install tools first: python3 scripts/security/install.py almanac")
     mode, *files = sys.argv[1:]
+    working_directory = ROOT
+    environment = None
     if mode == "ruff":
         files = [name for name in files if (ROOT / name).is_file() or (ROOT / name).is_dir()]
         if not files:
@@ -90,14 +93,43 @@ def main():
         command = [str(PYTHON), "-m", "pip_audit", "--format", "json", "--progress-spinner", "off"]
         for filename in files:
             command.extend(["-r", filename])
+    elif mode == "tests":
+        service = git("config", "--get", "security.service")
+        if service not in ("almanac", "health", "vgarden", "auth"):
+            sys.exit("Configure almanac, health, vgarden or auth for feature tests")
+        python = (
+            ROOT
+            / ".venv-tests"
+            / service
+            / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+        )
+        if not python.exists():
+            sys.exit(f"Install test dependencies: python3 scripts/security/install.py {service}")
+        files = [service + "/tests"]
+        command = [str(python), "-m", "pytest", "-q", "tests"]
+        working_directory = ROOT / service
+        environment = {
+            **os.environ,
+            "MCP_ENABLED": "false",
+            "RAG_ENABLED": "false",
+            "OLLAMA_PRELOAD": "false",
+            "MULTI_AGENT_ENABLED": "false",
+        }
     else:
-        sys.exit("Choose ruff, secrets or audit")
+        sys.exit("Choose ruff, secrets, audit or tests")
     started = datetime.now(timezone.utc)
     try:
-        result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, timeout=300)  # noqa: S603 -- tool and arguments are controlled; no shell
+        result = subprocess.run(  # noqa: S603 -- controlled commands and arguments, no shell
+            command,
+            cwd=working_directory,
+            env=environment,
+            text=True,
+            capture_output=True,
+            timeout=300,
+        )
         code, stdout, stderr = result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
-        code, stdout, stderr = 1, "", "Security scan timed out after 300 seconds"
+        code, stdout, stderr = 1, "", "Check timed out after 300 seconds"
     directory = ROOT / ".security-reports"
     directory.mkdir(exist_ok=True)
     path = directory / f"{started.strftime('%Y%m%dT%H%M%SZ')}-{mode}-{uuid4().hex[:8]}.json"
@@ -113,6 +145,7 @@ def main():
                 "files": files,
                 "exit_code": code,
                 "command": command,
+                "working_directory": str(working_directory),
                 "stdout": stdout,
                 "stderr": stderr,
             },
@@ -130,6 +163,9 @@ def main():
                     )
             except (ValueError, KeyError):
                 print("Read the local evidence file for scan diagnostics.")
+        elif mode == "tests":
+            print(stdout)
+            print(stderr)
         else:
             print(
                 "Read the local evidence file for findings. Do not share raw logs before reviewing them."

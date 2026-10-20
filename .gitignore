@@ -229,3 +229,4 @@ __marimo__/
 # Local security tooling and raw scan evidence
 /.venv-security/
 /.security-reports/
+/.venv-tests/

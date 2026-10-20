@@ -19,3 +19,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: pytest
+        name: Assigned feature unit tests
+        entry: python3 scripts/security/run_checks.py tests
+        language: system
+        pass_filenames: false
+        always_run: true
