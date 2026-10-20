@@ -2,7 +2,7 @@ name: Plant Almanac (Amy)
 
 on:
   push:
-    branches: ["amy/**"]
+    branches: ["main", "amy/**"]
     paths:
       - "almanac/**"
       - "shared/**"
@@ -65,14 +65,68 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: almanac/requirements-dev.txt
+          cache-dependency-path: |
+            almanac/requirements.txt
+            almanac/requirements-dev.txt
 
       - name: Install Almanac dependencies
+        id: install
         run: python -m pip install -r almanac/requirements-dev.txt
 
-      - name: Run Almanac tests
+      - name: Prepare test evidence
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/almanac-results"
+          python - <<'PYTHON'
+          import json, os, platform, subprocess
+          from pathlib import Path
+          evidence = {
+              "workflow": os.environ["GITHUB_WORKFLOW"],
+              "event": os.environ["GITHUB_EVENT_NAME"],
+              "source_sha": os.environ["SOURCE_SHA"],
+              "tested_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "run_url": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              "python": platform.python_version(),
+              "endpoint_functions": {
+                  "catalogue_api.search": "GET /api/catalogue",
+                  "catalogue_api.plant": "GET /api/catalogue/plant/<slug>",
+              },
+          }
+          Path(os.environ["RUNNER_TEMP"], "almanac-results", "run.json").write_text(json.dumps(evidence, indent=2))
+          PYTHON
+
+      - name: Test the two assigned endpoint functions
         working-directory: almanac
-        run: python -m pytest -q
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -v \
+            tests/test_catalogue_api.py::test_public_catalogue_search_pages_and_literal_search \
+            tests/test_catalogue_api.py::test_public_details_preserve_evidence_and_make_no_writes \
+            --junitxml="$RUNNER_TEMP/almanac-results/endpoints.xml" \
+            2>&1 | tee "$RUNNER_TEMP/almanac-results/endpoints.log"
+
+      - name: Run remaining Almanac regression tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: almanac
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q \
+            -k 'not test_public_catalogue_search_pages_and_literal_search and not test_public_details_preserve_evidence_and_make_no_writes' \
+            --junitxml="$RUNNER_TEMP/almanac-results/regressions.xml" \
+            2>&1 | tee "$RUNNER_TEMP/almanac-results/regressions.log"
+
+      - name: Save endpoint and regression test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: almanac-test-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/almanac-results/
+          if-no-files-found: warn
+          retention-days: 30
 
   docker-build:
     name: Docker image builds

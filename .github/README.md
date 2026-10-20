@@ -6,7 +6,7 @@
 | --- | --- |
 | `ruff.yml` | python lint gate — runs on **every PR and push** to `main` |
 | `integration-ci.yml` | integration CI — builds, smoke-checks, and tears down the stack |
-| `plant_almanac.yml` | Amy's Almanac CI — Ruff, compile check, pytest, and Docker build for `amy/**` pushes and manual runs |
+| `plant_almanac.yml` | Amy's Almanac CI — Ruff, compile check, two named endpoint tests, remaining pytest suite, retained test evidence, and Docker build; runs for matching `main`/`amy/**` pushes, PRs and manual runs |
 | `vgarden.yml` | virtual garden service CI — triggers on `yunz/**` branches and `vgarden/` path changes |
 | `health.yml` | health monitoring service CI — triggers on `bageutter/**` branches and `health/` path changes |
 
@@ -34,3 +34,23 @@ all three gates need to be green before you merge:
 - **build gate** — all images built cleanly
 - **runtime gate** — all smoke checks passed
 - **human gate** — at least one teammate reviewed and there are no unresolved comments
+
+## Amy's post-commit endpoint evidence
+
+`plant_almanac.yml` tests two assigned backend functions using Flask's test client:
+
+| Backend function | Route | Existing test |
+| --- | --- | --- |
+| `catalogue_api.search` | `GET /api/catalogue` | `test_public_catalogue_search_pages_and_literal_search` |
+| `catalogue_api.plant` | `GET /api/catalogue/plant/<slug>` | `test_public_details_preserve_evidence_and_make_no_writes` |
+
+The first checks pagination, filters, literal search and invalid input. The second
+checks reference evidence, unknown records, read-only behaviour and private-chat
+exclusion; it also exercises pest/disease detail routes. Tests use temporary
+SQLite fixtures with MCP/RAG disabled and do not need live AI services.
+
+The Tests job uploads `endpoints.xml`, `endpoints.log`, `regressions.xml`,
+`regressions.log` and `run.json` as a 30-day artifact, including on failure where
+files exist. `run.json` identifies the source SHA, tested SHA and Actions URL.
+Copy the successful run URL, commit SHA and relevant results into the group report
+before artifacts expire. A local pass is not proof that GitHub Actions passed.
