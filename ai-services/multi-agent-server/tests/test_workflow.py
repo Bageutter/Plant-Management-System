@@ -38,6 +38,14 @@ class WorkflowTests(unittest.TestCase):
         return self.client.post("/workflow/review", json={"workflow_id": self.id,
                                 "decision": decision, "feedback": feedback, "reviewer_id": "Amy"})
 
+    def test_run_records_model_roles(self):
+        with patch.dict('os.environ', {'OLLAMA_MODEL': 'test-qwen', 'REVIEWER_MODEL': 'test-llama'}):
+            response = self.run_flow()
+        self.assertEqual(response.json['models'], {
+            'planner': 'test-qwen', 'worker': 'test-qwen', 'reviewer': 'test-llama'})
+        self.assertTrue(response.json['run_id'])
+        self.assertIsInstance(response.json['owner_pid'], int)
+
     def test_accept_persists_output_and_history(self):
         response = self.run_flow()
         self.assertEqual(response.status_code, 200)

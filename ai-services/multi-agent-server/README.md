@@ -37,4 +37,20 @@ Tests (from this folder):
 ../../almanac/.venv/bin/python -m unittest discover -s tests -p 'test_workflow.py' -v
 ```
 
-Models: Planner and Worker use `qwen3:4b-instruct`; Reviewer uses `llama3.1:8b`.
+Models: Planner and Worker use `qwen3:4b-instruct`; Reviewer uses `qwen3:4b-instruct`.
+
+The Worker receives the original task and prioritises an explicitly named variety.
+The Reviewer combines source-field checks with AI review and validates issue quotes.
+Live regression check: `../../almanac/.venv/bin/python tests/check_reviewer.py`.
+
+Audit and metrics:
+
+- `GET /workflow/metrics` — rates, counts and stage timings from saved events.
+- `GET /workflow/audit/workflow_history.jsonl` — full execution evidence.
+- `GET /workflow/audit/coordination_audit.jsonl` — handoffs, models and decisions.
+- `../../almanac/.venv/bin/python audit.py` — write both files under `instance/`.
+
+Each new run records its model roles and run ID. Older model names remain unknown.
+Exports are snapshots; run the command again to refresh saved files. Startup marks
+abandoned runs failed so they can be retried, while preserving live local owners
+and workflows waiting for human review. Recovery assumes processes on one host.

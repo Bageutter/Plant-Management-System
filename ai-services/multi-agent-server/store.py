@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -92,3 +93,55 @@ def get_workflow(workflow_id):
                 "status": row["status"], **current, "history": history}
     finally:
         connection.close()
+
+
+def read_snapshot():
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN")
+        workflows = [dict(row) for row in connection.execute("SELECT * FROM workflows ORDER BY id")]
+        events = [dict(row) for row in connection.execute("SELECT * FROM workflow_events ORDER BY sequence")]
+        for event in events:
+            event["details"] = json.loads(event["details"])
+        return {"workflows": workflows, "events": events}
+    finally:
+        connection.close()
+
+
+def recover_interrupted():
+    """Recover abandoned local runs without changing a live owner's run."""
+    recovered = []
+    connection = get_connection()
+    try:
+        with connection:
+            rows = connection.execute(
+                "SELECT id, status FROM workflows WHERE status IN ('planning', 'working', 'reviewing')"
+            ).fetchall()
+            for row in rows:
+                event = connection.execute(
+                    "SELECT details FROM workflow_events WHERE workflow_id = ? "
+                    "AND status = 'planning' ORDER BY sequence DESC LIMIT 1", (row["id"],)
+                ).fetchone()
+                details = json.loads(event["details"]) if event else {}
+                owner = details.get("owner_pid")
+                if isinstance(owner, int) and owner > 0:
+                    try:
+                        os.kill(owner, 0)
+                        continue
+                    except ProcessLookupError:
+                        pass
+                    except PermissionError:
+                        continue
+                updated = connection.execute(
+                    "UPDATE workflows SET status = 'failed' WHERE id = ? AND status = ?",
+                    (row["id"], row["status"]),
+                )
+                if updated.rowcount:
+                    _event(connection, row["id"], "failed", {
+                        "error": "Execution interrupted; retry the workflow",
+                        "interrupted_stage": row["status"], "run_id": details.get("run_id"),
+                    })
+                    recovered.append(row["id"])
+    finally:
+        connection.close()
+    return recovered

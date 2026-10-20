@@ -3,6 +3,8 @@ import os
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from model_config import model_for
+
 PLAN_SCHEMA = {
     "type": "object",
     "properties": {
@@ -23,7 +25,7 @@ def create_plan(task: str) -> dict:
         raise ValueError("Task is required")
 
     payload = {
-        "model": os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
+        "model": model_for("planner"),
         "messages": [
             {
                 "role": "system",

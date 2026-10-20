@@ -1,4 +1,8 @@
 import logging
+import os
+from uuid import uuid4
+
+from model_config import model_for
 
 from planner import create_plan
 from reviewer import review_result
@@ -15,7 +19,10 @@ def run_workflow(workflow_id):
     feedback = workflow.get("human_review", {}).get("feedback", workflow.get("revision_feedback", ""))
     task = workflow["task"]
     # Keep feedback separate from the original task in the saved history.
-    transition(workflow_id, workflow["status"], "planning", {"revision_feedback": feedback})
+    transition(workflow_id, workflow["status"], "planning", {
+        "revision_feedback": feedback, "run_id": str(uuid4()), "owner_pid": os.getpid(),
+        "models": {role: model_for(role) for role in ("planner", "worker", "reviewer")},
+    })
     stage = "planning"
     try:
         planning_task = task + (f"\nRequested changes: {feedback}" if feedback else "")

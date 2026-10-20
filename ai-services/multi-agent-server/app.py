@@ -1,12 +1,15 @@
 from uuid import uuid4
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
+
+from audit import jsonl, metrics, records
 
 from human_review import record_decision
-from store import WorkflowConflict, get_workflow, save_workflow
+from store import WorkflowConflict, get_workflow, save_workflow, read_snapshot, recover_interrupted
 from workflow import run_workflow
 
 app = Flask(__name__)
+recover_interrupted()
 
 
 @app.get("/healthz")
@@ -81,6 +84,21 @@ def workflow_review():
         return jsonify({"error": str(error)}), 409
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
+
+
+@app.get("/workflow/metrics")
+def workflow_metrics():
+    return jsonify(metrics())
+
+
+@app.get("/workflow/audit/<filename>")
+def workflow_audit(filename):
+    if filename not in ("workflow_history.jsonl", "coordination_audit.jsonl"):
+        return jsonify({"error": "Unknown audit file"}), 404
+    history, decisions = records(read_snapshot())
+    rows = history if filename == "workflow_history.jsonl" else decisions
+    return Response(jsonl(rows), mimetype="application/x-ndjson",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 if __name__ == "__main__":
