@@ -44,6 +44,7 @@ env:
   # Release 1 rule: integration retained, both modes off during CI/CD.
   MCP_ENABLED: "false"
   RAG_ENABLED: "false"
+  MULTI_AGENT_ENABLED: "false"
 
 jobs:
   lint:
@@ -152,7 +153,7 @@ jobs:
         run: docker build --tag vgarden:ci ./vgarden
 
   compose-smoke:
-    name: Compose smoke test (MCP + RAG disabled)
+    name: Compose smoke test (MCP + RAG + Multi-Agent disabled)
     needs: [test, docker-build]
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -84,6 +84,10 @@ services:
       - MCP_SERVER_URL=${MCP_SERVER_URL:-http://host.docker.internal:5105/mcp}
       - RAG_ENABLED=${RAG_ENABLED:-true}
       - RAG_SERVER_URL=${RAG_SERVER_URL:-http://host.docker.internal:5106}
+      # Release 2: shared local Multi-Agent Server, also on the HOST (never a
+      # compose service). CI and the cloud baseline set the flag to false.
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
+      - MULTI_AGENT_URL=${MULTI_AGENT_URL:-http://host.docker.internal:8003}
     depends_on:
       - ollama
     extra_hosts:

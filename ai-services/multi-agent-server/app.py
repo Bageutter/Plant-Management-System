@@ -8,6 +8,8 @@ from human_review import record_decision
 from store import WorkflowConflict, get_workflow, save_workflow, read_snapshot, recover_interrupted
 from workflow import run_workflow
 
+SOURCES = ("almanac", "vgarden")
+
 app = Flask(__name__)
 recover_interrupted()
 
@@ -29,15 +31,53 @@ def create_workflow():
     if not isinstance(task, str) or not 1 <= len(task.strip()) <= 500:
         return jsonify({"error": "task must be 1 to 500 characters"}), 400
 
+    try:
+        request_details = _request_details(data)
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+
     workflow_id = str(uuid4())
     task = task.strip()
-    save_workflow(workflow_id, task)
+    save_workflow(workflow_id, task, request_details)
 
     return jsonify({
         "workflow_id": workflow_id,
         "task": task,
+        "source": request_details["source"],
         "status": "received",
     }), 201
+
+
+def _request_details(data):
+    """Validate the optional feature source and caller-supplied evidence.
+
+    Almanac data is public, so its Worker retrieves evidence itself through MCP.
+    Virtual Garden data is private per owner: this server never fetches it, so the
+    feature backend must send the one garden's records it already authorised.
+    """
+    source = data.get("source", "almanac")
+    if source not in SOURCES:
+        raise ValueError(f"source must be one of: {', '.join(SOURCES)}")
+    evidence = data.get("evidence")
+    if evidence is None:
+        if source == "vgarden":
+            raise ValueError("vgarden workflows must include the garden's evidence")
+        return {"source": source}
+    passages = evidence.get("passages") if isinstance(evidence, dict) else None
+    if not isinstance(passages, list) or not 1 <= len(passages) <= 10:
+        raise ValueError("evidence.passages must be a list of 1 to 10 passages")
+    for passage in passages:
+        if (not isinstance(passage, dict)
+                or any(not isinstance(passage.get(key), str) or not passage[key].strip()
+                       for key in ("chunk_id", "title", "text"))
+                or len(passage["text"]) > 4000):
+            raise ValueError("each passage needs chunk_id, title and text (up to 4000 characters)")
+    if len({p["chunk_id"] for p in passages}) != len(passages):
+        raise ValueError("passage chunk_id values must be unique")
+    mode = evidence.get("mode", "supplied")
+    clean = {"mode": mode if isinstance(mode, str) else "supplied",
+             "passages": [{key: p[key] for key in ("chunk_id", "title", "text")} for p in passages]}
+    return {"source": source, "evidence": clean}
 
 
 @app.get("/workflow/status")

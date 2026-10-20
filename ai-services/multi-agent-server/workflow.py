@@ -18,6 +18,9 @@ def run_workflow(workflow_id):
         raise WorkflowConflict("Workflow cannot run in its current state")
     feedback = workflow.get("human_review", {}).get("feedback", workflow.get("revision_feedback", ""))
     task = workflow["task"]
+    source = workflow["source"]
+    received = workflow["history"][0]["details"] if workflow["history"] else {}
+    supplied = received.get("evidence")
     # Keep feedback separate from the original task in the saved history.
     transition(workflow_id, workflow["status"], "planning", {
         "revision_feedback": feedback, "run_id": str(uuid4()), "owner_pid": os.getpid(),
@@ -26,10 +29,10 @@ def run_workflow(workflow_id):
     stage = "planning"
     try:
         planning_task = task + (f"\nRequested changes: {feedback}" if feedback else "")
-        plan = create_plan(planning_task)
+        plan = create_plan(planning_task, source=source)
         transition(workflow_id, stage, "working", {"plan": plan})
         stage = "working"
-        output = run_worker(task, plan)
+        output = run_worker(task, plan, source=source, evidence=supplied, feedback=feedback)
         transition(workflow_id, stage, "reviewing", output)
         stage = "reviewing"
         review = review_result(plan, output["result"], output["evidence"])

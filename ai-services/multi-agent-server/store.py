@@ -38,7 +38,7 @@ def _event(connection, workflow_id, status, details):
     )
 
 
-def save_workflow(workflow_id, task):
+def save_workflow(workflow_id, task, request=None):
     connection = get_connection()
     try:
         with connection:
@@ -46,7 +46,7 @@ def save_workflow(workflow_id, task):
                 "INSERT INTO workflows (id, task, status) VALUES (?, ?, ?)",
                 (workflow_id, task, "received"),
             )
-            _event(connection, workflow_id, "received", {})
+            _event(connection, workflow_id, "received", request or {})
     finally:
         connection.close()
 
@@ -89,7 +89,9 @@ def get_workflow(workflow_id):
             if event["status"] == "planning":
                 current = {}
             current.update(event["details"])
-        return {"workflow_id": row["id"], "task": row["task"],
+        # The received event holds what the calling feature sent with the task.
+        source = history[0]["details"].get("source", "almanac") if history else "almanac"
+        return {"workflow_id": row["id"], "task": row["task"], "source": source,
                 "status": row["status"], **current, "history": history}
     finally:
         connection.close()

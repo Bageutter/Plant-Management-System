@@ -22,8 +22,8 @@ if os.path.isdir(_MCP_SERVER) and _MCP_SERVER not in sys.path:
 
 class TestConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SECRET_KEY = "test-secret-key"
-    INTER_SERVICE_SECRET = "test-inter-service-secret"
+    SECRET_KEY = "test-secret-key"  # noqa: S105 -- fake, test-only value
+    INTER_SERVICE_SECRET = "test-inter-service-secret"  # noqa: S105 -- fake, test-only value
     AUTH_PUBLIC_URL = "http://auth.test"
     WTF_CSRF_ENABLED = False
     TESTING = True
@@ -39,6 +39,10 @@ class TestConfig:
     RAG_ENABLED = True
     RAG_SERVER_URL = "http://127.0.0.1:1"  # replaced per test
     INTEGRATION_TIMEOUT = 5
+    # Release 2: tests swap in a FakeMultiAgent (tests/test_workflows.py).
+    MULTI_AGENT_ENABLED = True
+    MULTI_AGENT_URL = "http://127.0.0.1:1"
+    MULTI_AGENT_TIMEOUT = 5
 
 
 @pytest.fixture
