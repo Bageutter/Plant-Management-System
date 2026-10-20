@@ -1,0 +1,62 @@
+{
+  "plan": {
+    "steps": [
+      "Summarise recorded care separately for each tomato record."
+    ]
+  },
+  "result": {
+    "answer": "Tomato - Sweet 1000: Sun needs: full sun; water needs: moderate; feeder type:heavy feeder; spacing: 90 cm in-row, 150 cm row; pH: 5.5\u20137.0; planting months: August\u2013December; management: mulch, even watering, airflow; rotation group: Solanums; unverified cultivar traits; pest/disease links not confirmed.\nTomato - Black Krim: Sun needs: full sun; water needs: high; feeder type: heavy feeder; spacing: 50 cm in-row, 80 cm row; pH:6.0\u20137.0; planting months: Aug\u2013Dec; management: weekly inspection, remove affected material, encourage beneficial insects; associated pests: aphids, slugs and snails; unverified cultivar traits; pest/disease links not confirmed.\nTomato (general): Sun needs: fullsun; planting months: Jan, Sep\u2013Dec; companions: basil, marigold; missing fields: watering frequency, fertiliser guidelines, pruning practices, pest/disease management.\nCarrot:Not relevant to tomatoes; omitted.",
+    "cited_chunk_ids": [
+      "almanac:plant:tomato-sweet-1000:record",
+      "almanac:plant:tomato-black-krim:record",
+      "almanac:plant:tomato:record",
+      "almanac:disease:3:record"
+    ],
+    "insufficient_context": false
+  },
+  "evidence": {
+    "mode": "chroma",
+    "passages": [
+      {
+        "chunk_id": "almanac:plant:tomato-sweet-1000:record",
+        "score": 0.8076,
+        "source": "almanac",
+        "text": "Plant Almanac plant: Tomato - Sweet 1000.\nScientific name: Solanum lycopersicum.\nFamily: Solanaceae.\nSummary: Tomato recorded as Sweet 1000. The cultivar name islisted by a supplier; the growing guidance here is for tomatoes generally until the seed-packet identity is confirmed..\nWater needs: moderate.\nSun needs: full sun.\nCare: Sydney /warm-temperate guidance. General tomato guidance: provide full sun, steady soil moisture and support appropriate to the plant\u2019s habit. Allow 90 cm between plants and 150 cm between rows as a roomy planning layout. Planning estimates: in row spacing cm, row spacing cm, soil ph min, soil ph max, feeder type, water needs, sun needs, forest layer..\nSowing notes: Sydney / warm temperate: sow August\u2013December using general tomato guidance from Eden\u2019s mild-climate calendar. Start early sowings under protection and transplant after frost risk. Not a verified Sweet 1000 calendar..\nRecorded planting months: August, September, October, November, December.\nMinimum soil pH: 5.5.\nMaximum soil pH: 7.0.\nIn-row spacing (cm): 90.0.\nRow spacing (cm): 150.0.\nYield notes: Pick ripe fruit as it develops. Generic tomato guidance suggests about 65\u201390 days from transplanting to first harvest, but Sweet 1000 maturity, crop duration and yield remain unverified..\nFeeder type: heavy feeder.\nForest layer: herbaceous.\nPart used: fruit.\nUses: culinary.\nUses notes: Use ripe tomato fruit fresh or cooked. The record is kept separate from Sweet 100 and Sweet Million; fruit size and flavour are not assumed..\nManagement notes: Mulch, water evenly and allow airflow. Rotate away from other nightshade crops. Spacing, feeding, water, pH, layer and calendar are species-level guidance, not verified cultivar traits..\nRecorded reference source:https://www.hrseeds.com/pepper-and-tomato-seed-list.\nRotation group: Solanums; feeder weight: heavy; rotation exempt: False.\nMissing fields are not recorded. Plant-pest and plant-disease links are catalogue associations, not confirmed diagnoses.\nGeneral catalogue guidance, not a diagnosis. Missing fields are unknown; growing conditions vary.",
+        "title": "Tomato - Sweet 1000 \u2014 plant reference",
+        "url": "http://localhost:3000/almanac/plants/tomato-sweet-1000"
+      },
+      {
+        "chunk_id": "almanac:plant:tomato-black-krim:record",
+        "score": 0.7907,
+        "source": "almanac",
+        "text": "Plant Almanac plant: Tomato - Black Krim.\nScientific name: Solanum lycopersicum.\nSummary: Dark slicing tomato for warm-season growing with a sturdy stake or cage..\nWater needs: high.\nSun needs: full sun.\nCare: Provide a sturdy stake or cage and tie stems loosely as the plant grows..\nSowing notes: Aug\u2013Dec.\nMinimum soil pH: 6.0.\nMaximum soil pH: 7.0.\nIn-row spacing (cm): 50.0.\nRow spacing (cm): 80.0.\nHarvest window (weeks): 10.0.\nYield per plant: 3.0.\nYield unit: kg.\nYield notes: 3 kg per established plantover a 10-week harvest window. Total across repeated pickings, not the yield at every picking..\nFeeder type: heavy feeder.\nForest layer: herbaceous.\nPart used: fruit.\nUses: culinary.\nUses notes: Tall summer crop; keep lower-growing companions outside its main root and shade area.\nFresh in salads, roasted, or cooked into sauces and relishes..\nManagement notes: Inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment..\nAssociated pests: Aphids, Slugs and snails.\nRotation group: Solanums; feeder weight: heavy; rotation exempt: False.\nRecorded companion: Basil - Genovese; function: pollinator attractor; notes: Grow on the sunny side with room for both plants. Let a few basil stems flower to provide nectar for visiting insects..\nRecorded companion: Marigold - French Marigold; function: pollinator attractor; notes: Add a sunny flowering border for insect habitat. Leave enough space between the flowers and the crop for light and airflow..\nMissing fields are not recorded. Plant-pest and plant-disease links are catalogue associations, not confirmed diagnoses.\nGeneralcatalogue guidance, not a diagnosis. Missing fields are unknown; growing conditions vary.",
+        "title": "Tomato - Black Krim \u2014 plant reference",
+        "url": "http://localhost:3000/almanac/plants/tomato-black-krim"
+      },
+      {
+        "chunk_id": "almanac:plant:tomato:record",
+        "score": 0.6287,
+        "source": "almanac",
+        "text": "Plant Almanac plant: Tomato.\nScientific name: Solanum lycopersicum.\nFamily: Solanaceae.\nSummary: A productive warm-season crop for garden beds and containers..\nRecorded planting months: January, September, October, November, December.\nRecorded companion: Basil - Genovese; function: pollinator attractor; notes: Grow on the sunny side with room for both plants. Let a few basil stems flower to provide nectar for visiting insects..\nRecorded companion: Marigold - French Marigold; function: pollinator attractor; notes: Adda sunny flowering border for insect habitat. Leave enough space between the flowers and the crop for light and airflow..\nMissing fields are not recorded. Plant-pest and plant-disease links are catalogue associations, not confirmed diagnoses.\nGeneral catalogue guidance, not a diagnosis. Missing fields are unknown; growing conditions vary.",
+        "title": "Tomato \u2014 plant reference",
+        "url": "http://localhost:3000/almanac/plants/tomato"
+      },
+      {
+        "chunk_id": "almanac:disease:3:record",
+        "score": 0.6246,
+        "source": "almanac",
+        "text": "Plant Almanac disease: Tomato early blight.\nBrown leaf spots with concentric rings can develop, often on older tomato leaves. Check: Inspect spot patterns and compare a tomato-specific reference; do not identify from yellowing alone. First actions: Remove affected debris, reduce soil splash and provide spacing and crop rotation. Similar-looking problems: Septoria leaf spot; other blights; nutrient problems. These signs suggest possibilities, not a confirmed diagnosis.\nIntro: Brown leaf spots with concentric rings can develop, often on older tomato leaves. Check: Inspect spot patterns and compare a tomato-specific reference; do not identify from yellowing alone. First actions: Remove affected debris,reduce soil splash and provide spacing and crop rotation. Similar-looking problems: Septoria leaf spot; other blights; nutrient problems. These signs suggest possibilities, not a confirmed diagnosis.\nStatus: Check before treating\nRecorded sign: Brown leaf spots with concentric rings can develop, often on older tomato leaves.\nManagement step \u2014 Checks: Inspect spot patterns and compare a tomato-specific reference; do not identify from yellowingalone.\nManagement step \u2014 First actions: Remove affected debris, reduce soil splash and provide spacing and crop rotation. Monitor new growth and record changes rather than expecting damaged leaves to recover.\nGuide source: Reference guidance https://ipm.ucanr.edu/PMG/diseases/diseases.vegies.html\nThis is reference guidance, not a diagnosis of the gardener's plant.\nRecorded plant links are catalogue associations, not confirmed diagnoses. A missing guide means management guidance is not available in this catalogue.",
+        "title": "Tomato early blight \u2014 disease reference",
+        "url": "http://localhost:3000/almanac/diseases/3"
+      },
+      {
+        "chunk_id": "almanac:plant:carrot:record",
+        "score": 0.4324,
+        "source": "almanac",
+        "text": "Plant Almanac plant: Carrot.\nScientific name: Daucus carota subsp. sativus.\nFamily: Apiaceae.\nSummary: A root crop commonly direct-sown through much of the year..\nRecorded planting months: January, February, March, April, August, September, October, November, December.\nRecorded companion: Alyssum; function: pollinator attractor; notes: A low flowering edge provides nectar for visiting insects. Keep it outside the crop's spacing so it does not crowd young plants..\nRecorded companion: Marigold - French Marigold; function: pollinator attractor; notes: Add a sunny flowering border for insect habitat. Leave enough space between the flowers and the crop for light and airflow..\nMissing fields are not recorded. Plant-pest and plant-disease links are catalogue associations, not confirmed diagnoses.\nGeneral catalogue guidance, not a diagnosis. Missing fields are unknown; growing conditions vary.",
+        "title": "Carrot \u2014 plant reference",
+        "url": "http://localhost:3000/almanac/plants/carrot"
+      }
+    ]
+  }
+}
