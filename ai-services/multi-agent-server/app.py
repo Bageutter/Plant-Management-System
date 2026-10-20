@@ -2,7 +2,9 @@ from uuid import uuid4
 
 from flask import Flask, jsonify, request
 
-from store import get_workflow, save_workflow
+from human_review import record_decision
+from store import WorkflowConflict, get_workflow, save_workflow
+from workflow import run_workflow
 
 app = Flask(__name__)
 
@@ -21,8 +23,8 @@ def create_workflow():
 
     task = data.get("task")
 
-    if not isinstance(task, str) or not task.strip():
-        return jsonify({"error": "task must be non-empty text"}), 400
+    if not isinstance(task, str) or not 1 <= len(task.strip()) <= 500:
+        return jsonify({"error": "task must be 1 to 500 characters"}), 400
 
     workflow_id = str(uuid4())
     task = task.strip()
@@ -46,6 +48,39 @@ def workflow_status():
         return jsonify({"error": "Workflow not found"}), 404
 
     return jsonify(workflow)
+
+
+@app.post("/workflow/run")
+def workflow_run():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("workflow_id"), str):
+        return jsonify({"error": "workflow_id is required"}), 400
+    try:
+        return jsonify(run_workflow(data["workflow_id"].strip()))
+    except LookupError as error:
+        return jsonify({"error": str(error)}), 404
+    except WorkflowConflict as error:
+        return jsonify({"error": str(error)}), 409
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 502
+
+
+@app.post("/workflow/review")
+def workflow_review():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("workflow_id"), str):
+        return jsonify({"error": "workflow_id is required"}), 400
+    try:
+        return jsonify(record_decision(
+            data["workflow_id"].strip(), data.get("decision"),
+            data.get("feedback", ""), data.get("reviewer_id"),
+        ))
+    except LookupError as error:
+        return jsonify({"error": str(error)}), 404
+    except WorkflowConflict as error:
+        return jsonify({"error": str(error)}), 409
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
 
 
 if __name__ == "__main__":
