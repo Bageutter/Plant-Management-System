@@ -11,3 +11,7 @@ select = ["E4", "E7", "E9", "F"]
 "vgarden/garden_ai.py" = ["E402"]  # sys.path insert before `import ai_loop`
 "almanac/app.py" = ["E402"]
 "health/app.py" = ["E402"]  # sys.path insert before `import agentic` (shared ai_loop)
+
+# Assertions are intentional in pytest tests and manual regression checks.
+"**/tests/**" = ["S101"]
+"**/conftest.py" = ["S101"]

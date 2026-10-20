@@ -225,3 +225,8 @@ __marimo__/
 /vgarden/ai_loop.py
 /almanac/ai_loop.py
 /health/ai_loop.py
+
+# Local security tooling and raw scan evidence
+/.venv-security/
+/.security-reports/
+/.venv-tests/

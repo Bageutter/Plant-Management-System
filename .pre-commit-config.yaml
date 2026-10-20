@@ -1,0 +1,27 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-security
+        name: Ruff security rules
+        entry: python3 scripts/security/run_checks.py ruff
+        language: system
+        types: [python]
+        require_serial: true
+      - id: detect-secrets
+        name: Detect secrets
+        entry: python3 scripts/security/run_checks.py secrets
+        language: system
+        exclude: ^\.secrets\.baseline$
+        require_serial: true
+      - id: pip-audit
+        name: Dependency vulnerability audit
+        entry: python3 scripts/security/run_checks.py audit
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pytest
+        name: Assigned feature unit tests
+        entry: python3 scripts/security/run_checks.py tests
+        language: system
+        pass_filenames: false
+        always_run: true
