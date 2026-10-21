@@ -459,7 +459,8 @@ def add_review_arguments(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--no-model", action="store_true", help="write the review from the checks only")
     group.add_argument("--no-review-model", action="store_true", help="skip the second-model OBSERVE review")
     group.add_argument("--max-iterations", type=int, default=2)
-    group.add_argument("--num-ctx", type=int, default=8192, help="model context window for the evidence")
+    group.add_argument("--num-ctx", type=int, default=12288,
+                       help="model context window; the all-services Testing evidence is about 9k tokens")
     group.add_argument("--report", type=Path, help="also write the review report as Markdown to this file")
     group.add_argument("--timeout", type=int, default=240, help="seconds per model call")
     group.add_argument("--decision", help="human decision: accept/partially_accept/reject, "
@@ -469,6 +470,10 @@ def add_review_arguments(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--evidence-dir", default=str(ROOT / "docs/evidence/release2"),
                        help="multi-agent: folder with workflow_history.jsonl, coordination_audit.jsonl, metrics")
     group.add_argument("--source", help="multi-agent: only review workflows from this feature (e.g. vgarden)")
+    group.add_argument("--feature-url", default="http://localhost:3000/vgarden",
+                       help="multi-agent: the feature whose /integrations must report the server ('' to skip)")
+    group.add_argument("--multi-agent-url", default="http://127.0.0.1:8003",
+                       help="multi-agent: the Multi-Agent Server to health-check ('' to skip)")
     group.add_argument("--security-reports", default=str(ROOT / ".security-reports"),
                        help="testing: folder of saved pre-commit check results")
     group.add_argument("--services", nargs="+",

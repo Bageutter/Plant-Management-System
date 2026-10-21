@@ -1,5 +1,5 @@
 {
-  "run_id": "review-multi-agent-20261021-095114-c74537",
+  "run_id": "review-multi-agent-20261021-112329-f18b5a",
   "mode": "multi-agent",
   "passed": true,
   "checks": [
@@ -50,6 +50,36 @@
       "title": "Metrics export matches the history",
       "status": "pass",
       "detail": "metrics tracked_workflows=6, history has 6."
+    },
+    {
+      "id": "MA-9",
+      "title": "Every Worker run was given evidence passages",
+      "status": "pass",
+      "detail": "11 Worker runs, 33 passages in total."
+    },
+    {
+      "id": "MA-10",
+      "title": "Workers cite only passages they were given, and every answer cites one",
+      "status": "pass",
+      "detail": "All 11 answers cite only their own evidence."
+    },
+    {
+      "id": "MA-11",
+      "title": "The Reviewer gave a verdict on every Worker answer",
+      "status": "pass",
+      "detail": "11 reviews for 11 answers; verdicts: accept=5, revise=6."
+    },
+    {
+      "id": "MA-12",
+      "title": "The feature is configured to use the Multi-Agent Server",
+      "status": "pass",
+      "detail": "http://127.0.0.1:5059/integrations multi_agent: {'enabled': True, 'url': 'http://127.0.0.1:8003'}"
+    },
+    {
+      "id": "MA-13",
+      "title": "The Multi-Agent Server answers its health check",
+      "status": "pass",
+      "detail": "http://127.0.0.1:8003/healthz: {'service': 'multi-agent-server', 'status': 'ok'}"
     }
   ],
   "facts": {
@@ -143,6 +173,21 @@
         "final_status": "accepted"
       }
     ],
+    "grounding": {
+      "worker_runs": 11,
+      "passages_given": 33,
+      "answers_citing_only_their_evidence": 11
+    },
+    "integration": {
+      "feature": {
+        "enabled": true,
+        "url": "http://127.0.0.1:8003"
+      },
+      "server": {
+        "service": "multi-agent-server",
+        "status": "ok"
+      }
+    },
     "metrics": {
       "handoff_success_rate": 1.0,
       "plan_generation_rate": 1.0,
@@ -157,12 +202,9 @@
   },
   "review": {
     "findings": [],
-    "recommendations": [
-      "Monitor the rework ratio (0.45) for the 'Which plantings in the North bed are flowering...' task, as it indicates a recurring need for revisions. Consider reviewing the input data or prompting logic for this task to reduce revision requests.",
-      "Verify that the 'partially_accepted' final status in workflows like '8dfb6fda' and 'ea2f3224' is properly documented and communicated to stakeholders, as it may indicate incomplete or ambiguous outcomes."
-    ],
-    "summary": "All workflow coordination checks passed, with full audit trail visibility, proper human review, and consistent agent handoffs. The workflow history and metrics align, and every change request initiated a new run. However, a notable rework ratio and partially accepted outcomes suggest room for improvement in task clarity or output quality.",
-    "verdict": "ready_with_fixes"
+    "recommendations": [],
+    "summary": "All workflow steps in the multi-agent process are fully audited and executed in order, with every run passing through Planner → Worker → Reviewer → human review. The system demonstrates complete traceability, evidence grounding, and human oversight, with all agent handoffs and decisions properly documented. Metrics show a 45.5% rework ratio, indicating that 45.5% of runs required human intervention or revision, which is consistent with the observed request changes and partial acceptances.",
+    "verdict": "ready"
   },
   "verdict_source": "model",
   "iterations": 1,
@@ -174,8 +216,11 @@
   "evidence_sources": [
     "docs/evidence/release2/workflow_history.jsonl",
     "docs/evidence/release2/coordination_audit.jsonl",
-    "docs/evidence/release2/multi-agent-metrics.json"
+    "docs/evidence/release2/multi-agent-metrics.json",
+    "http://127.0.0.1:5059",
+    "http://127.0.0.1:8003"
   ],
-  "transcript": "/Users/yunz/Documents/nerd/Plant-Management-System/tools/ai-loop/logs/reports/review-multi-agent/review-multi-agent-20261021-095114-c74537.md",
-  "scope": "Reviews saved evidence; a passing review is not proof that every feature works."
+  "transcript": "/Users/yunz/Documents/nerd/Plant-Management-System/tools/ai-loop/logs/reports/review-multi-agent/review-multi-agent-20261021-112329-f18b5a.md",
+  "scope": "Reviews saved evidence; a passing review is not proof that every feature works.",
+  "report": "docs/evidence/release2/multi-agent-review.md"
 }

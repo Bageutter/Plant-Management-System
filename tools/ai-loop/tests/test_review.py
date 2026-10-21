@@ -24,19 +24,28 @@ def history_event(sequence, status, details=None, run_id="run-1"):
             "created_at": "2026-10-20T00:00:00+00:00", "task": "What is flowering?", "run_id": run_id}
 
 
-def write_multi_agent_evidence(directory: Path, *, close=True, reason="Checked the records", reviewer="vgarden-user-1"):
+EVIDENCE = {"mode": "vgarden-api", "passages": [{"chunk_id": "garden-1-plantings", "title": "t", "text": "Tomato"}]}
+
+
+def worker(cited=("garden-1-plantings",), insufficient=False):
+    return {"evidence": EVIDENCE, "result": {"answer": "Tomato", "cited_chunk_ids": list(cited),
+                                             "insufficient_context": insufficient}}
+
+
+def write_multi_agent_evidence(directory: Path, *, close=True, reason="Checked the records", reviewer="vgarden-user-1",
+                               second_worker=None):
     events = [
         history_event(1, "received", {"source": "vgarden"}),
         history_event(2, "planning", {"run_id": "run-1"}),
         history_event(3, "working"),
-        history_event(4, "reviewing"),
+        history_event(4, "reviewing", worker()),
         history_event(5, "awaiting_human_review", {"review": {"recommendation": "revise", "issues": ["x"]}}),
         history_event(6, "changes_requested", {"human_review": {"decision": "request_changes",
                                                                 "feedback": "Add the count",
                                                                 "reviewer_id": "yunus-terminal"}}),
         history_event(7, "planning", {"run_id": "run-2"}, "run-2"),
         history_event(8, "working", run_id="run-2"),
-        history_event(9, "reviewing", run_id="run-2"),
+        history_event(9, "reviewing", second_worker or worker(), run_id="run-2"),
         history_event(10, "awaiting_human_review", {"review": {"recommendation": "revise", "issues": ["y"]}}, "run-2"),
     ]
     if close:
@@ -52,7 +61,8 @@ def write_multi_agent_evidence(directory: Path, *, close=True, reason="Checked t
 
 
 def multi_agent_args(directory, **overrides):
-    values = {"mode": "multi-agent", "evidence_dir": str(directory), "source": None}
+    values = {"mode": "multi-agent", "evidence_dir": str(directory), "source": None,
+              "feature_url": None, "multi_agent_url": None}
     values.update(overrides)
     return argparse.Namespace(**values)
 
@@ -76,6 +86,51 @@ class MultiAgentChecks(unittest.TestCase):
         self.assertEqual(facts["workflows"][0]["runs"], 2)
         self.assertEqual(facts["workflows"][0]["human_decisions"], ["request_changes", "accept"])
         self.assertEqual(len(sources), 3)
+
+    def test_citation_outside_the_evidence_fails_grounding(self):
+        write_multi_agent_evidence(self.dir, second_worker=worker(cited=("garden-9-secret",)))
+        facts, checks, _ = review.gather_multi_agent(multi_agent_args(self.dir))
+        found = {c.id: c for c in checks}
+        self.assertEqual(found["MA-10"].status, "fail")
+        self.assertIn("garden-9-secret", found["MA-10"].detail)
+        self.assertEqual(found["MA-9"].status, "pass")
+        self.assertEqual(facts["grounding"]["worker_runs"], 2)
+
+    def test_answer_without_a_citation_fails_grounding(self):
+        write_multi_agent_evidence(self.dir, second_worker=worker(cited=()))
+        _, checks, _ = review.gather_multi_agent(multi_agent_args(self.dir))
+        self.assertEqual(statuses(checks)["MA-10"], "fail")
+
+    def test_worker_run_without_evidence_fails(self):
+        write_multi_agent_evidence(self.dir, second_worker={"result": {"answer": "x", "cited_chunk_ids": [],
+                                                                       "insufficient_context": True}})
+        _, checks, _ = review.gather_multi_agent(multi_agent_args(self.dir))
+        self.assertEqual(statuses(checks)["MA-9"], "fail")
+
+    def test_live_integration_checks(self):
+        write_multi_agent_evidence(self.dir)
+        replies = {
+            "http://feature.test/integrations": {"multi_agent": {"enabled": True, "url": "http://host:8003"}},
+            "http://mas.test/healthz": {"service": "multi-agent-server", "status": "ok"},
+        }
+        args = multi_agent_args(self.dir, feature_url="http://feature.test", multi_agent_url="http://mas.test")
+        with mock.patch.object(review, "_get_json", side_effect=lambda url: replies[url]):
+            _, checks, sources = review.gather_multi_agent(args)
+        self.assertEqual((statuses(checks)["MA-12"], statuses(checks)["MA-13"]), ("pass", "pass"))
+        self.assertIn("http://mas.test", sources)
+
+    def test_disabled_feature_fails_and_unreachable_server_is_missing(self):
+        write_multi_agent_evidence(self.dir)
+
+        def reply(url):
+            if "healthz" in url:
+                raise review.error.URLError("refused")
+            return {"multi_agent": {"enabled": False, "url": "http://host:8003"}}
+
+        args = multi_agent_args(self.dir, feature_url="http://feature.test", multi_agent_url="http://mas.test")
+        with mock.patch.object(review, "_get_json", side_effect=reply):
+            _, checks, _ = review.gather_multi_agent(args)
+        self.assertEqual((statuses(checks)["MA-12"], statuses(checks)["MA-13"]), ("fail", "missing"))
 
     def test_open_workflow_fails_the_closed_check(self):
         write_multi_agent_evidence(self.dir, close=False)
@@ -311,6 +366,16 @@ class Loop(unittest.TestCase):
         self.assertIn("| X-2 | second | ❌ fail | broken |", text)
         self.assertIn("Decision: **accept**", text)
         self.assertIn(result["run_id"], text)
+
+    def test_second_review_failure_keeps_a_draft_that_met_the_rules(self):
+        reviewer = mock.Mock()
+        reviewer.review.side_effect = review.LoopError("truncated JSON")
+        with mock.patch.object(review, "Reviewer", return_value=reviewer), \
+                mock.patch.object(review, "draft_review", return_value=good_draft()):
+            result = review.run_review(loop_args(self.tmp.name, no_review_model=False))
+        self.assertEqual(result["verdict_source"], "model_rules_only")
+        self.assertEqual(result["review"], good_draft())
+        self.assertEqual(result["iterations"], 1)
 
     def test_no_decision_without_a_terminal_is_pending(self):
         with mock.patch.object(review, "draft_review", return_value=good_draft()), \

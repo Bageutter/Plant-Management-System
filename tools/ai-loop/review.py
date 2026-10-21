@@ -136,7 +136,12 @@ def _rel(path: Path) -> str:
 def _get_json(url: str, timeout: int = 20):
     if not url.startswith(("http://", "https://")):
         raise ValueError(f"Only http(s) URLs are allowed: {url}")
-    req = request.Request(url, headers={"Accept": "application/json", "User-Agent": "ai-loop-review"})  # noqa: S310 -- scheme checked above
+    headers = {"Accept": "application/json", "User-Agent": "ai-loop-review"}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token and url.startswith("https://api.github.com/"):
+        # Optional: 5,000 requests an hour instead of 60 unauthenticated. Only sent to GitHub.
+        headers["Authorization"] = f"Bearer {token}"
+    req = request.Request(url, headers=headers)  # noqa: S310 -- scheme checked above
     with request.urlopen(req, timeout=timeout) as response:  # noqa: S310 -- scheme checked above
         return json.loads(response.read().decode("utf-8"))
 
@@ -248,6 +253,60 @@ def gather_multi_agent(args) -> tuple[dict, list[Check], list[str]]:
         _check(checks, "MA-8", "Metrics export matches the history", tracked == len(workflows),
                f"metrics tracked_workflows={tracked}, history has {len(workflows)}.")
 
+    # Grounding: what each Worker run was given, and what it cited.
+    runs = [e for e in history if e["workflow_id"] in workflows and e["status"] == "reviewing"]
+    ungrounded, uncited, outside, given = [], [], [], 0
+    for event in runs:
+        details = event.get("details") or {}
+        passages = (details.get("evidence") or {}).get("passages") or []
+        result = details.get("result") or {}
+        ids = {p.get("chunk_id") for p in passages}
+        cited = set(result.get("cited_chunk_ids") or [])
+        given += len(passages)
+        label = f"{event['workflow_id'][:8]}#{event['sequence']}"
+        if not passages:
+            ungrounded.append(label)
+        if result.get("insufficient_context") is False and not cited:
+            uncited.append(label)
+        if cited - ids:
+            outside.append(f"{label} cited {sorted(cited - ids)}")
+    _check(checks, "MA-9", "Every Worker run was given evidence passages", bool(runs) and not ungrounded,
+           f"{len(runs)} Worker runs, {given} passages in total"
+           + (f"; no evidence: {', '.join(ungrounded)}" if ungrounded else "."))
+    _check(checks, "MA-10", "Workers cite only passages they were given, and every answer cites one",
+           bool(runs) and not uncited and not outside,
+           "; ".join(filter(None, [f"answers without a citation: {', '.join(uncited)}" if uncited else "",
+                                   f"citations outside the evidence: {'; '.join(outside)}" if outside else ""]))
+           or f"All {len(runs)} answers cite only their own evidence.")
+    reviewed = [e for e in history if e["workflow_id"] in workflows and e["status"] == "awaiting_human_review"]
+    verdicts = [((e.get("details") or {}).get("review") or {}).get("recommendation") for e in reviewed]
+    _check(checks, "MA-11", "The Reviewer gave a verdict on every Worker answer",
+           len(reviewed) == len(runs) and all(verdicts),
+           f"{len(reviewed)} reviews for {len(runs)} answers; verdicts: "
+           + ", ".join(f"{v}={verdicts.count(v)}" for v in sorted(set(map(str, verdicts)))) + ".")
+
+    # The feature's live integration with the server.
+    feature, server = None, None
+    if getattr(args, "feature_url", None):
+        try:
+            feature = (_get_json(f"{args.feature_url.rstrip('/')}/integrations") or {}).get("multi_agent")
+        except (error.URLError, TimeoutError, ValueError, OSError) as exc:
+            feature = {"error": str(exc)}
+        ok = isinstance(feature, dict) and feature.get("enabled") is True and bool(feature.get("url"))
+        _check(checks, "MA-12", "The feature is configured to use the Multi-Agent Server", ok,
+               f"{args.feature_url}/integrations multi_agent: {feature}",
+               missing=isinstance(feature, dict) and "error" in feature)
+    if getattr(args, "multi_agent_url", None):
+        try:
+            server = _get_json(f"{args.multi_agent_url.rstrip('/')}/healthz")
+        except (error.URLError, TimeoutError, ValueError, OSError) as exc:
+            server = {"error": str(exc)}
+        _check(checks, "MA-13", "The Multi-Agent Server answers its health check",
+               isinstance(server, dict) and server.get("status") == "ok",
+               f"{args.multi_agent_url}/healthz: {server}", missing="error" in (server or {}))
+    if feature is not None or server is not None:
+        sources += [u for u in (getattr(args, "feature_url", None), getattr(args, "multi_agent_url", None)) if u]
+
     facts = {
         "workflows": [
             {"id": w["id"], "source": w["source"], "task": w["task"], "runs": len(w["runs"]),
@@ -256,6 +315,9 @@ def gather_multi_agent(args) -> tuple[dict, list[Check], list[str]]:
              "final_status": w["events"][-1]}
             for w in workflows.values()
         ],
+        "grounding": {"worker_runs": len(runs), "passages_given": given,
+                      "answers_citing_only_their_evidence": len(runs) - len(outside)},
+        "integration": {"feature": feature, "server": server},
     }
     if metrics:
         facts["metrics"] = {k: (metrics[k]["value"] if isinstance(metrics.get(k), dict) and "value" in metrics[k]
@@ -405,7 +467,7 @@ def gather_testing(args) -> tuple[dict, list[Check], list[str]]:
         _check(checks, cover_id, f"Every {service} endpoint is exercised by a test", not untested,
                f"{summary['endpoints_tested']}/{summary['endpoints']} endpoints run by the tests"
                + (f"; not exercised: {listed}" + (f" and {len(untested) - 8} more" if len(untested) > 8 else "")
-                  if untested else ".") + f" Line coverage {summary.get('line_coverage_percent')}%.",
+                  + "." if untested else ".") + f" Line coverage {summary.get('line_coverage_percent')}%.",
                warn=True)
         facts["test_evidence"].append({
             "service": service, "commit": summary.get("commit"),
@@ -723,7 +785,7 @@ def run_review(args) -> dict:
                      body=json.dumps(review, ensure_ascii=False, indent=2))
     else:
         reviewer = None if args.no_review_model else Reviewer(
-            args.ollama_url, args.review_model, timeout=args.timeout, num_predict=400, prompt=OBSERVE_PROMPT,
+            args.ollama_url, args.review_model, timeout=args.timeout, num_predict=800, prompt=OBSERVE_PROMPT,
             num_ctx=args.num_ctx)
         feedback = None
         try:
@@ -740,8 +802,15 @@ def run_review(args) -> dict:
                 model_review = {"verdict": "skipped", "issues": [], "guidance": ""}
                 if not issues and reviewer is not None:
                     started = time.monotonic()
-                    model_review = reviewer.review(f"Review {SUBJECTS[args.mode]}", grounding,
-                                                   json.dumps(draft, ensure_ascii=False))
+                    try:
+                        model_review = reviewer.review(f"Review {SUBJECTS[args.mode]}", grounding,
+                                                       json.dumps(draft, ensure_ascii=False))
+                    except LoopError as exc:
+                        # The draft already met every rule; keep it rather than discard it, and
+                        # say plainly that the second-model check did not happen.
+                        model_review = {"verdict": "unavailable", "issues": [f"second review failed: {exc}"],
+                                        "guidance": ""}
+                        verdict_source = "model_rules_only"
                     if model_review["verdict"] == "revise":
                         issues = model_review["issues"] or ["The reviewer asked for a revision."]
                 logger.phase("observe", {"iteration": iterations, "rule_issues": rule_issues(draft, checks) or "(none)",
