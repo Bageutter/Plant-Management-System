@@ -248,6 +248,8 @@ class MultiAgentClient:
     """
 
     def __init__(self, base_url: str, *, enabled: bool = True, timeout: float = 900.0):
+        if not base_url.startswith(("http://", "https://")):
+            raise ValueError("MULTI_AGENT_URL must be an http(s) URL")
         self.base_url = base_url.rstrip("/")
         self.enabled = enabled
         self.timeout = timeout

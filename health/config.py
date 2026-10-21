@@ -60,6 +60,12 @@ class Config:
     RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://127.0.0.1:5106").rstrip("/")
     # Per-call timeout for the shared servers (a RAG answer includes a model call).
     INTEGRATION_TIMEOUT = int(os.environ.get("INTEGRATION_TIMEOUT", "180"))
+    # Release 2: shared local Multi-Agent Server, also outside docker compose (reached
+    # through host.docker.internal in compose). CI and the cloud baseline set it to false.
+    MULTI_AGENT_ENABLED = _as_bool(os.environ.get("MULTI_AGENT_ENABLED"), True)
+    MULTI_AGENT_URL = os.environ.get("MULTI_AGENT_URL", "http://127.0.0.1:8003").rstrip("/")
+    # One run is three local model calls (Planner, Worker, Reviewer).
+    MULTI_AGENT_TIMEOUT = float(os.environ.get("MULTI_AGENT_TIMEOUT", "900"))
 
     # Release 2: shared local Multi-Agent Server (Planner -> Worker -> Reviewer ->
     # Human Review). Runs on the host like MCP/RAG; CI and the cloud baseline set

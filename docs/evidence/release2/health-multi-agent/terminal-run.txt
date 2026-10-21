@@ -1,0 +1,136 @@
+$ curl -s $HEALTH/integrations
+{
+  "multi_agent": {
+    "enabled": true,
+    "reachable": true,
+    "url": "http://127.0.0.1:8003"
+  }
+}
+
+$ curl -s http://127.0.0.1:5060/plant-health-records/assessments/2
+{
+  "plant_ref": "Backyard tomato",
+  "status": "at_risk",
+  "health_score": 50,
+  "confidence": "medium",
+  "summary": "Reduce watering to once every 2-3 days to allow the soil to dry out slightly. Monitor for further signs of stress and adjust accordingly."
+}
+
+$ curl -s -X POST http://127.0.0.1:5060/plant-health-records/assessments/2/workflows  (task; health sends this assessment's records)
+{
+  "id": 1,
+  "workflow_id": "b3a742fd-d446-41c2-a219-6ee5e9ba35a4",
+  "status": "received",
+  "source": "health"
+}
+(agents took 41s)
+{
+  "status": "awaiting_human_review",
+  "plan": {
+    "steps": [
+      "Retrieve the plant's most recent health assessment to identify the current recorded issue with the highest priority.",
+      "Extract the status, issue description, and recommended action from the most recent assessment record.",
+      "Compare the issue's severity and urgency with earlier assessments to determine if it has worsened or changed over time.",
+      "Identify whether any missing information in the record (e.g., environmental conditions, history of interventions) would affect the validity of the recommended action.",
+      "Determine if the recommended action is specific and actionable based on the available evidence in the record.",
+      "Prepare a response that reflects only the information present in the record, without adding assumptions or external advice."
+    ]
+  },
+  "result": {
+    "answer": "The recorded issue needing attention first is yellowing leaves, with severity medium. The record says to reduce watering to once every 2-3 days to allow the soil to dry out slightly. This action is recommended with priority medium and is described as the least invasive effective action first. No other issue or action is specified as higher priority.",
+    "cited_chunk_ids": [
+      "health-2-issues",
+      "health-2-recommendations"
+    ],
+    "insufficient_context": false
+  },
+  "review": {
+    "issues": [
+      "health-2-issues: 'The record says to reduce watering to once every 2-3 days to allow the soil to dry out slightly': Source does not record any recommendation about watering frequency",
+      "health-2-issues: 'This action is recommended with priority medium': Source does not record any priority level for actions",
+      "health-2-issues: 'is described as the least invasive effective action first': Source does not record any assessment of invasiveness or action order",
+      "health-2-issues: 'No other issue or action is specified as higher priority': Source does not record any comparison of priority between issues",
+      "health-2-recommendations: 'The recorded issue needing attention first is yellowing leaves, with severity medium.': Source does not record yellowing leaves or any issue related to leaf color",
+      "health-2-recommendations: 'No other issue or action is specified as higher priority.': Source does not record or compare priorities of issues or actions"
+    ],
+    "recommendation": "revise"
+  }
+}
+  evidence: health-2-assessment - Backyard tomato assessment 2 summary — Plant Health record
+  evidence: health-2-issues - Backyard tomato assessment 2 issues — Plant Health record
+  evidence: health-2-recommendations - Backyard tomato assessment 2 recommendations and gaps — Plant Health record
+  evidence: health-2-history - Backyard tomato assessment 2 earlier assessments of the same plant — Plant Health record
+
+$ curl -s -X POST .../review  decision=request_changes
+{
+  "status": "planning",
+  "human_review": null
+}
+(the health backend starts the revised run; feedback goes to the Planner and Worker)
+(agents took 64s)
+{
+  "status": "awaiting_human_review",
+  "revision_feedback": "Also say what information the assessment says is missing.",
+  "plan": {
+    "steps": [
+      "Retrieve the plant's most recent health assessment to identify the current recorded issues and their associated recommendations.",
+      "Compare the severity and urgency of each recorded issue based on the assessment's status and issue descriptions to determine which requires immediate attention.",
+      "Identify any missing information in the assessment, such as specific environmental conditions, historical data, or plant type, that would affect the validity of the recommendations.",
+      "Verify whether the assessment includes a clear action item or directive for addressing the highest-priority issue.",
+      "Check if the assessment provides a rationale or context for the prioritization of issues, such as recurrence or impact on plant viability.",
+      "Document the missing information and note that without it, the recommendations cannot be fully validated or applied."
+    ]
+  },
+  "result": {
+    "answer": "The recorded issue needing attention first is yellowing leaves, with severity medium. The record says to reduce watering to once every 2-3 days to allow the soil to dry out slightly. This action is prioritized as medium. The assessment does not record the plant type, environmental conditions, or historical data prior to this assessment. These details are missing and affect the validity of the recommendations.",
+    "cited_chunk_ids": [
+      "health-2-assessment",
+      "health-2-issues",
+      "health-2-recommendations",
+      "health-2-history"
+    ],
+    "insufficient_context": false
+  },
+  "review": {
+    "issues": [
+      "health-2-assessment: 'The recorded issue needing attention first is yellowing leaves, with severity medium': Source does not record severity of yellowing leaves as 'medium'",
+      "health-2-assessment: 'This action is prioritized as medium': Source does not record the priority level of the action as 'medium'",
+      "health-2-assessment: 'The assessment does not record the plant type, environmental conditions, or historical data prior to this assessment': Source does not record plant type, environmental conditions, or historical data, but this is not a claim that it exists; the absence of record is not a claim that it is missing",
+      "health-2-issues: 'The record says to reduce watering to once every 2-3 days to allow the soil to dry out slightly': Source does not record any recommendation about watering frequency",
+      "health-2-issues: 'This action is prioritized as medium': Source does not record any prioritization of actions",
+      "health-2-issues: 'The assessment does not record the plant type, environmental conditions, or historical data prior to this assessment. These details are missing and affect the validity of the recommendations.': Source does not record plant type, environmental conditions, or historical data",
+      "health-2-recommendations: 'The recorded issue needing attention first is yellowing leaves, with severity medium.': Source does not record yellowing leaves or any issue related to leaf color",
+      "health-2-recommendations: 'The record says to reduce watering to once every 2-3 days to allow the soil to dry out slightly. This action is prioritized as medium.': Source mentions reducing watering but does not state that this action is prioritized as medium; it only states the action and its priority level is 'priority medium' which is not equivalent to 'severity medium'",
+      "health-2-recommendations: 'The assessment does not record the plant type, environmental conditions, or historical data prior to this assessment. These details are missing and affect the validity of the recommendations.': Source does not record or address plant type, environmental conditions, or historical data",
+      "health-2-history: 'The recorded issue needing attention first is yellowing leaves, with severity medium.': Source does not record severity of yellowing leaves as 'medium'",
+      "health-2-history: 'This action is prioritized as medium.': Source does not record prioritization of watering action as 'medium'",
+      "health-2-history: 'The assessment does not record the plant type, environmental conditions, or historical data prior to this assessment. These details are missing and affect the validity of the recommendations.': Source does not record absence of plant type, environmental conditions, or historical data; this claim is not supported by the source"
+    ],
+    "recommendation": "revise"
+  }
+}
+
+$ curl -s -X POST .../review  decision=partially_accept  (Reviewer said: revise)
+{
+  "status": "partially_accepted",
+  "human_review": {
+    "decision": "partially_accept",
+    "feedback": "Approved only the claims the Reviewer did not flag; the flagged claims remain unresolved.",
+    "reviewer_id": "yunus-terminal"
+  },
+  "error": null
+}
+
+$ curl -s http://127.0.0.1:5060/plant-health-records/assessments/2/workflows/1   (history)
+partially_accepted b3a742fd-d446-41c2-a219-6ee5e9ba35a4
+  2026-10-21T12:10:35 received
+  2026-10-21T12:10:35 planning
+  2026-10-21T12:10:47 working
+  2026-10-21T12:10:56 reviewing
+  2026-10-21T12:11:14 awaiting_human_review
+  2026-10-21T12:11:16 changes_requested
+  2026-10-21T12:11:16 planning
+  2026-10-21T12:11:28 working
+  2026-10-21T12:11:40 reviewing
+  2026-10-21T12:12:18 awaiting_human_review
+  2026-10-21T12:12:20 partially_accepted

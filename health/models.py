@@ -269,11 +269,19 @@ class HealthWorkflow(db.Model):
     __table_args__ = (db.UniqueConstraint("workflow_id", name="uq_health_workflows_workflow_id"),)
 
     id = db.Column(db.Integer, primary_key=True)
+    assessment_id = db.Column(
+        db.Integer, db.ForeignKey("assessments.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     workflow_id = db.Column(db.String(64), nullable=False)
     plant_ref = db.Column(db.String(200), nullable=True)
     task = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(40), nullable=False, default="received")
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    assessment = db.relationship(
+        "Assessment",
+        backref=db.backref("workflows", cascade="all, delete-orphan", order_by="HealthWorkflow.created_at"),
+    )
 
     def to_dict(self) -> dict:
         return {

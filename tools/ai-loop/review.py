@@ -319,7 +319,7 @@ def gather_multi_agent(args) -> tuple[dict, list[Check], list[str]]:
                       "answers_citing_only_their_evidence": len(runs) - len(outside)},
         "integration": {"feature": feature, "server": server},
     }
-    if metrics:
+    if metrics and not args.source:  # server-wide numbers would misdescribe one feature's workflows
         facts["metrics"] = {k: (metrics[k]["value"] if isinstance(metrics.get(k), dict) and "value" in metrics[k]
                                 else metrics.get(k))
                             for k in ("handoff_success_rate", "plan_generation_rate", "worker_completion_rate",

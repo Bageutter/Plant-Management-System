@@ -22,6 +22,7 @@ is started off the request thread and the page polls the workflow's status.
 from __future__ import annotations
 
 import logging
+import re
 import threading
 
 from flask import Blueprint, abort, current_app, jsonify, render_template, request
@@ -35,6 +36,10 @@ from sqlalchemy import func
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("health_workflows", __name__, url_prefix=URL_PREFIX)
+
+HISTORY_LIMIT = 5
+UI_REVIEWER_ID = "health-user-web"
+REVIEWER_ID_CHARS = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 
 MAX_TASK_CHARS = 500
 MAX_FEEDBACK_CHARS = 2000
@@ -61,7 +66,7 @@ def _client():
 
 def _get_workflow(local_id: int) -> HealthWorkflow:
     workflow = db.session.get(HealthWorkflow, local_id)
-    if workflow is None:
+    if workflow is None or workflow.assessment_id is not None:
         abort(404)
     return workflow
 
@@ -264,7 +269,8 @@ def _render(workflow: HealthWorkflow, *, state: dict | None = None, error=None, 
 def list_workflows():
     """Recent workflows started from this service (local rows; the server holds the rest)."""
 
-    recent = HealthWorkflow.query.order_by(HealthWorkflow.created_at.desc(), HealthWorkflow.id.desc()).limit(20).all()
+    recent = HealthWorkflow.query.filter_by(assessment_id=None).order_by(
+        HealthWorkflow.created_at.desc(), HealthWorkflow.id.desc()).limit(20).all()
     return jsonify([w.to_dict() for w in recent])
 
 
@@ -342,8 +348,210 @@ def review_workflow(local_id):
 def recent_workflows(limit: int = 8) -> list[HealthWorkflow]:
     """For the records page panel."""
 
-    return HealthWorkflow.query.order_by(HealthWorkflow.created_at.desc(), HealthWorkflow.id.desc()).limit(limit).all()
+    return HealthWorkflow.query.filter_by(assessment_id=None).order_by(
+        HealthWorkflow.created_at.desc(), HealthWorkflow.id.desc()).limit(limit).all()
 
 
 def plant_choices() -> list[Plant]:
     return Plant.ordered()
+
+
+# Assessment-scoped workflows complement the existing records-page workflows.
+
+
+def _get_assessment(assessment_id: int) -> Assessment:
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None:
+        abort(404)
+    return assessment
+
+
+def _get_assessment_workflow(assessment_id: int, local_id: int) -> HealthWorkflow:
+    assessment = _get_assessment(assessment_id)
+    workflow = db.session.get(HealthWorkflow, local_id)
+    if workflow is None or workflow.assessment_id != assessment.id:
+        abort(404)
+    return workflow
+
+
+def assessment_record_evidence(assessment: Assessment) -> dict:
+    """This assessment, and the same plant's earlier ones, as passages for the
+    Worker and Reviewer. Every field is labelled and gaps are stated, so neither
+    agent has to infer which value belongs to what."""
+
+    name = _label(assessment.plant_ref or assessment.plant_identification) or "Plant"
+    title = f"{name} assessment {assessment.id}"
+
+    def passage(part: str, label: str, lines: list[str]) -> dict:
+        return {
+            "chunk_id": f"health-{assessment.id}-{part}",
+            "title": f"{title} {label} — Plant Health record",
+            "text": _clip("\n".join(lines)),
+        }
+
+    recorded = assessment.created_at.strftime("%Y-%m-%d") if assessment.created_at else "not recorded"
+    summary = [
+        f"Plant: {_field(assessment.plant_ref)}",
+        f"Recorded: {recorded}",
+        f"Status: {_field(assessment.status)}",
+        f"Health score: {_field(assessment.health_score)} (0-100)"
+        + (f", band {assessment.score_band}" if assessment.score_band else ""),
+        f"Confidence: {_field(assessment.confidence_level)}"
+        + (f" - {assessment.confidence_reason}" if assessment.confidence_reason else ""),
+        f"Plant identified as: {_field(assessment.plant_identification)}",
+        f"Photo supplied: {'yes' if assessment.has_image else 'no'}",
+        f"Owner's description: {_field(assessment.description)}",
+        f"Summary: {_field(assessment.summary)}",
+        "Note: this is an earlier AI assessment with the stated confidence, not a diagnosis.",
+    ]
+    passages = [passage("assessment", "summary", summary)]
+
+    issues = [
+        f"{_field(i.get('name'))} - severity {_field(i.get('severity'))}; evidence {_field(i.get('evidence'))}"
+        for i in assessment.issues
+    ]
+    passages.append(passage("issues", "issues", issues or ["No issues were recorded."]))
+
+    recommendations = [
+        f"{_field(r.get('action'))} - priority {_field(r.get('priority'))}; details {_field(r.get('details'))}"
+        for r in assessment.recommendations
+    ]
+    missing = [f"Missing information: {m}" for m in assessment.missing_information]
+    passages.append(passage(
+        "recommendations", "recommendations and gaps",
+        (recommendations or ["No recommendations were recorded."]) + missing,
+    ))
+
+    if assessment.plant_ref:
+        earlier = (
+            Assessment.query.filter(
+                func.lower(Assessment.plant_ref) == assessment.plant_ref.lower(),
+                db.or_(Assessment.created_at < assessment.created_at,
+                       db.and_(Assessment.created_at == assessment.created_at, Assessment.id < assessment.id)),
+            )
+            .order_by(Assessment.created_at.desc(), Assessment.id.desc())
+            .limit(HISTORY_LIMIT)
+            .all()
+        )
+        if earlier:
+            passages.append(passage("history", "earlier assessments of the same plant", [
+                f"Assessment {e.id} on {e.created_at.strftime('%Y-%m-%d') if e.created_at else 'not recorded'}: "
+                f"status {_field(e.status)}; health score {_field(e.health_score)}; summary {_field(e.summary)}"
+                for e in earlier
+            ]))
+    return {"mode": "health-api", "passages": passages}
+
+
+def _render_assessment(assessment, workflow: HealthWorkflow, *, state: dict | None = None, error=None, code=200):
+    """The workflow panel, or JSON. Refreshes the cached status from the server."""
+
+    if state is None:
+        try:
+            state = _client().status(workflow.workflow_id)
+        except (IntegrationDisabled, IntegrationUnavailable) as exc:
+            if error is None:
+                error, code = str(exc), 503 if isinstance(exc, IntegrationDisabled) else 502
+    if state is not None and state.get("status") and state["status"] != workflow.status:
+        workflow.status = state["status"]
+        db.session.commit()
+    with _running_lock:
+        running = workflow.workflow_id in _running
+    status = (state or {}).get("status", workflow.status)
+    polling = status in IN_PROGRESS or (status in ("received", "changes_requested") and running)
+
+    if not _wants_html():
+        if error:
+            return jsonify({"error": error, "status_code": code}), code
+        return jsonify({"id": workflow.id, "assessment_id": assessment.id, "polling": polling,
+                        **(state or {})}), code
+    return render_template(
+        "_assessment_workflow.html",
+        assessment=assessment,
+        workflow=workflow,
+        state=state or {},
+        status=status,
+        polling=polling,
+        error=error,
+        final=status in FINAL,
+    ), code
+
+
+def _assessment_input():
+    data = (request.get_json(silent=True) or {}) if request.is_json else request.form
+    if not hasattr(data, "get"):
+        raise ValueError("Send a JSON object or form data.")
+    return data
+
+
+@bp.route("/assessments/<int:assessment_id>/workflows", methods=["POST"])
+def start_assessment_workflow(assessment_id):
+    """Send a task plus this assessment's records to the Multi-Agent Server and start it."""
+
+    assessment = _get_assessment(assessment_id)
+    try:
+        task = _clean(_assessment_input().get("task"), MAX_TASK_CHARS, "task")
+        if not task:
+            raise ValueError("Describe the task for the agents.")
+        if len(task) > MAX_TASK_CHARS:
+            raise ValueError(f"task must be {MAX_TASK_CHARS} characters or fewer.")
+        created = _client().create(task, assessment_record_evidence(assessment))
+    except (ValueError, IntegrationDisabled, IntegrationUnavailable) as exc:
+        return _integration_error(exc, _wants_html())
+
+    workflow = HealthWorkflow(
+        assessment_id=assessment.id, plant_ref=assessment.plant_ref,
+        workflow_id=created["workflow_id"], task=task, status="received"
+    )
+    db.session.add(workflow)
+    db.session.commit()
+    _run_in_background(_client(), workflow.workflow_id)
+    return _render_assessment(assessment, workflow, code=201)
+
+
+@bp.route("/assessments/<int:assessment_id>/workflows/<int:local_id>")
+def assessment_workflow_detail(assessment_id, local_id):
+    """Current plan, worker answer, AI review, human decision and history."""
+
+    workflow = _get_assessment_workflow(assessment_id, local_id)
+    return _render_assessment(workflow.assessment, workflow)
+
+
+@bp.route("/assessments/<int:assessment_id>/workflows/<int:local_id>/run", methods=["POST"])
+def rerun_assessment_workflow(assessment_id, local_id):
+    """Run again after a failure or requested changes (feedback feeds the new plan)."""
+
+    workflow = _get_assessment_workflow(assessment_id, local_id)
+    _run_in_background(_client(), workflow.workflow_id)
+    return _render_assessment(workflow.assessment, workflow, code=202)
+
+
+@bp.route("/assessments/<int:assessment_id>/workflows/<int:local_id>/review", methods=["POST"])
+def review_assessment_workflow(assessment_id, local_id):
+    """Record the human decision. Requested changes start a revised run."""
+
+    workflow = _get_assessment_workflow(assessment_id, local_id)
+    try:
+        source = _assessment_input()
+        decision = _clean(source.get("decision"), 30, "decision")
+        feedback = _clean(source.get("feedback"), MAX_FEEDBACK_CHARS, "feedback") or ""
+        if decision not in DECISIONS:
+            raise ValueError("Choose accept, partially accept, request changes or reject.")
+        if len(feedback) > MAX_FEEDBACK_CHARS:
+            raise ValueError(f"feedback must be {MAX_FEEDBACK_CHARS} characters or fewer.")
+        reviewer_id = UI_REVIEWER_ID
+        if request.is_json and source.get("reviewer_id") is not None:
+            reviewer_id = str(source.get("reviewer_id"))
+            if not REVIEWER_ID_CHARS.match(reviewer_id):
+                raise ValueError("reviewer_id must be 1-100 letters, digits, '.', '_' or '-'.")
+        state = _client().review(workflow.workflow_id, decision, feedback, reviewer_id)
+    except WorkflowConflict as exc:
+        return _render_assessment(workflow.assessment, workflow, error=str(exc), code=409)
+    except (ValueError, IntegrationDisabled, IntegrationUnavailable) as exc:
+        if _wants_html() and isinstance(exc, ValueError):
+            return _render_assessment(workflow.assessment, workflow, error=str(exc), code=400)
+        return _integration_error(exc, _wants_html())
+
+    if state.get("status") == "changes_requested":
+        _run_in_background(_client(), workflow.workflow_id)
+        return _render_assessment(workflow.assessment, workflow)
+    return _render_assessment(workflow.assessment, workflow, state=state)
