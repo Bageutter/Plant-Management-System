@@ -111,6 +111,8 @@ services:
       - MCP_ENABLED=${MCP_ENABLED:-true}
       - MCP_SERVER_URL=${MCP_SERVER_URL:-http://host.docker.internal:5105/mcp}
       - RAG_ENABLED=${RAG_ENABLED:-true}
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-false}
+      - MULTI_AGENT_SERVER_URL=http://host.docker.internal:8003
       - RAG_SERVER_URL=${RAG_SERVER_URL:-http://host.docker.internal:5106}
       # Plan -> Act -> Observe -> Adapt loop; see docs/agentic-ai-workflow.md.
       - OLLAMA_REVIEW_MODEL=llama3.1:8b
