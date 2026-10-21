@@ -1,12 +1,12 @@
 {
   "service": "ai-services/mcp-server",
-  "generated_at": "2026-10-21T13:42:17+00:00",
-  "commit": "228fec3",
+  "generated_at": "2026-10-21T14:27:33+00:00",
+  "commit": "dc6014b",
   "test_command": "coverage run -m pytest -q tests",
   "exit_code": 0,
-  "line_coverage_percent": 94.9,
+  "line_coverage_percent": 95.3,
   "endpoints": 13,
-  "endpoints_tested": 12,
+  "endpoints_tested": 13,
   "routes": [
     {
       "kind": "http",
@@ -21,7 +21,7 @@
         61,
         75
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "mcp_tool",
