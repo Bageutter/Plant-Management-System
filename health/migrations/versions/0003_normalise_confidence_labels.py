@@ -21,17 +21,15 @@ down_revision = '0002'
 branch_labels = None
 depends_on = None
 
-LEVELS = "('low', 'medium', 'high')"
-
-
 def upgrade():
+    # Fixed SQL, written out in full (no string building), so nothing can be injected.
     op.execute(sa.text(
         "UPDATE assessments SET confidence = lower(confidence) "
-        f"WHERE confidence IS NOT NULL AND lower(confidence) IN {LEVELS}"
+        "WHERE confidence IS NOT NULL AND lower(confidence) IN ('low', 'medium', 'high')"
     ))
     op.execute(sa.text(
         "UPDATE assessments SET confidence = NULL "
-        f"WHERE confidence IS NOT NULL AND lower(confidence) NOT IN {LEVELS}"
+        "WHERE confidence IS NOT NULL AND lower(confidence) NOT IN ('low', 'medium', 'high')"
     ))
 
 

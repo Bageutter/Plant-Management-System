@@ -165,4 +165,5 @@ def create_app(config_class: type | None = None) -> Flask:
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # 0.0.0.0 inside the container only; compose exposes 5000 to the proxy, not the host.
+    app.run(host="0.0.0.0", port=5000, debug=True)  # noqa: S104
