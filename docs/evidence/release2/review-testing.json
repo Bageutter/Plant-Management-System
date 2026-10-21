@@ -295,13 +295,13 @@
       "id": "TS-49",
       "title": "ai-services/mcp-server tests pass",
       "status": "pass",
-      "detail": "42 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3)."
+      "detail": "44 tests: 0 failures, 0 errors, 0 skipped (commit 44ea273)."
     },
     {
       "id": "TS-50",
       "title": "Every ai-services/mcp-server endpoint is exercised by a test",
-      "status": "warn",
-      "detail": "12/13 endpoints run by the tests; not exercised: GET /healthz. Line coverage 94.9%."
+      "status": "pass",
+      "detail": "13/13 endpoints run by the tests. Line coverage 95.3% (refreshed MCP evidence)."
     },
     {
       "id": "TS-51",
@@ -702,18 +702,16 @@
       },
       {
         "service": "ai-services/mcp-server",
-        "commit": "228fec3",
-        "tests": 42,
+        "commit": "44ea273",
+        "tests": 44,
         "failures": 0,
         "errors": 0,
         "skipped": 0,
         "warnings": 0,
-        "line_coverage_percent": 94.9,
+        "line_coverage_percent": 95.3,
         "endpoints": 13,
-        "endpoints_tested": 12,
-        "untested_endpoints": [
-          "GET /healthz (ai-services/mcp-server/server.py:60)"
-        ]
+        "endpoints_tested": 13,
+        "untested_endpoints": []
       },
       {
         "service": "ai-services/rag-server",
@@ -767,11 +765,6 @@
         "severity": "minor"
       },
       {
-        "check_id": "TS-50",
-        "finding": "12 out of 13 endpoints in ai-services/mcp-server are exercised by tests; endpoint GET /healthz is not tested. Line coverage is 94.9% (warn).",
-        "severity": "minor"
-      },
-      {
         "check_id": "TS-52",
         "finding": "5 out of 6 endpoints in ai-services/rag-server are exercised by tests; endpoint POST /rag/retrieve is not tested. Line coverage is 82.6% (warn).",
         "severity": "minor"
@@ -786,12 +779,11 @@
       "Add test coverage for the missing endpoints in vgarden (GET /healthz, GET /gardens) to ensure full endpoint coverage and maintain 100% test coverage for all routes.",
       "Implement tests for the untested endpoints in almanac (GET /ailments, GET /ailments/<int:ailment_id>/photo, GET /health) to improve test coverage and reliability.",
       "Develop and execute tests for the missing endpoint in health (POST /assessments/<int:assessment_id>/regenerate/stream) to ensure all functionality is validated.",
-      "Add test cases for the untested endpoint in ai-services/mcp-server (GET /healthz) to ensure complete coverage of the service.",
       "Create test cases for the missing endpoint in ai-services/rag-server (POST /rag/retrieve) to address low line coverage and improve service reliability.",
       "Implement tests for the untested endpoints in ai-services/multi-agent-server (GET /healthz, GET /dashboard, GET /workflow/metrics) to ensure full coverage of all endpoints and improve system stability.",
       "Review and validate that all endpoints are covered in the test suite, and consider adding integration or endpoint-level tests to validate behavior under real-world conditions."
     ],
-    "summary": "All pre-commit security and code quality checks passed, with no vulnerabilities or secrets detected. However, multiple services have untested endpoints, resulting in incomplete test coverage. These gaps represent a minor risk to long-term maintainability and reliability.",
+    "summary": "All pre-commit security and code quality checks passed, with no vulnerabilities or secrets detected. Five services still have untested endpoints, resulting in incomplete test coverage. These gaps represent a minor risk to long-term maintainability and reliability.",
     "verdict": "ready_with_fixes"
   },
   "verdict_source": "model",
@@ -895,5 +887,18 @@
         "service": "Multi-Agent Server"
       }
     ]
-  }
+  },
+  "follow_up_updates": [
+    {
+      "issue": 98,
+      "check": "TS-50",
+      "status": "pass",
+      "commit": "44ea273",
+      "tests": 44,
+      "endpoints": 13,
+      "endpoints_tested": 13,
+      "line_coverage_percent": 95.3,
+      "evidence": "docs/evidence/release2/testing/mcp-server/routes.json"
+    }
+  ]
 }
