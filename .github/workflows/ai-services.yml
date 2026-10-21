@@ -73,7 +73,10 @@ jobs:
           cache: pip
           cache-dependency-path: ai-services/rag-server/requirements-dev.txt
       - name: Install dependencies
-        run: pip install -r ai-services/rag-server/requirements-dev.txt
+        run: |
+          pip install -r ai-services/rag-server/requirements-dev.txt
+          # Optional Chroma backend, so its tests still run in CI.
+          pip install -r ai-services/rag-server/requirements-chroma.txt
       - name: Run tests
         working-directory: ai-services/rag-server
         env:
