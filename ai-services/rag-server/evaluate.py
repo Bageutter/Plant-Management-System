@@ -75,8 +75,8 @@ def main():
                 negative_rejections=sum(r['negative_rejected'] for r in negative),scope_violations=sum(not r['scope_ok'] for r in selected)))
     result={'timestamp_utc':datetime.now(timezone.utc).isoformat(),
         'note':'Exploratory, assistant-authored labels based on indexed records; human review pending. Retrieval only, not answer factuality, UI, authentication or full release validation.',
-        'commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
-        'working_tree_dirty':bool(subprocess.check_output(['git','status','--porcelain'],text=True).strip()),
+        'commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),  # noqa: S607 -- dev-run script, git from PATH
+        'working_tree_dirty':bool(subprocess.check_output(['git','status','--porcelain'],text=True).strip()),  # noqa: S607 -- as above
         'evaluator_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         'embedding_model':config['RAG_EMBED_MODEL'], 'embedding_dimensions':len(vector),
         'index_sources':store.sources(),

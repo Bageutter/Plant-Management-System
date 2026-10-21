@@ -20,23 +20,18 @@ docker compose up --build health
 ```
 
 * UI: <http://localhost:5003/plant-health-records>
-* Ollama: <http://localhost:11434>
+* AI-Mode: the host's own Ollama at <http://localhost:11434> (`ollama serve`). It is
+  not a compose service; the container reaches it at `host.docker.internal:11434`
+  (override with `HEALTH_OLLAMA_URL`).
 
 The first assessment triggers a model pull (~3 GB), so it can take several minutes.
 To avoid that wait, pull the model up front:
 
 ```bash
-docker compose exec ollama ollama pull qwen2.5vl:3b
+ollama pull qwen2.5vl:3b
 ```
 
-### GPU acceleration (strongly recommended)
-
-By default Ollama runs on **CPU**, which is roughly an order of magnitude slower.
-If the host has an NVIDIA GPU and the NVIDIA Container Toolkit installed:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
-```
+The host's Ollama uses the GPU by itself (Metal on Apple silicon, CUDA on NVIDIA).
 
 ## Performance
 
@@ -96,7 +91,7 @@ python app.py
 | --- | --- | --- |
 | `DATABASE_URL` | SQLite in `health/instance/health.db` | Assessment storage |
 | `AUTH_PUBLIC_URL` | `http://localhost:5001` | Browser-facing auth URL for nav links |
-| `OLLAMA_URL` | `http://localhost:11434` | Local AI endpoint (`http://ollama:11434` in compose) |
+| `OLLAMA_URL` | `http://localhost:11434` | Local AI endpoint (`http://host.docker.internal:11434` in compose) |
 | `OLLAMA_MODEL` | `qwen2.5vl:3b` | Vision-capable model used for image + text analysis |
 | `OLLAMA_TIMEOUT` | `180` | Inference timeout, seconds |
 | `OLLAMA_AUTO_PULL` | `true` | Pull the model on first use if missing |
@@ -107,7 +102,7 @@ python app.py
 | `OLLAMA_PRELOAD` | `true` | Load the model in the background at startup |
 | `OLLAMA_PRELOAD_RETRIES` | `12` | Preload attempts while Ollama is still starting |
 | `OLLAMA_PRELOAD_RETRY_SECONDS` | `5` | Initial delay between attempts (grows ×1.5, capped at 60s) |
-| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `nginx.conf` above it) |
+| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `shared/proxy/default.conf.template` above it) |
 | `IMAGE_MAX_EDGE` | `896` | Photos are downscaled to this longest edge before inference |
 
 ## Agentic loop: Perceive → Reason → Act → Observe → Repeat
@@ -149,8 +144,8 @@ curl -s localhost:3000/health/plant-health-records/assessments/1/loop   # the tr
 | `AI_LOOP_MAX_ITERATIONS` | `2` | Maximum Reason/Observe rounds |
 | `AI_LOOP_LOG_DIR` | `tools/ai-loop/logs` (`/app/ai_loop_logs` in compose) | JSONL + transcripts |
 
-Compose sets `OLLAMA_MAX_LOADED_MODELS=2` on the Ollama service so the vision model and
-the reviewer stay resident together instead of evicting each other on every assessment.
+Set `OLLAMA_MAX_LOADED_MODELS=2` on the host's Ollama so the vision model and the
+reviewer stay resident together instead of evicting each other on every assessment.
 
 ## How the health score works
 
@@ -257,7 +252,7 @@ as a single `error` event, so a stream consumer sees it too.
 
 ### Oversized photos
 
-`MAX_UPLOAD_BYTES` (12 MiB) is the app's limit, and `nginx.conf` allows `13m` on the
+`MAX_UPLOAD_BYTES` (12 MiB) is the app's limit, and the proxy (`shared/proxy/default.conf.template`) allows `13m` on the
 `/health/` route so the app — not the proxy — is the one that answers. The upload form
 states the limit under the file picker, shows the chosen photo's size, and when a photo is
 over the limit it re-encodes it in the browser to `IMAGE_MAX_EDGE` pixels (the resolution
@@ -383,6 +378,42 @@ Status codes: `400` bad input, `503` when the mode is disabled (`MCP_ENABLED=fal
 
 The list endpoint gained `status=`, `since=` (ISO-8601) and `offset=` so the shared
 servers can filter and page through records.
+
+## Release 2: the Multi-Agent Server through this backend
+
+The records page has a third panel, *Agent workflow (Planner → Worker → Reviewer →
+you)*. It hands a task to the shared local Multi-Agent Server (`ai-services/multi-agent-server`,
+a host process like MCP/RAG, never a compose service) together with **this plant's
+stored assessments** as the only evidence. The browser never talks to the server; every
+step goes through routes in `workflows.py`:
+
+| Route | Purpose |
+| --- | --- |
+| `POST /plant-health-records/workflows` | `task` (≤ 500 chars) and optional `plant_ref`. The backend builds the evidence (a history summary passage plus up to 8 assessments, newest first — read through the shared MCP server's `list_health_assessments` / `get_health_assessment` tools when MCP is on, else from its own database), creates the workflow with `source="health"`, starts the run on a background thread and returns the panel (`201`) or JSON with `polling: true`. |
+| `GET /plant-health-records/workflows/<id>` | Current plan, Worker answer with citations, Reviewer recommendation and issues, the evidence sent, human decision and history. The panel polls this every 3 s while the agents run. |
+| `POST /plant-health-records/workflows/<id>/run` | Run again after a failure or after requested changes (`202`). |
+| `POST /plant-health-records/workflows/<id>/review` | `decision` ∈ accept / partially_accept / request_changes / reject, `feedback` (required for partial acceptance and requested changes, and to accept despite Reviewer issues), optional `reviewer` name (default `health-ui`). Requested changes start a revised run whose Planner and Worker receive the feedback. |
+| `GET /plant-health-records/workflows` | Recent workflows started from this service (JSON). |
+| `GET /plant-health-records/integrations` | now also reports `multi_agent: {enabled, url, reachable}`. |
+
+`<id>` is always this service's own row (`health_workflows`, migration `0006`); the
+server's workflow id is looked up from it and never taken from the browser. Every
+passage says the assessment is the advisory output of a past local model run, and the
+Worker is told to report what was recorded rather than diagnose. Status codes follow the
+Release 1 routes: `400` bad input, `503` disabled (`MULTI_AGENT_ENABLED=false`, as in CI
+and the cloud baseline), `502` server unreachable, `409` the workflow is not in a state
+that allows the step.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MULTI_AGENT_ENABLED` | `true` | Switch for the panel/routes |
+| `MULTI_AGENT_URL` | `http://127.0.0.1:8003` (`http://host.docker.internal:8003` in compose) | Shared Multi-Agent Server |
+| `MULTI_AGENT_TIMEOUT` | `900` | Seconds allowed for one Planner → Worker → Reviewer run |
+
+Terminal run of the same flow, through this backend: `bash scripts/test/multi-agent-health.sh "Tomato, back bed"`
+(with the stack on :3000 and the server running). The server's own helper,
+`ai-services/multi-agent-server/application_integration.py`, submits a task and evidence
+to the server directly.
 
 ### Tests and CI
 

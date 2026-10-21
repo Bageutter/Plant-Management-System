@@ -22,6 +22,11 @@ for path in (_HERE, _MCP_SERVER, _SHARED):
     if os.path.isdir(path) and path not in sys.path:
         sys.path.insert(0, path)
 
+# Load shared/ai_loop.py now. tests/ is a package, so pytest later puts health/ first
+# on sys.path, where docker compose leaves an empty ai_loop.py mount placeholder
+# that would otherwise shadow the real module (60 errors after any compose run).
+import ai_loop  # noqa: E402, F401
+
 
 class FakeOllama:
     """Stands in for ai.OllamaClient: instant, deterministic, no network."""
@@ -144,6 +149,9 @@ class TestConfig:
     RAG_ENABLED = True
     RAG_SERVER_URL = "http://127.0.0.1:1"  # replaced per test
     INTEGRATION_TIMEOUT = 5
+    MULTI_AGENT_ENABLED = True
+    MULTI_AGENT_URL = "http://127.0.0.1:1"  # replaced per test (tests/test_workflows.py)
+    MULTI_AGENT_TIMEOUT = 5
 
 
 @pytest.fixture

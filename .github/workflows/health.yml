@@ -14,7 +14,7 @@ on:
       - "shared/templates/**"
       - "scripts/test/smoke-health.sh"
       - "docker-compose.yml"
-      - "nginx.conf"
+      - "shared/proxy/**"
       - "pyproject.toml"
       - ".github/workflows/health.yml"
   pull_request:
@@ -24,7 +24,7 @@ on:
       - "shared/templates/**"
       - "scripts/test/smoke-health.sh"
       - "docker-compose.yml"
-      - "nginx.conf"
+      - "shared/proxy/**"
       - "pyproject.toml"
       - ".github/workflows/health.yml"
   workflow_dispatch:
@@ -37,9 +37,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Release 1 rule: integration retained, both modes off during CI/CD.
+  # Release 1 rule: integration retained, both modes off during CI/CD. The Release 2
+  # Multi-Agent Server is a host process too, so it is off here as well.
   MCP_ENABLED: "false"
   RAG_ENABLED: "false"
+  MULTI_AGENT_ENABLED: "false"
 
 jobs:
   lint:

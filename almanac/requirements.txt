@@ -4,3 +4,7 @@ Flask-WTF
 Alembic>=1.13,<2
 mcp==2.2.0
 httpx==0.28.1
+# Production WSGI server (the cloud deployment runs the app under gunicorn)
+gunicorn
+# PostgreSQL driver (the cloud deployment uses Azure Database for PostgreSQL)
+psycopg2-binary

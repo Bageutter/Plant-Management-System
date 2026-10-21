@@ -1,0 +1,136 @@
+{# One Multi-Agent Server workflow for this garden (garden_workflows.py::_render).
+   Polls itself while the agents are running; shows the human-review form once
+   the Reviewer has finished. #}
+{% set stages = [("planning", "Planner"), ("working", "Worker"), ("reviewing", "Reviewer"), ("awaiting_human_review", "Human review")] %}
+{% set reached = state.history | default([]) | map(attribute='status') | list %}
+{% set result = state.result or {} %}
+{% set review = state.review or {} %}
+{% set detail_url = url_for('garden_workflows.workflow_detail', garden_id=garden.id, local_id=workflow.id) %}
+<article class="border border-border rounded-lg p-5 bg-muted"
+         data-workflow-status="{{ status }}"
+         {% if polling %}hx-get="{{ detail_url }}" hx-trigger="every 3s" hx-target="#workflow-detail" hx-swap="innerHTML"{% endif %}>
+    <header class="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <h3 class="text-lg m-0">{{ workflow.task }}</h3>
+        <span class="badge {{ 'status-on' if final else 'status-off' }}">{{ status | replace('_', ' ') }}</span>
+    </header>
+
+    {% if error %}
+    <div class="uk-alert border border-border rounded-lg p-3 mb-3 text-destructive" role="alert">
+        <p class="m-0 text-sm">{{ error }}</p>
+    </div>
+    {% endif %}
+
+    <ol class="flex gap-2 flex-wrap text-xs m-0 p-0" style="list-style:none" aria-label="Workflow stages">
+        {% for key, label in stages %}
+        <li class="badge {{ 'status-on' if key in reached or (key == 'awaiting_human_review' and final) else 'status-off' }}">
+            {% if status == key and polling %}<span class="spinner" aria-hidden="true"></span>{% endif %}{{ label }}
+        </li>
+        {% endfor %}
+    </ol>
+
+    {% if polling %}
+    <p class="mt-3 mb-0 text-sm text-muted-foreground">
+        <span class="spinner" aria-hidden="true"></span>
+        Running locally ({{ status | replace('_', ' ') }})… three model calls, this can take a few minutes.
+    </p>
+    {% endif %}
+
+    {% if state.plan %}
+    <h4 class="text-sm font-semibold mt-4 mb-1">Planner</h4>
+    <ol class="uk-list uk-list-decimal text-sm m-0">
+        {% for step in state.plan.steps %}<li>{{ step }}</li>{% endfor %}
+    </ol>
+    {% endif %}
+
+    {% if result.answer %}
+    <h4 class="text-sm font-semibold mt-4 mb-1">Worker</h4>
+    {% if result.insufficient_context %}
+    <p class="text-sm m-0"><strong>The records do not fully support an answer.</strong></p>
+    {% endif %}
+    <p class="m-0" style="white-space:pre-line">{{ result.answer }}</p>
+    {% if result.cited_chunk_ids %}
+    <p class="mt-1 mb-0 text-xs text-muted-foreground">Cited: {{ result.cited_chunk_ids | join(', ') }}</p>
+    {% endif %}
+    {% endif %}
+
+    {% if review.recommendation %}
+    <h4 class="text-sm font-semibold mt-4 mb-1">Reviewer</h4>
+    <p class="m-0 text-sm">
+        Recommendation: <span class="badge {{ 'status-on' if review.recommendation == 'accept' else 'status-off' }}" data-review="{{ review.recommendation }}">{{ review.recommendation }}</span>
+    </p>
+    {% if review.issues %}
+    <ul class="uk-list uk-list-bullet text-sm mt-1">
+        {% for issue in review.issues %}<li>{{ issue }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% endif %}
+
+    {% if state.evidence and state.evidence.passages %}
+    <details class="mt-4 text-sm">
+        <summary class="cursor-pointer">Evidence sent ({{ state.evidence.passages | length }} records via {{ state.evidence.mode }})</summary>
+        {% for p in state.evidence.passages %}
+        <div class="mt-2">
+            <strong>{{ p.title }}</strong> <span class="text-xs text-muted-foreground">· {{ p.chunk_id }}</span>
+            <pre class="text-xs m-0" style="white-space:pre-wrap">{{ p.text }}</pre>
+        </div>
+        {% endfor %}
+    </details>
+    {% endif %}
+
+    {% if status == "awaiting_human_review" %}
+    <form class="mt-5 flex flex-col gap-3" x-data="{ decision: 'accept' }"
+          hx-post="{{ url_for('garden_workflows.review_workflow', garden_id=garden.id, local_id=workflow.id) }}"
+          hx-target="#workflow-detail" hx-swap="innerHTML" hx-indicator="#review-busy">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <fieldset class="flex gap-4 flex-wrap text-sm border-0 p-0 m-0">
+            <legend class="uk-form-label mb-1">Your review</legend>
+            {% for value, label in [("accept", "Accept"), ("partially_accept", "Partially accept"), ("request_changes", "Request changes"), ("reject", "Reject")] %}
+            <label class="flex items-center gap-1">
+                <input class="uk-radio" type="radio" name="decision" value="{{ value }}" x-model="decision"> {{ label }}
+            </label>
+            {% endfor %}
+        </fieldset>
+        <label class="uk-form-label" for="review-feedback">Feedback</label>
+        <textarea class="uk-textarea" id="review-feedback" name="feedback" rows="2" maxlength="2000"
+                  :required="decision === 'partially_accept' || decision === 'request_changes'{% if review.recommendation == 'revise' %} || decision === 'accept'{% endif %}"
+                  placeholder="Required for partial acceptance and requested changes{% if review.recommendation == 'revise' %}, and to accept despite the Reviewer's issues{% endif %}"></textarea>
+        <div class="flex items-center gap-3 flex-wrap">
+            <button class="uk-btn uk-btn-primary" type="submit">Submit review</button>
+            <span id="review-busy" class="htmx-indicator text-sm text-muted-foreground">Recording…</span>
+        </div>
+    </form>
+    {% elif status in ("failed", "received", "changes_requested") and not polling %}
+    <form class="mt-4"
+          hx-post="{{ url_for('garden_workflows.rerun_workflow', garden_id=garden.id, local_id=workflow.id) }}"
+          hx-target="#workflow-detail" hx-swap="innerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {% if status == "failed" and state.error %}<p class="text-sm m-0 mb-2">Last run: {{ state.error }}.</p>{% endif %}
+        <button class="uk-btn uk-btn-default uk-btn-sm" type="submit">{{ 'Retry' if status == 'failed' else 'Run' }} workflow</button>
+    </form>
+    {% endif %}
+
+    {% if state.human_review %}
+    <h4 class="text-sm font-semibold mt-4 mb-1">Human review</h4>
+    <p class="m-0 text-sm">
+        <strong>{{ state.human_review.decision | replace('_', ' ') }}</strong> by {{ state.human_review.reviewer_id }}
+        {%- if state.human_review.feedback %}: {{ state.human_review.feedback }}{% endif %}
+    </p>
+    {% endif %}
+
+    {% if state.history %}
+    <details class="mt-4 text-xs text-muted-foreground">
+        <summary class="cursor-pointer">History ({{ state.history | length }} events)</summary>
+        <ol class="uk-list m-0 mt-1">
+            {% for event in state.history %}
+            <li>{{ event.created_at[:19] | replace('T', ' ') }} UTC · {{ event.status | replace('_', ' ') }}</li>
+            {% endfor %}
+        </ol>
+    </details>
+    {% endif %}
+
+    <footer class="mt-4 text-xs text-muted-foreground">
+        Workflow {{ state.workflow_id or workflow.workflow_id }}
+        {%- if state.models %} · planner {{ state.models.planner }}, worker {{ state.models.worker }}, reviewer {{ state.models.reviewer }}{% endif %}
+        · full audit on the Multi-Agent Server dashboard. AI guidance is advisory only.
+    </footer>
+</article>

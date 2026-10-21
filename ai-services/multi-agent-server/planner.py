@@ -20,9 +20,44 @@ PLAN_SCHEMA = {
 }
 
 
-def create_plan(task: str) -> dict:
+# How evidence reaches the Worker differs per feature; the rest of the prompt is shared.
+RETRIEVAL = {
+    "almanac": (
+        "First plan to retrieve relevant records or care references "
+        "from the existing Almanac/MCP/RAG services. Then identify "
+        "missing user or plant details, compare the available evidence, "
+        "and prepare an evidence-backed response for review. "
+        "These services have NOT been called yet: do not claim to "
+        "have retrieved facts, inspected plants or completed work. "
+    ),
+    "vgarden": (
+        "The Virtual Garden backend supplies one garden's own records "
+        "(summary, areas, containers and plantings) as the only evidence. "
+        "First plan to read the records relevant to the task. Then identify "
+        "details the records do not contain, compare the available evidence, "
+        "and prepare an evidence-backed response for review. "
+        "The Worker has NOT read the records yet: do not claim to "
+        "have retrieved facts, inspected the garden or completed work. "
+    ),
+    "health": (
+        "The Plant Health backend supplies one plant's stored health assessments "
+        "(status, health score, confidence, summary, issues, recommendations and "
+        "missing information, each from a past local model run) as the only "
+        "evidence. First plan to read the assessments relevant to the task. Then "
+        "identify details the assessments do not contain, compare them across time, "
+        "and prepare an evidence-backed response for review. The assessments are "
+        "advisory records, not diagnoses: plan to report what they say, not to "
+        "diagnose the plant. The Worker has NOT read the records yet: do not claim "
+        "to have retrieved facts, inspected the plant or completed work. "
+    ),
+}
+
+
+def create_plan(task: str, source: str = "almanac") -> dict:
     if not isinstance(task, str) or not task.strip():
         raise ValueError("Task is required")
+    if source not in RETRIEVAL:
+        raise ValueError("Unknown source")
 
     payload = {
         "model": model_for("planner"),
@@ -33,12 +68,7 @@ def create_plan(task: str) -> dict:
                     "You plan work for a Worker in a plant management application. "
                     "Return 1 to 6 short steps describing information-processing "
                     "tasks for the Worker, not gardening actions for the user. "
-                    "First plan to retrieve relevant records or care references "
-                    "from the existing Almanac/MCP/RAG services. Then identify "
-                    "missing user or plant details, compare the available evidence, "
-                    "and prepare an evidence-backed response for review. "
-                    "These services have NOT been called yet: do not claim to "
-                    "have retrieved facts, inspected plants or completed work. "
+                    + RETRIEVAL[source] +
                     "Do not answer the user's question or prescribe watering, "
                     "sunlight hours, pruning, fertiliser, treatments or quantities. "
                     "Bad step: 'Ensure the plant gets 6–8 hours of sunlight.' "
@@ -57,13 +87,15 @@ def create_plan(task: str) -> dict:
         "options": {"temperature": 0.1, "num_predict": 512},
     }
     base_url = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-    request = Request(
+    if not base_url.startswith(("http://", "https://")):
+        raise RuntimeError("OLLAMA_URL must be an http(s) URL")
+    request = Request(  # noqa: S310 -- scheme checked above; operator-set OLLAMA_URL
         f"{base_url.rstrip('/')}/api/chat",
         data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urlopen(request, timeout=120) as response:
+        with urlopen(request, timeout=120) as response:  # noqa: S310 -- http(s) only, see above
             body = json.load(response)
     except (URLError, TimeoutError, OSError) as error:
         raise RuntimeError("Ollama request failed") from error

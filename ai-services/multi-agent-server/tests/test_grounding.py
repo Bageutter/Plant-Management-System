@@ -63,6 +63,40 @@ class GroundingTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "outside the answer"):
                 _review_record({"steps": ["Check"]}, {"answer": "Full sun"}, {"passages": []})
 
+    def test_mangled_quote_becomes_an_issue_for_the_human_instead_of_failing_the_review(self):
+        # Seen live: the reviewer quoted the answer with "30/-100" for "30/100". The record
+        # is flagged for a manual check and the other citations are still reviewed.
+        plan = {"steps": ["Check"]}
+        result = {"answer": "Health score 30/100 at risk.", "cited_chunk_ids": ["health-1", "health-2"]}
+        evidence = {"passages": [
+            {"chunk_id": "health-1", "title": "Assessment 1 Tomato — Plant Health record",
+             "text": "Status: at risk; health score 30/100"},
+            {"chunk_id": "health-2", "title": "Assessment 2 Tomato — Plant Health record",
+             "text": "Status: unknown"},
+        ]}
+        replies = [
+            '{"issues":[{"quote":"Health score 30/-100 at risk.","reason":"unsupported"}]}',
+            '{"issues":[{"quote":"health  score 30/100","reason":"score not recorded"}]}',
+        ]
+        response = Mock()
+        response.json.side_effect = [{"message": {"content": reply}} for reply in replies]
+        with patch("reviewer.httpx.post", return_value=response):
+            review = review_result(plan, result, evidence)
+        self.assertEqual(review["recommendation"], "revise")
+        self.assertEqual(len(review["issues"]), 2)
+        self.assertIn("health-1: the reviewer flagged text that is not verbatim", review["issues"][0])
+        self.assertIn("30/-100", review["issues"][0])
+        # Case and whitespace differences are not "outside the answer".
+        self.assertEqual(review["issues"][1], "health-2: 'health  score 30/100': score not recorded")
+
+        response.json.side_effect = None
+        response.json.return_value = {"message": {"content": replies[0]}}
+        with patch("reviewer.httpx.post", return_value=response):
+            refusal = review_result(plan, {"answer": "Health score 30/100 at risk.", "cited_chunk_ids": []},
+                                    evidence)
+        self.assertEqual(refusal["recommendation"], "revise")
+        self.assertIn("not verbatim", refusal["issues"][0])
+
 
     def test_field_led_comparison_uses_sources_without_title_labels(self):
         passages = [
@@ -102,6 +136,20 @@ class GroundingTests(unittest.TestCase):
             review = review_result({"steps": ["Check"]}, result, {"passages": passages})
         self.assertEqual(review["recommendation"], "revise")
         self.assertIn("Daily watering is unsupported.", review["issues"])
+
+    def test_comparison_keeps_grounding_findings_when_model_quote_is_mangled(self):
+        from reviewer import QuoteOutsideAnswer
+        passages = [
+            {"chunk_id": "basil", "title": "Basil — reference", "text": "Sun needs: full sun."},
+            {"chunk_id": "zucchini", "title": "Zucchini — reference", "text": "Summary: crop."},
+        ]
+        result = {"answer": "Sunlight: Both plants need full sun.", "cited_chunk_ids": ["basil", "zucchini"]}
+        with patch("reviewer._review_record", side_effect=QuoteOutsideAnswer("invented quote", "unsupported")):
+            review = review_result({"steps": ["Compare"]}, result, {"passages": passages})
+        self.assertEqual(review["recommendation"], "revise")
+        self.assertTrue(any("Zucchini has no recorded sunlight" in issue for issue in review["issues"]))
+        self.assertTrue(any("not verbatim" in issue for issue in review["issues"]))
+        self.assertFalse(any("unused citation" in issue for issue in review["issues"]))
 
 
     def test_model_cannot_flag_missing_information_as_an_unsupported_positive_claim(self):

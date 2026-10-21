@@ -153,6 +153,7 @@ def test_service_integrations_status_needs_no_login(app, client):
     assert body == {
         "mcp": {"enabled": False, "url": "http://127.0.0.1:1/mcp"},
         "rag": {"enabled": True, "url": "http://127.0.0.1:1"},
+        "multi_agent": {"enabled": True, "url": "http://127.0.0.1:1"},
     }
 
 

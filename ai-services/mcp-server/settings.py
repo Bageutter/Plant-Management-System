@@ -60,7 +60,7 @@ class Settings:
     # or Plant Health assessments), so its snapshot endpoints require this bearer
     # token — the same shared secret vgarden already uses for auth's server-to-server
     # calls (INTER_SERVICE_SECRET in docker-compose.yml / vgarden's own config).
-    vgarden_service_token: str = "dev-inter-service-secret-change-me"
+    vgarden_service_token: str = "dev-inter-service-secret-change-me"  # noqa: S105 -- dev default, same as compose; set via env
 
     def __post_init__(self) -> None:
         for name in ("health_url", "almanac_url", "vgarden_url", "rag_url"):

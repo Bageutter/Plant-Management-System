@@ -65,8 +65,24 @@ review findings. Unknown citations and quoted-issue validation remain active.
 - `readable-review.png`, `saved-facts.png`, `review-controls.png`: running UI.
 - `pr-description.md`: reviewable change/validation summary.
 
-These are local working-tree results, not a merged release, post-push CI result,
+These are local validation results, not a merged release, post-push CI result,
 cloud deployment, or general accuracy estimate. Existing stored reviews are not
 rewritten; new runs use the corrected reviewer. Record a commit SHA and CI run
 here after pushing and checking GitHub Actions. This workflow review is
 separate from the assignment's three report-review modes.
+
+## Integration with main
+
+The branch incorporates `main` at `f6cc21a`, including the Azure deployment,
+report-review validator and Plant Health Multi-Agent integration. Conflict
+resolution keeps the updated workflow documentation and security-runner options.
+The shared Reviewer retains both field-led plant comparisons and upstream
+handling of quotes that do not match the answer. Unlabelled narrative answers
+still receive per-record review; field-led comparisons and shared claims use the
+joint evidence check. A regression test checks that a mangled model quote cannot
+erase deterministic comparison findings or fail the whole review.
+
+Validation of the combined tree: **42 shared-server tests** and **31 report-review
+validator tests** passed, along with Ruff on the resolved Python files and
+`docker compose config --quiet`. The earlier logs and screenshots above remain
+the original feature-run evidence; they do not claim post-push CI success.

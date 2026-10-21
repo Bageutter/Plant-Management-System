@@ -17,6 +17,32 @@ REVIEW_SCHEMA = {
 }
 
 
+class QuoteOutsideAnswer(ValueError):
+    """The reviewer model's issue quotes text that is not in the answer it reviewed."""
+
+    def __init__(self, quote: str, reason: str):
+        super().__init__("Reviewer quoted text outside the answer")
+        self.quote, self.reason = quote, reason
+
+
+def _normalise(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def _quoted(quote: str, answer: str) -> bool:
+    """Whether ``quote`` is in ``answer``, ignoring case and whitespace differences."""
+    return _normalise(quote) in _normalise(answer)
+
+
+def _unverifiable(citation: str | None, error: QuoteOutsideAnswer) -> str:
+    """An issue for a quote the model mangled (e.g. "30/-100" for "30/100"), so a
+    reviewer slip becomes something for the human to check instead of a failed stage."""
+    quote = error.quote if len(error.quote) <= 80 else error.quote[:79] + "…"
+    prefix = f"{citation}: " if citation else ""
+    return (f"{prefix}the reviewer flagged text that is not verbatim in the answer "
+            f"('{quote}': {error.reason}); check this record by hand")
+
+
 def _review_record(plan: dict, result: dict, evidence: dict, *, check_fields=True) -> dict:
     if not isinstance(plan, dict) or not isinstance(plan.get("steps"), list) or not plan["steps"]:
         raise ValueError("Plan steps are required")
@@ -115,8 +141,8 @@ def _review_record(plan: dict, result: dict, evidence: dict, *, check_fields=Tru
                 or any(not isinstance(issue[k], str) or not issue[k].strip()
                        for k in ("quote", "reason"))):
             raise ValueError("Invalid reviewer issue")
-        if issue["quote"] not in result["answer"]:
-            raise ValueError("Reviewer quoted text outside the answer")
+        if not _quoted(issue["quote"], result["answer"]):
+            raise QuoteOutsideAnswer(issue["quote"], issue["reason"])
         # Lack of a field supports an absence statement; it is not a defect.
         # Keep contradictions ("the source records ...") and positive claims.
         if (re.search(r"not recorded|no .{0,60}noted", issue["quote"], re.I)
@@ -147,7 +173,10 @@ def review_result(plan: dict, result: dict, evidence: dict) -> dict:
     issues = [f"Unknown citation: {c}" for c in citations if c not in by_id]
     if not citations:
         # A refusal still needs an AI check against the available evidence.
-        return _review_record(plan, result, evidence)
+        try:
+            return _review_record(plan, result, evidence)
+        except QuoteOutsideAnswer as error:
+            return {"recommendation": "revise", "issues": [_unverifiable(None, error)]}
     cited_passages = [by_id[c] for c in dict.fromkeys(citations) if c in by_id]
     record_sections = []
     ambiguous = False
@@ -167,13 +196,19 @@ def review_result(plan: dict, result: dict, evidence: dict) -> dict:
         if not matching and len(cited_passages) > 1:
             ambiguous = True
         record_sections.append((passage, matching))
-    if ambiguous:
+    field_led = re.search(r"(?:^|\n|[.!?]\s+)[A-Za-z][^:\n.!?]{0,40}:", result["answer"])
+    shared_claim = re.search(r"\b(?:both|each)\b", result["answer"], re.I)
+    if ambiguous and (field_led or shared_claim):
         # Field-led comparisons can use a source without a plant-title paragraph.
         # Check them jointly, keeping record identities, rather than reporting
         # unused citations and skipping factual review altogether.
         issues.extend(_shared_claim_checks(result["answer"], cited_passages))
-        review = _review_record(plan, result, {"passages": cited_passages}, check_fields=False)
-        issues.extend(review["issues"])
+        try:
+            review = _review_record(plan, result, {"passages": cited_passages}, check_fields=False)
+        except QuoteOutsideAnswer as error:
+            issues.append(_unverifiable(None, error))
+        else:
+            issues.extend(review["issues"])
     else:
         for passage, matching in record_sections:
             citation = passage["chunk_id"]
@@ -182,8 +217,12 @@ def review_result(plan: dict, result: dict, evidence: dict) -> dict:
             source_text = passage.get("text", "").lower()
             if "unverified cultivar traits" in record_result["answer"].lower() and "cultivar" not in source_text:
                 issues.append(f"{citation}: remove 'unverified cultivar traits'; this source does not state that status.")
-            record_review = _review_record(
-                {"steps": ["Check this record's claims against its source."]}, record_result, {"passages": [passage]})
+            try:
+                record_review = _review_record(
+                    {"steps": ["Check this record's claims against its source."]}, record_result, {"passages": [passage]})
+            except QuoteOutsideAnswer as error:
+                issues.append(_unverifiable(citation, error))
+                continue
             issues.extend(f"{citation}: {issue}" for issue in record_review["issues"])
     return {"recommendation": "revise" if issues else "accept", "issues": list(dict.fromkeys(issues))}
 

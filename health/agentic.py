@@ -357,7 +357,8 @@ class HealthAssessmentLoop:
                 verdict = "revised_capped" if reviewed else "fallback"
                 logger.phase("repeat", {"iteration": i, "decision": "stop_capped", "guidance": feedback})
 
-        assert candidate is not None
+        if candidate is None:  # not an assert: python -O strips those
+            raise RuntimeError("the assessment loop produced no candidate")
         return LoopOutcome(
             result=candidate,
             iterations=i,

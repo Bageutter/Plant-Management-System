@@ -1,0 +1,126 @@
+# Routing table for the single public entry point (http://localhost:3000 locally,
+# the proxy container app's HTTPS address on Azure). Every service is path-routed
+# from here; nothing else is reachable from outside.
+#
+# Rendered at container start by the nginx image's envsubst step. Only the ${...}
+# variables are substituted (NGINX_ENVSUBST_FILTER in the Dockerfile); nginx's own
+# $host / $scheme / $remote_addr variables are left alone.
+#
+#   local compose : the defaults baked into the image (frontend:5000, Host $host, ...)
+#   Azure         : *_UPSTREAM is a service's internal Container Apps FQDN and
+#                   *_HOST is that same name, because that ingress routes by Host.
+#                   The original public host travels on in X-Forwarded-Host, which
+#                   every Flask app honours through ProxyFix(x_host=1).
+
+# Scheme the client actually used. Behind a TLS-terminating edge (Azure Container
+# Apps ingress) it arrives in X-Forwarded-Proto; when this proxy is the edge
+# (compose on :3000) fall back to our own.
+map $http_x_forwarded_proto $client_scheme {
+    default $scheme;
+    https   https;
+    http    http;
+}
+
+# Ollama-backed AI endpoints (almanac, health, vgarden) can take a while on CPU.
+# Keep the proxy from timing out before the app's own client does.
+proxy_read_timeout 300s;
+proxy_send_timeout 300s;
+
+upstream frontend {
+    server ${FRONTEND_UPSTREAM};
+}
+
+upstream auth {
+    server ${AUTH_UPSTREAM};
+}
+
+upstream vgarden {
+    server ${VGARDEN_UPSTREAM};
+}
+
+upstream health {
+    server ${HEALTH_UPSTREAM};
+}
+
+upstream almanac {
+    server ${ALMANAC_UPSTREAM};
+}
+
+server {
+    listen 80;
+
+    # Answered by the proxy itself (used as its container probe); never routed on.
+    location = /proxy-healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Frontend (served at the root)
+    location / {
+        proxy_pass http://frontend;
+        proxy_set_header Host ${FRONTEND_HOST};
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $client_scheme;
+    }
+
+    # Auth
+    location /auth/ {
+        proxy_pass http://auth/;
+        proxy_set_header Host ${AUTH_HOST};
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $client_scheme;
+        # Tells the Flask app (via ProxyFix) that it is mounted under /auth,
+        # so url_for()/redirects come back with the /auth prefix.
+        proxy_set_header X-Forwarded-Prefix /auth;
+    }
+
+    # Virtual Garden
+    location /vgarden/ {
+        proxy_pass http://vgarden/;
+        proxy_set_header Host ${VGARDEN_HOST};
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $client_scheme;
+        proxy_set_header X-Forwarded-Prefix /vgarden;
+    }
+
+    # Plant Health
+    location /health/ {
+        # The health service accepts photo uploads up to MAX_UPLOAD_BYTES (12 MiB
+        # by default). nginx's own default is 1m, which rejected larger photos
+        # with a bare 413 before the app could answer. Allow the app's limit plus
+        # multipart overhead, so the app sends its own explanatory 413.
+        client_max_body_size 13m;
+        proxy_pass http://health/;
+        proxy_set_header Host ${HEALTH_HOST};
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $client_scheme;
+        proxy_set_header X-Forwarded-Prefix /health;
+        # The assessment endpoint streams progress events; don't buffer them.
+        proxy_buffering off;
+    }
+
+    # Almanac
+    location /almanac/ {
+        # Its validated answer can make several sequential model calls.
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+        # Allow the Almanac's 5 MB plant-image uploads plus multipart overhead.
+        client_max_body_size 6m;
+        proxy_pass http://almanac/;
+        proxy_set_header Host ${ALMANAC_HOST};
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $client_scheme;
+        proxy_set_header X-Forwarded-Prefix /almanac;
+    }
+}

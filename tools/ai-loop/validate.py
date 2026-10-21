@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Validate shared MCP or RAG through a running feature backend, without writes.
 
+Release 2 adds three review modes (``multi-agent``, ``testing`` and
+``cloud-deployment``); they live in review.py and are reached through the same
+``--mode`` flag. The Release 1 ``mcp`` and ``rag`` modes below are unchanged.
+
 Two features are supported (``--feature``):
 
 - ``almanac`` (default, unchanged): read-only catalogue search / grounded Q&A
@@ -20,6 +24,7 @@ import argparse
 import http.cookiejar
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -35,19 +40,22 @@ HTTP_TIMEOUT = 190  # Allow the backend's 180-second local model request to fini
 sys.path.insert(0, str(ROOT / "shared"))
 from ai_loop import LoopLogger  # noqa: E402 -- reuse the project's native logger
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import review  # noqa: E402 -- Release 2 review modes
+
 CSRF_FIELD_RE = re.compile(r"<input[^>]*csrf_token[^>]*>")
 VALUE_ATTR_RE = re.compile(r'value="([^"]*)"')
 OPEN_GARDEN_RE = re.compile(r"/gardens/(\d+)/open")
 
 
 def post_json(url: str, payload: dict, timeout: int, *, opener=None, headers=None) -> dict:
-    req = request.Request(
+    req = request.Request(  # noqa: S310 -- http(s) only: main() checks --base-url/--auth-base-url
         url,
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json", "Accept": "application/json", **(headers or {})},
         method="POST",
     )
-    opened = opener.open(req, timeout=timeout) if opener else request.urlopen(req, timeout=timeout)
+    opened = opener.open(req, timeout=timeout) if opener else request.urlopen(req, timeout=timeout)  # noqa: S310 -- http(s) only, see above
     with opened as response:
         body = json.load(response)
     if not isinstance(body, dict):
@@ -240,7 +248,7 @@ class VgardenSession:
             return response.read().decode("utf-8")
 
     def _post_form(self, url: str, fields: dict) -> str:
-        req = request.Request(url, data=parse.urlencode(fields).encode(), method="POST")
+        req = request.Request(url, data=parse.urlencode(fields).encode(), method="POST")  # noqa: S310 -- http(s) only, checked in main()
         with self.opener.open(req, timeout=self.timeout) as response:
             return response.read().decode("utf-8")
 
@@ -441,11 +449,79 @@ def run(args: argparse.Namespace) -> dict:
     }
 
 
+def add_review_arguments(parser: argparse.ArgumentParser) -> None:
+    group = parser.add_argument_group("Release 2 review modes (multi-agent, testing, cloud-deployment)")
+    group.add_argument("--ollama-url", default=os.environ.get("OLLAMA_URL", "http://localhost:11434"))
+    group.add_argument("--model", default=os.environ.get("REVIEW_MODEL", "qwen3:4b-instruct"),
+                       help="drafts the review (ACT)")
+    group.add_argument("--review-model", default=os.environ.get("REVIEW_CHECK_MODEL", "qwen3:4b-instruct"),
+                       help="independently reviews each draft (OBSERVE)")
+    group.add_argument("--no-model", action="store_true", help="write the review from the checks only")
+    group.add_argument("--no-review-model", action="store_true", help="skip the second-model OBSERVE review")
+    group.add_argument("--max-iterations", type=int, default=2)
+    group.add_argument("--num-ctx", type=int, default=12288,
+                       help="model context window; the all-services Testing evidence is about 9k tokens")
+    group.add_argument("--report", type=Path, help="also write the review report as Markdown to this file")
+    group.add_argument("--timeout", type=int, default=240, help="seconds per model call")
+    group.add_argument("--decision", help="human decision: accept/partially_accept/reject, "
+                       "or release/hold/rollback for cloud-deployment; asked interactively if omitted")
+    group.add_argument("--reason", default="", help="why the human made that decision")
+    group.add_argument("--reviewer-id", default=os.environ.get("USER", "reviewer"))
+    group.add_argument("--evidence-dir", default=str(ROOT / "docs/evidence/release2"),
+                       help="multi-agent: folder with workflow_history.jsonl, coordination_audit.jsonl, metrics")
+    group.add_argument("--source", help="multi-agent: only review workflows from this feature (e.g. vgarden)")
+    group.add_argument("--feature-url", default="http://localhost:3000/vgarden",
+                       help="multi-agent: the feature whose /integrations must report the server ('' to skip)")
+    group.add_argument("--multi-agent-url", default="http://127.0.0.1:8003",
+                       help="multi-agent: the Multi-Agent Server to health-check ('' to skip)")
+    group.add_argument("--security-reports", default=str(ROOT / ".security-reports"),
+                       help="testing: folder of saved pre-commit check results")
+    group.add_argument("--services", nargs="+",
+                       default=["vgarden", "auth", "almanac", "health", "shared/frontend", "ai-services/mcp-server",
+                                "ai-services/rag-server", "ai-services/multi-agent-server"],
+                       help="testing: services whose pre-commit results and test evidence to review")
+    group.add_argument("--repo", default="Bageutter/Plant-Management-System")
+    group.add_argument("--branch", default="main")
+    group.add_argument("--workflows", nargs="+",
+                       default=["vgarden.yml", "auth.yml", "plant_almanac.yml", "health.yml", "ai-services.yml",
+                                "integration-ci.yml", "ruff.yml"],
+                       help="testing: GitHub Actions workflow files to review")
+    group.add_argument("--endpoint-workflows", nargs="+", default=["vgarden.yml", "plant_almanac.yml", "health.yml"],
+                       help="testing: workflows that must run the assigned endpoint tests")
+    group.add_argument("--test-evidence", default=str(ROOT / "docs/evidence/release2/testing"),
+                       help="testing: folder written by scripts/test/collect-test-evidence.py")
+    group.add_argument("--ci-evidence", help="testing: folder of downloaded CI artifacts (JUnit XML)")
+    group.add_argument("--url", help="cloud-deployment: the deployed frontend's base URL")
+    group.add_argument("--paths", nargs="+",
+                       default=["/", "/auth/login", "/vgarden/healthz", "/almanac/", "/health/plant-health-records/"],
+                       help="cloud-deployment: paths that must respond (same as scripts/deploy/azure-smoke.sh)")
+    group.add_argument("--deploy-workflow", default="cloud-deployment.yml")
+    group.add_argument("--grounding", default=str(ROOT / "docs/evidence/release2/cloud-deployment/latest.json"),
+                       help="cloud-deployment: the report JSON written by scripts/deploy/azure-report.sh")
+
+
+def run_review_mode(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    for url in (args.ollama_url, args.url or "https://unset"):
+        if urlparse(url).scheme not in ("http", "https"):
+            parser.error("--ollama-url/--url must be an http or https URL")
+    choices = review.DECISIONS[args.mode]
+    if args.decision and args.decision not in choices:
+        parser.error(f"--decision for {args.mode} must be one of: {', '.join(choices)}")
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    result = review.run_review(args)
+    output = json.dumps(result, ensure_ascii=False, indent=2)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(output + "\n", encoding="utf-8")
+    print(output)
+    return 0 if result["passed"] else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--mode", choices=("mcp", "rag"), required=True)
+    parser.add_argument("--mode", choices=("mcp", "rag", *review.MODES), required=True)
     parser.add_argument("--feature", choices=("almanac", "vgarden"), default="almanac")
     parser.add_argument(
         "--base-url", default=None,
@@ -458,7 +534,10 @@ def main() -> int:
     )
     parser.add_argument("--log-dir", type=Path, help="directory for private validation transcripts")
     parser.add_argument("--output", type=Path, help="also save the JSON result to this file")
+    add_review_arguments(parser)
     args = parser.parse_args()
+    if args.mode in review.MODES:
+        return run_review_mode(parser, args)
     if args.base_url is None:
         args.base_url = (
             "http://localhost:3000/almanac" if args.feature == "almanac" else "http://localhost:3000/vgarden"

@@ -43,6 +43,8 @@ class OllamaGardenAI:
         auto_pull: bool = False,
         pull_timeout: int = 1800,
     ):
+        if not base_url.startswith(("http://", "https://")):
+            raise ValueError("OLLAMA_URL must be an http(s) URL")
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
@@ -57,7 +59,9 @@ class OllamaGardenAI:
         if self._model_ready:
             return
         try:
-            with request.urlopen(f"{self.base_url}/api/tags", timeout=10) as response:
+            with request.urlopen(  # noqa: S310 -- base_url is http(s), checked in __init__
+                f"{self.base_url}/api/tags", timeout=10
+            ) as response:
                 names = {
                     m.get("name", "") for m in json.loads(response.read()).get("models", [])
                 }
@@ -73,13 +77,13 @@ class OllamaGardenAI:
                 f"`ollama pull {self.model}` or set OLLAMA_AUTO_PULL=true."
             )
         try:
-            pull = request.Request(
+            pull = request.Request(  # noqa: S310 -- base_url is http(s), checked in __init__
                 f"{self.base_url}/api/pull",
                 data=json.dumps({"model": self.model, "stream": False}).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with request.urlopen(pull, timeout=self.pull_timeout):
+            with request.urlopen(pull, timeout=self.pull_timeout):  # noqa: S310 -- http(s) only
                 pass
         except (error.URLError, TimeoutError) as exc:
             raise AIUnavailableError(f"Could not pull model '{self.model}'") from exc
@@ -111,7 +115,7 @@ class OllamaGardenAI:
             ],
             "options": {"temperature": 0},
         }
-        http_request = request.Request(
+        http_request = request.Request(  # noqa: S310 -- base_url is http(s), checked in __init__
             f"{self.base_url}/api/chat",
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
@@ -119,7 +123,9 @@ class OllamaGardenAI:
         )
 
         try:
-            with request.urlopen(http_request, timeout=self.timeout) as response:
+            with request.urlopen(  # noqa: S310 -- http(s) only, checked in __init__
+                http_request, timeout=self.timeout
+            ) as response:
                 ollama_response = json.loads(response.read().decode("utf-8"))
             result = json.loads(ollama_response["message"]["content"])
         except (error.URLError, TimeoutError, json.JSONDecodeError, KeyError, TypeError) as exc:
