@@ -72,6 +72,47 @@ class AuditTests(unittest.TestCase):
         self.assertIsNone(result["worker_completion_rate"]["value"])
         self.assertIsNone(result["latest_agent_run"])
 
+    def test_health_endpoint_reports_service_status(self):
+        response = app.test_client().get("/healthz")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"service": "multi-agent-server", "status": "ok"})
+
+    def test_workflow_metrics_endpoint_reports_empty_state(self):
+        response = app.test_client().get("/workflow/metrics")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["tracked_workflows"], 0)
+        self.assertIsNone(response.get_json()["worker_completion_rate"]["value"])
+        self.assertIsNone(response.get_json()["latest_agent_run"])
+
+    def test_dashboard_renders_empty_and_saved_workflows(self):
+        client = app.test_client()
+        empty = client.get("/dashboard")
+        self.assertEqual(empty.status_code, 200)
+        self.assertIn("No workflows yet.", empty.get_data(as_text=True))
+
+        store.save_workflow("dashboard-flow", "Check tomato")
+        store.transition(
+            "dashboard-flow",
+            "received",
+            "planning",
+            {"run_id": "dashboard-run", "models": {"planner": "test-qwen"}},
+        )
+        store.transition("dashboard-flow", "planning", "working", {})
+        store.transition("dashboard-flow", "working", "reviewing", {})
+        store.transition(
+            "dashboard-flow",
+            "reviewing",
+            "awaiting_human_review",
+            {"review": {"recommendation": "accept", "issues": []}},
+        )
+
+        populated = client.get("/dashboard")
+        page = populated.get_data(as_text=True)
+        self.assertEqual(populated.status_code, 200)
+        self.assertIn("Check tomato", page)
+        self.assertIn("Awaiting human review", page)
+        self.assertIn("test-qwen", page)
+
     def test_metrics_distinguish_retry_review_and_human_completion(self):
         start = datetime(2026, 1, 1, tzinfo=timezone.utc)
         events = []

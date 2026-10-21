@@ -1,12 +1,12 @@
 {
   "service": "ai-services/multi-agent-server",
-  "generated_at": "2026-10-21T13:42:45+00:00",
-  "commit": "228fec3",
+  "generated_at": "2026-10-21T14:26:10+00:00",
+  "commit": "7d2ba94",
   "test_command": "coverage run -m pytest -q tests",
   "exit_code": 0,
-  "line_coverage_percent": 92.9,
+  "line_coverage_percent": 93.9,
   "endpoints": 8,
-  "endpoints_tested": 5,
+  "endpoints_tested": 8,
   "routes": [
     {
       "kind": "http",
@@ -21,7 +21,7 @@
         23,
         23
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -96,7 +96,7 @@
         137,
         149
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -111,7 +111,7 @@
         154,
         154
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
