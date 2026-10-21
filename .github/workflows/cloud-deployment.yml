@@ -163,8 +163,24 @@ jobs:
       - name: Platform (infra/main.bicep)
         run: bash scripts/deploy/azure-platform.sh
 
+      # GitHub's OIDC token is only valid for 5 minutes and the first platform run takes
+      # 15-20, so sign in again before each later step (AADSTS700024 otherwise).
+      - name: Sign in again (fresh OIDC token for the registry)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Build and push images
         run: bash scripts/deploy/azure-build-push.sh
+
+      - name: Sign in again (fresh OIDC token for the apps)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Container apps (infra/apps.bicep)
         id: apps
@@ -173,6 +189,14 @@ jobs:
       - name: Cloud smoke test
         id: smoke
         run: bash scripts/deploy/azure-smoke.sh
+
+      - name: Sign in again (fresh OIDC token for the report)
+        if: always()
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deployment report
         if: always()
