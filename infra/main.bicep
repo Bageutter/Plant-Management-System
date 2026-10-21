@@ -56,6 +56,12 @@ param postgresSkuName string = 'Standard_B1ms'
 param postgresStorageGb int = 32
 param postgresVersion string = '16'
 
+// Create the PostgreSQL server. azure-platform.sh passes false once it exists: re-sending the
+// full definition of an existing VNet-injected server leaves the deployment stuck in Running (seen
+// twice), so later runs only reference it. Its databases, DNS, network and secrets still deploy every time.
+@description('Create the PostgreSQL server (false: reference the existing one)')
+param deployPostgres bool = true
+
 @description('Restrict the plant-image storage account to the apps subnet (Microsoft.Storage service endpoint). Set false only if the Almanac volume fails to mount.')
 param storageRestrictToVnet bool = true
 
@@ -160,7 +166,7 @@ resource postgresDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@
   }
 }
 
-resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
+resource postgresNew 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = if (deployPostgres) {
   name: postgresName
   location: location
   tags: tags
@@ -194,9 +200,15 @@ resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   dependsOn: [postgresDnsLink]
 }
 
+// The server, whether created above or already there.
+resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' existing = {
+  name: postgresName
+}
+
 resource databases 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = [
   for name in databaseNames: {
     parent: postgres
+    dependsOn: [postgresNew]
     name: name
     properties: {
       charset: 'UTF8'
@@ -228,7 +240,9 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-var postgresHost = postgres.properties.fullyQualifiedDomainName
+// Flexible Server hostnames are always <name>.postgres.database.azure.com (also with private access,
+// through the linked private DNS zone), so this needs no runtime lookup of the server.
+var postgresHost = '${postgresName}.postgres.database.azure.com'
 var encodedPassword = uriComponent(postgresAdminPassword)
 // The driver is named explicitly: the services ship psycopg2-binary, and newer
 // SQLAlchemy releases map a bare postgresql:// to the psycopg (v3) driver instead.
