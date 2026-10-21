@@ -156,3 +156,9 @@ belong to the signed-in chat owner, and reviewer IDs come from that identity.
 All workflow mutations require CSRF tokens. Clearing the chat removes its local
 messages; the shared server retains its audit history. The feature defaults off
 so CI does not invoke local models.
+
+`GET /integrations` returns JSON configuration status for MCP, RAG and Multi-Agent
+to API clients (including `Accept: application/json` and the review validator).
+Each entry contains `enabled` and `url`; this reports configuration, not server
+reachability, and does not invoke a model or an external service. Browsers asking
+for `text/html` still receive the reference-tools page.
