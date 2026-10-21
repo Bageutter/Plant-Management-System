@@ -35,7 +35,7 @@ secret baseline was regenerated. Raw security reports stay local/ignored.
 ## Remaining decisions
 
 Read `testing-review.md` and its validation log. Review recommendations are not
-Amy's approval: the human decision is left pending. Remaining endpoint-coverage
+Amy's approval: the human decision was initially left pending; Amy subsequently accepted it. Remaining endpoint-coverage
 warnings are retained as quality improvements; they do not mean each student
 failed the assignment's two-endpoint requirement. Cloud deployment work is out
 of scope for this branch.
@@ -44,7 +44,7 @@ of scope for this branch.
 
 Local Ollama completed ACT and independent OBSERVE in one iteration (no fallback).
 Result: **ready_with_fixes**; 48 checks pass, six endpoint-coverage warnings,
-zero failed/missing checks. Human decision remains **pending** under `amy`.
+zero failed/missing checks. Amy explicitly **accepted** it with reason: required tests pass; keep the six coverage gaps as follow-ups (#94, sub-issues #95–#100).
 
 Execution occurred at `/private/tmp/pms-testing-fix`; the worktree was then moved
 to `/Users/amyzhou/Documents/Plant-Management-System-testing-fix` for retention.
