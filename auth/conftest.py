@@ -7,8 +7,8 @@ import pytest
 
 class TestConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SECRET_KEY = "test-secret-key"
-    INTER_SERVICE_SECRET = "test-inter-service-secret"
+    SECRET_KEY = "test-secret-key"  # noqa: S105 -- fake, test-only value
+    INTER_SERVICE_SECRET = "test-inter-service-secret"  # noqa: S105 -- fake, test-only value
     VGARDEN_URL = "http://vgarden.test"
     VGARDEN_PUBLIC_URL = "http://vgarden.test"
     WTF_CSRF_ENABLED = False

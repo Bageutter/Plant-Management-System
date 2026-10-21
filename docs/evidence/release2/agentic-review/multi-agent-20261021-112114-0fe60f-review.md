@@ -1,6 +1,6 @@
 # Multi-Agent Workflow Review — validation log
 
-Produced by `python tools/ai-loop/review.py --mode multi-agent` (shared agentic loop,
+Produced by `python tools/ai-loop/evidence_review.py --mode multi-agent` (shared agentic loop,
 Plan → Act → Observe → Adapt, local Ollama only). This log is advisory: it supports the
 team's confirmation of the Multi-Agent workflow evidence and does not replace it.
 

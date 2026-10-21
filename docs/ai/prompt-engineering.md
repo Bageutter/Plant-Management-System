@@ -13,11 +13,11 @@ rationale.
 | `SYSTEM_PROMPT` (Virtual Garden assistant) | `vgarden/ai.py` | vgarden chat ACT | `ANSWER_SCHEMA` (`{answer: string}`) |
 | `PROMPT_REVIEW` | `shared/ai_loop.py` | OBSERVE step for both chats | inline `{verdict, issues, guidance}` |
 | `SYSTEM_PROMPT` + `_build_prompt()` | `health/ai.py` | Plant Health assessment | `RESPONSE_SCHEMA` (status, score, confidence, issues, recs, …) |
-| `PROMPT_CLOUD_DEPLOYMENT_ACT` | `shared/ai_loop.py` | Release 2 Cloud Deployment Report Review ACT (`tools/ai-loop/review.py --mode cloud-deployment`) | `CLOUD_DECISION_SCHEMA` (`{decision, baseline_compliant, findings[], release_recommendation}`) |
+| `PROMPT_CLOUD_DEPLOYMENT_ACT` | `shared/ai_loop.py` | Release 2 Cloud Deployment Report Review ACT (`tools/ai-loop/cloud_report_review.py`) | `CLOUD_DECISION_SCHEMA` (`{decision, baseline_compliant, findings[], release_recommendation}`) |
 | `PROMPT_CLOUD_DEPLOYMENT_OBSERVE` | `shared/ai_loop.py` | OBSERVE step for the cloud deployment review | inline `{verdict, issues, guidance}` |
-| `PROMPT_ACT` | `tools/ai-loop/multi_agent_review.py` | Release 2 Multi-Agent Workflow Review ACT (`review.py --mode multi-agent`) | `SCHEMA` (`{decision, workflows_reviewed, findings[{severity, check, workflow_id, evidence, recommendation}], recommendations[], summary}`) |
+| `PROMPT_ACT` | `tools/ai-loop/multi_agent_review.py` | Release 2 Multi-Agent Workflow Review ACT (`evidence_review.py --mode multi-agent`) | `SCHEMA` (`{decision, workflows_reviewed, findings[{severity, check, workflow_id, evidence, recommendation}], recommendations[], summary}`) |
 | `PROMPT_OBSERVE` | `tools/ai-loop/multi_agent_review.py` | OBSERVE step for the multi-agent review | inline `{verdict, issues, guidance}` |
-| `PROMPT_ACT` | `tools/ai-loop/testing_review.py` | Release 2 Testing Report Review ACT (`review.py --mode testing`) | `SCHEMA` (`{decision, students_reviewed, findings[{severity, area, subject, evidence, recommendation}], recommendations[], summary}`) |
+| `PROMPT_ACT` | `tools/ai-loop/testing_review.py` | Release 2 Testing Report Review ACT (`evidence_review.py --mode testing`) | `SCHEMA` (`{decision, students_reviewed, findings[{severity, area, subject, evidence, recommendation}], recommendations[], summary}`) |
 | `PROMPT_OBSERVE` | `tools/ai-loop/testing_review.py` | OBSERVE step for the testing review | inline `{verdict, issues, guidance}` |
 | `act.txt` | `tools/ai-dev/prompts/act.txt` | Build-time proposer | inline finding schema |
 | `observe.txt` | `tools/ai-dev/prompts/observe.txt` | Build-time reviewer | `{status, summary, findings}` |

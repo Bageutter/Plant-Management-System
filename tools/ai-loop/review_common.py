@@ -1,4 +1,4 @@
-"""Helpers shared by the Release 2 review-mode modules of `review.py`.
+"""Helpers shared by the Release 2 review-mode modules of `evidence_review.py`.
 
 Markdown rendering for the validation logs, the loop-trace table, the copies a
 mode writes next to the evidence, and the one http(s) GET the Multi-Agent mode

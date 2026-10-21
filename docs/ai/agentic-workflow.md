@@ -26,7 +26,7 @@ model to review than to propose.
 | `auth/`, `shared/frontend/` | No AI | — |
 | `tools/ai-dev/` | **Build-time P→A→O→A** | Human ADAPT. Never modifies project files. |
 | `ai-services/multi-agent-server/` | **Planner → Worker → Reviewer → Human Review** (Release 2) | The shared, non-containerised server behind the *Agent workflow* panels of Virtual Garden and Plant Health; its exports are what the `multi-agent` review mode below checks. |
-| `tools/ai-loop/review.py` | **Review-time P→A→O→A** (Release 2) | Three review modes over Release 2 evidence; see [below](#release2-review). |
+| `tools/ai-loop/validate.py --mode multi-agent\|testing\|cloud-deployment` (`review.py`), `evidence_review.py`, `cloud_report_review.py` | **Review-time P→A→O→A** (Release 2) | The loop reviews the Release 2 evidence itself: checks-based reviews with a human decision, and report-level reviews with a pinned decision schema; see [below](#release2-review). |
 
 <a id="runtime"></a>
 ## The runtime loop in one diagram
@@ -119,25 +119,36 @@ human outcome.
 | Route wiring (loop runs on `/ai/ask`, `*AILoopRun` persisted + linked, trace page owner-scoped) | `vgarden/tests/test_garden_ai.py`, `almanac/tests/test_ai_mode.py` |
 | Health loop (phase order, guidance carry-through, cap, code checks forcing a revision, checks-only fallback, three sinks, `AssessmentLoopRun` per record, `phase` SSE events, trace page) | `health/tests/test_agentic.py` |
 | Build-time pipeline | `tools/ai-dev/tests/test_pipeline.py` |
-| Release 2 review modes (loading, every code check, refusal without a model call, schema validation, rules enforced in code, feedback threading, sinks and validation logs) | `tools/ai-loop/tests/test_review.py`, `test_multi_agent_review.py`, `test_testing_review.py` |
+| Release 2 review modes (checks-based: fake evidence and model, rule checks, human decision; report-level: loading, every code check, refusal without a model call, schema validation, rules enforced in code, feedback threading, sinks and validation logs) | `tools/ai-loop/tests/test_review.py`; `test_cloud_report_review.py`, `test_multi_agent_review.py`, `test_testing_review.py` |
 
 <a id="release2-review"></a>
-## Release 2: the loop reviews the release evidence (`tools/ai-loop/review.py`)
+## Release 2: the loop reviews the release evidence (`tools/ai-loop/`)
 
 The same Plan → Act → Observe → Adapt loop, run from the terminal over a piece of
 Release 2 evidence, producing the review/validation log the technical report needs
 (marking criterion 8). Every mode keeps the project's AI rules: local Ollama only, a
 JSON grounding built in code, a response schema pinned through Ollama's `format`,
 temperature 0, refusal in code when there is nothing to review, an independent
-reviewer model in OBSERVE, and the three evidence sinks.
+reviewer model in OBSERVE, and the three evidence sinks. Each kind of evidence has
+two reviews that log to different services:
 
-| Mode | Reviews | Checks in code (the model must include them) | Output |
+- **Checks-based** (`validate.py --mode multi-agent|testing|cloud-deployment`, code
+  in `review.py`): fixed pass/warn/fail/missing checks over the exports, the
+  committer-local `.security-reports/`, the test evidence of every service, the
+  GitHub Actions API and the live cloud site; the model drafts a review tied to the
+  check ids; rule checks then a second model observe it; a person records the
+  final `accept` / `partially_accept` / `reject` (or `release` / `hold` / `rollback`).
+- **Report-level** (`cloud_report_review.py`, `evidence_review.py --mode
+  multi-agent|testing`): the loop reads the *committed* evidence itself with a
+  pinned decision schema, as described below.
+
+| Report-level mode | Reviews | Checks in code (the findings are exactly these) | Output |
 |---|---|---|---|
-| `--mode multi-agent` (`multi_agent_review.py`) | The Multi-Agent Server's `workflow_history.jsonl`, `coordination_audit.jsonl`, `multi-agent-metrics.json` (a folder, or live from `/workflow/audit/<file>`, `/workflow/metrics`, `/workflow/status`) | Every run went Planner → Worker → Reviewer → human decision; Worker citations are in the run's evidence passages; a `revise` was closed with a reason; models recorded per role; audit and metrics agree with the history | `pass` / `pass_with_findings` / `fail` / `insufficient_evidence`, findings per workflow, implementation and review recommendations |
-| `--mode testing` (`testing_review.py`) | `scripts/security/report.py` pages under `docs/evidence/release2/pre-commit/` and the CI artifact folders (`run.json`, `endpoints.xml`, `regressions.xml`) under `post-commit/` | Ruff `S`, detect-secrets, pip-audit and the unit tests ran and passed; a `push` run tested the student's two endpoint functions with the regressions green; every student has both kinds of evidence | Same verdicts, findings per `<service>-<student>`, testing recommendations |
-| `--mode cloud-deployment` (in `shared/ai_loop.py`) | The report `scripts/deploy/azure-report.sh` writes | Smoke result present and passing; the four cloud-baseline switches present and off; deployed values match the claimed security controls | `approve` / `approve_with_corrections` / `reject` / `insufficient_evidence` and a release recommendation for the release manager |
+| `evidence_review.py --mode multi-agent` (`multi_agent_review.py`) | The Multi-Agent Server's `workflow_history.jsonl`, `coordination_audit.jsonl`, `multi-agent-metrics.json` (a folder, or live from `/workflow/audit/<file>`, `/workflow/metrics`, `/workflow/status`) | Every run went Planner → Worker → Reviewer → human decision; Worker citations are in the run's evidence passages; a `revise` was closed with a reason; models recorded per role; audit and metrics agree with the history | `pass` / `pass_with_findings` / `fail` / `insufficient_evidence`, findings per workflow, implementation and review recommendations |
+| `evidence_review.py --mode testing` (`testing_review.py`) | `scripts/security/report.py` pages under `docs/evidence/release2/pre-commit/` and the CI artifact folders (`run.json`, `endpoints.xml`, `regressions.xml`) under `post-commit/` | Ruff `S`, detect-secrets, pip-audit and the unit tests ran and passed; a `push` run tested the student's two endpoint functions with the regressions green; every student has both kinds of evidence | Same verdicts, findings per `<service>-<student>`, testing recommendations |
+| `cloud_report_review.py` (in `shared/ai_loop.py`) | The report `scripts/deploy/azure-report.sh` writes | Smoke result present and passing; the four cloud-baseline switches present and off; deployed values match the claimed security controls | `approve` / `approve_with_corrections` / `reject` / `insufficient_evidence` and a release recommendation for the release manager |
 
-How a run goes, for every mode:
+How a report-level run goes:
 
 - **PLAN** — the mode loads and parses the evidence, computes `code_checks` (the
   violations, each with a severity) and `evidence_gaps`, and selects the facts the
@@ -159,8 +170,10 @@ How a run goes, for every mode:
 - **ADAPT** — `approved` → done; `revise` → the guidance is threaded into the next
   ACT; cap → `revised_capped`, which the validation log says plainly.
 
-Evidence: `tools/ai-loop/logs/<mode>.jsonl`, `logs/reports/<mode>/<run_id>.md`, and
-the validation log copied under `docs/evidence/release2/agentic-review/` (the cloud
-mode copies next to its report). Each log ends with a human confirmation or release
-decision checklist: the review is advisory. Commands, flags and the full check
-list: [`tools/ai-loop/README.md`](../../tools/ai-loop/README.md).
+Evidence: `tools/ai-loop/logs/<mode>.jsonl`, `logs/reports/<mode>/<run_id>.md`
+(services `multi-agent`, `testing`, `cloud-deployment`; the checks-based reviews
+use `review-<mode>`), and the validation log copied under
+`docs/evidence/release2/agentic-review/` (the cloud mode copies next to its
+report). Each log ends with a human confirmation or release decision checklist:
+the review is advisory. Commands, flags and the full check list:
+[`tools/ai-loop/README.md`](../../tools/ai-loop/README.md).

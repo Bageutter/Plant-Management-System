@@ -69,21 +69,21 @@ class LoopError(RuntimeError):
 # Ollama helpers                                                              #
 # --------------------------------------------------------------------------- #
 
-def _http_base(base_url: str) -> str:
-    """Ollama is reached over http(s) only; refuse file:// or custom schemes."""
+def _http_url(base_url: str) -> str:
+    """Only http(s) Ollama URLs; a file: or custom scheme is never opened."""
     if not base_url.startswith(("http://", "https://")):
-        raise LoopError("OLLAMA_URL must be an http(s) URL")
+        raise LoopError(f"OLLAMA_URL must be an http(s) URL, not {base_url!r}")
     return base_url.rstrip("/")
 
 
 def _ollama_post(base_url: str, path: str, payload: dict, timeout: int) -> dict:
-    req = request.Request(  # noqa: S310 -- scheme checked in _http_base; operator-set OLLAMA_URL
-        f"{_http_base(base_url)}{path}",
+    req = request.Request(  # noqa: S310 -- scheme checked by _http_url
+        f"{_http_url(base_url)}{path}",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with request.urlopen(req, timeout=timeout) as response:  # noqa: S310 -- http(s) only, see above
+    with request.urlopen(req, timeout=timeout) as response:  # noqa: S310 -- http(s) only
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -94,9 +94,7 @@ def ensure_model(base_url: str, model: str, auto_pull: bool, pull_timeout: int =
     vgarden/ai.py; kept here so the reviewer can guarantee its own model.
     """
     try:
-        with request.urlopen(  # noqa: S310 -- http(s) only, see _http_base
-            f"{_http_base(base_url)}/api/tags", timeout=10
-        ) as response:
+        with request.urlopen(f"{_http_url(base_url)}/api/tags", timeout=10) as response:  # noqa: S310 -- http(s) only
             names = {m.get("name", "") for m in json.loads(response.read()).get("models", [])}
     except (error.URLError, TimeoutError, ValueError) as exc:
         raise LoopError(f"Cannot reach Ollama at {base_url}") from exc
@@ -140,9 +138,8 @@ class Reviewer:
         # with a different kind of draft (e.g. the health service's structured
         # assessment) supplies its own.
         self.prompt = prompt
-        # Context window to request from Ollama. None keeps the model's default;
-        # the Release 2 review modes pass a larger window because their grounding
-        # (a whole evidence export) is far bigger than one chat question.
+        # Context window for long groundings (e.g. the release review modes);
+        # None keeps Ollama's default, as every chat feature does.
         self.num_ctx = num_ctx
         self._ready = False
 
@@ -172,11 +169,8 @@ class Reviewer:
                         {"role": "system", "content": self.prompt},
                         {"role": "user", "content": user},
                     ],
-                    "options": {
-                        "temperature": 0,
-                        "num_predict": self.num_predict,
-                        **({"num_ctx": self.num_ctx} if self.num_ctx else {}),
-                    },
+                    "options": {"temperature": 0, "num_predict": self.num_predict,
+                                **({"num_ctx": self.num_ctx} if self.num_ctx else {})},
                 },
                 self.timeout,
             )
@@ -919,7 +913,6 @@ def review_cloud_deployment(
     return json.loads(result.answer), result
 
 
-# --------------------------------------------------------------------------- #
 # Release 2 review modes: shared building blocks for a *structured* review    #
 # --------------------------------------------------------------------------- #
 #

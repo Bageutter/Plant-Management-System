@@ -1,6 +1,6 @@
 # Testing Report Review — validation log
 
-Produced by `python tools/ai-loop/review.py --mode testing` (shared agentic loop,
+Produced by `python tools/ai-loop/evidence_review.py --mode testing` (shared agentic loop,
 Plan → Act → Observe → Adapt, local Ollama only). This log is advisory: it supports the
 team's confirmation of the testing evidence and does not replace it.
 

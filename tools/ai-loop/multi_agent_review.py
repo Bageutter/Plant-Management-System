@@ -1,8 +1,8 @@
 """Multi-Agent Workflow Review — a Release 2 mode of the shared agentic loop.
 
-    python tools/ai-loop/review.py --mode multi-agent
-    python tools/ai-loop/review.py --mode multi-agent --evidence-dir docs/evidence/release2/local-deployment
-    python tools/ai-loop/review.py --mode multi-agent --server http://127.0.0.1:8003 [--workflow-id <id>]
+    python tools/ai-loop/evidence_review.py --mode multi-agent
+    python tools/ai-loop/evidence_review.py --mode multi-agent --evidence-dir docs/evidence/release2/local-deployment
+    python tools/ai-loop/evidence_review.py --mode multi-agent --server http://127.0.0.1:8003 [--workflow-id <id>]
 
 Reviews the evidence the shared Multi-Agent Server exports — `workflow_history.jsonl`,
 `coordination_audit.jsonl` and `multi-agent-metrics.json` (from a folder, or live from
@@ -156,7 +156,7 @@ Return JSON only, exactly these keys:
 FALLBACK_RECOMMENDATION = (
     "Resolve the findings above (missing stages or decisions, uncited claims, unreasoned "
     "acceptances, audit or metrics mismatches), re-export the audit files from the "
-    "Multi-Agent Server and run `review.py --mode multi-agent` again."
+    "Multi-Agent Server and run `evidence_review.py --mode multi-agent` again."
 )
 
 
@@ -771,7 +771,7 @@ def render_validation_log(decision: dict, result, grounding: dict, plan: dict, m
     metrics = grounding.get("metrics") or {}
     return f"""# Multi-Agent Workflow Review — validation log
 
-Produced by `python tools/ai-loop/review.py --mode multi-agent` (shared agentic loop,
+Produced by `python tools/ai-loop/evidence_review.py --mode multi-agent` (shared agentic loop,
 Plan → Act → Observe → Adapt, local Ollama only). This log is advisory: it supports the
 team's confirmation of the Multi-Agent workflow evidence and does not replace it.
 
@@ -841,7 +841,7 @@ Reviewer: ______________________  Date: ____________
 
 
 # --------------------------------------------------------------------------- #
-# The mode entry point used by review.py                                      #
+# The mode entry point used by evidence_review.py                             #
 # --------------------------------------------------------------------------- #
 
 

@@ -2,7 +2,7 @@ name: Auth
 
 on:
   push:
-    branches: ["yunz/**"]
+    branches: ["main", "yunz/**"]
     paths:
       - "auth/**"
       - "shared/templates/**"

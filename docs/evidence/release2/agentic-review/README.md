@@ -1,6 +1,6 @@
 # Agentic-loop review logs (Release 2, criterion 8)
 
-The shared, non-containerised agentic loop (`tools/ai-loop/review.py`, Plan → Act →
+The shared, non-containerised agentic loop (`tools/ai-loop/evidence_review.py`, Plan → Act →
 Observe → Adapt on local Ollama) reviewing the Release 2 evidence. Each run writes the
 loop's own sinks under `tools/ai-loop/logs/` (`<mode>.jsonl` and
 `reports/<mode>/<run_id>.md`) and copies its review/validation log here as
@@ -28,7 +28,7 @@ findings were removed, so its prose is read with that in mind. Each log ends wit
 Regenerate after new evidence lands:
 
 ```bash
-python tools/ai-loop/review.py --mode multi-agent --model gemma3:4b --review-model qwen2.5vl:3b
-python tools/ai-loop/review.py --mode multi-agent --evidence-dir docs/evidence/release2/local-deployment --model gemma3:4b --review-model qwen2.5vl:3b
-python tools/ai-loop/review.py --mode testing --model gemma3:4b --review-model qwen2.5vl:3b
+python tools/ai-loop/evidence_review.py --mode multi-agent --model gemma3:4b --review-model qwen2.5vl:3b
+python tools/ai-loop/evidence_review.py --mode multi-agent --evidence-dir docs/evidence/release2/local-deployment --model gemma3:4b --review-model qwen2.5vl:3b
+python tools/ai-loop/evidence_review.py --mode testing --model gemma3:4b --review-model qwen2.5vl:3b
 ```

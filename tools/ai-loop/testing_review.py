@@ -1,7 +1,7 @@
 """Testing Report Review — a Release 2 mode of the shared agentic loop.
 
-    python tools/ai-loop/review.py --mode testing
-    python tools/ai-loop/review.py --mode testing --pre-commit-dir docs/evidence/release2/pre-commit --post-commit-dir docs/evidence/release2/post-commit
+    python tools/ai-loop/evidence_review.py --mode testing
+    python tools/ai-loop/evidence_review.py --mode testing --pre-commit-dir docs/evidence/release2/pre-commit --post-commit-dir docs/evidence/release2/post-commit
 
 Reviews the two kinds of testing evidence Release 2 asks for:
 
@@ -149,7 +149,7 @@ Return JSON only, exactly these keys:
 FALLBACK_RECOMMENDATION = (
     "Resolve the findings above (a required check missing or failing, a non-push run, an "
     "untested endpoint function or a red regression suite), regenerate the reports and run "
-    "`review.py --mode testing` again."
+    "`evidence_review.py --mode testing` again."
 )
 
 TITLE_RE = re.compile(r"^#\s*Pre-commit security testing report\s*[—-]+\s*(?P<service>\S+)\s*\((?P<owner>[^)]*)\)", re.MULTILINE)
@@ -679,7 +679,7 @@ def render_validation_log(decision: dict, result, grounding: dict, plan: dict, m
     code_rows = [[f["severity"], f["area"], f["subject"], f["evidence"]] for f in grounding["code_checks"]]
     return f"""# Testing Report Review — validation log
 
-Produced by `python tools/ai-loop/review.py --mode testing` (shared agentic loop,
+Produced by `python tools/ai-loop/evidence_review.py --mode testing` (shared agentic loop,
 Plan → Act → Observe → Adapt, local Ollama only). This log is advisory: it supports the
 team's confirmation of the testing evidence and does not replace it.
 
@@ -751,7 +751,7 @@ Reviewer: ______________________  Date: ____________
 
 
 # --------------------------------------------------------------------------- #
-# The mode entry point used by review.py                                      #
+# The mode entry point used by evidence_review.py                             #
 # --------------------------------------------------------------------------- #
 
 
