@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 from mcp import Client
+from starlette.testclient import TestClient
 
 from server import create_server
 from settings import Settings
@@ -119,6 +120,30 @@ def test_disabled_server_still_discovers_but_refuses_every_call():
                 assert "not implemented" not in result.content[0].text
 
     run(check())
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_healthz_reports_configuration_without_calling_feature_services(enabled):
+    settings = Settings(enabled=enabled)
+    server = create_server(settings)
+    app = server.streamable_http_app(json_response=True, stateless_http=True)
+
+    with TestClient(app, base_url="http://127.0.0.1") as client:
+        response = client.get("/healthz")
+        assert response.status_code == 200
+        assert response.json() == {
+            "service": "mcp-server",
+            "status": "ok",
+            "enabled": enabled,
+            "version": "0.1.0",
+            "tools": sorted(EXPECTED_TOOLS),
+            "features": {
+                "health": settings.health_url,
+                "almanac": settings.almanac_url,
+                "vgarden": settings.vgarden_url,
+            },
+        }
+        assert client.post("/healthz").status_code == 405
 
 
 def test_settings_from_env_and_url_validation(monkeypatch):
