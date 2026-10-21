@@ -93,14 +93,49 @@ in `azure-config.sh`). Hosting those services is not part of this baseline.
 
 ### Prerequisites
 
-- An Azure subscription where you are **Owner** (a personal / Visual Studio /
-  Azure for Students subscription; it costs about US$35–40 a month, see §6).
+- An Azure subscription where you are **Owner**. The team uses an **education
+  (Azure for Students) subscription**, which is signed in with the student account,
+  not a work account; see the note below. It costs about US$35–40 a month of the
+  credit, see §6.
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) 2.60+,
   signed in: `az login`. Bicep is installed on demand.
 - Docker (to run the scripts from a laptop; GitHub Actions has it already).
 - `gh` CLI signed in as a repository **admin**, or someone who can add repository
   secrets by hand.
 - A bash shell: Git Bash or WSL on Windows, Terminal on macOS/Linux.
+
+### Using an education (Azure for Students) subscription
+
+- **Sign in with the student account, in its own tenant.** A machine that is also
+  signed in to a work tenant will default to the wrong subscription. Sign in
+  explicitly and check before running anything:
+
+  ```bash
+  az login --use-device-code --tenant <student tenant id or domain>
+  ```
+
+  ```bash
+  az account show --query "{name:name, id:id, user:user.name}" -o table
+  ```
+
+  Pass that subscription id to the bootstrap as `AZURE_SUBSCRIPTION_ID`; the script
+  calls `az account set` with it, so it never deploys to whatever happens to be the
+  default. Never use a corporate or Visual Studio subscription for this project.
+- **No Entra app registration is needed.** GitHub authenticates through a
+  user-assigned managed identity with a federated credential, which only needs
+  Owner on the subscription. University tenants often block creating app
+  registrations; this design avoids that.
+- **Offer and quota limits.** The student offer has a spending limit (resources
+  pause when the credit is gone; no card is charged), small vCPU quotas, and some
+  SKUs or regions are not available to it. If `azure-platform.sh` fails with
+  `SkuNotAvailable`, `OfferNotAvailable` or a quota error, change the region
+  (`AZURE_LOCATION=australiasoutheast` or `southeastasia`) or the database SKU
+  (`Standard_B1ms` is the cheapest; the parameter is `postgresSkuName` in
+  `infra/main.bicep`), and set the matching repository variable. Everything else in
+  the templates is the consumption / basic tier.
+- **The deploy identity is the only thing GitHub sees.** The three "secrets" are an
+  identity's client id, the tenant id and the subscription id; none of them is a
+  credential, and nothing in GitHub can reach any other subscription.
 
 ### Step 1 — bootstrap Azure and GitHub (once per subscription)
 
@@ -261,6 +296,8 @@ bash scripts/deploy/azure-teardown.sh
 
 | Symptom | Cause / fix |
 |---|---|
+| `az` targets the wrong tenant or subscription | `az login --use-device-code --tenant <student tenant>` then `az account show`; the scripts honour `AZURE_SUBSCRIPTION_ID` for the bootstrap and the signed-in context afterwards |
+| `SkuNotAvailable` / `OfferNotAvailable` / quota exceeded on the student offer | try another region (`AZURE_LOCATION`) or a different `postgresSkuName`; the resource group can be deleted and re-created in the new region with `azure-teardown.sh` + `azure-bootstrap.sh` |
 | `AuthorizationFailed` in the first deploy after bootstrap | role assignments still propagating; re-run after a few minutes |
 | `azure-platform.sh`: `Forbidden` reading a Key Vault secret locally | you need `Key Vault Secrets Officer` on the resource group (bootstrap grants it when it can resolve your user) |
 | Almanac revision fails to start, volume mount error | storage network rules; redeploy once with `STORAGE_RESTRICT_TO_VNET=false` and report it |
