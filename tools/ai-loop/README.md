@@ -125,7 +125,7 @@ unchanged.
 
 | Mode | Reviews | Checks |
 |---|---|---|
-| `multi-agent` | `workflow_history.jsonl`, `coordination_audit.jsonl` and `multi-agent-metrics.json` exported by the Multi-Agent Server (`--evidence-dir`, default `docs/evidence/release2`) | every run went Planner → Worker → Reviewer → human review in order; every workflow closed by a human; accepting against the Reviewer's advice has a reason; every change request started a new run; every handoff names its model; human reviews from both the UI and the terminal; metrics match the history. `--source vgarden` reviews one feature's workflows. |
+| `multi-agent` | `workflow_history.jsonl`, `coordination_audit.jsonl` and `multi-agent-metrics.json` exported by the Multi-Agent Server (`--evidence-dir`, default `docs/evidence/release2`) | every run went Planner → Worker → Reviewer → human review in order; every workflow closed by a human; accepting against the Reviewer's advice has a reason; every change request started a new run; every handoff names its model; human reviews from both the UI and the terminal; metrics match the history. **Grounding:** every Worker run was given evidence passages, and each answer cites only passages it was given. **Reviewer:** a verdict on every answer. **Integration (live):** the feature's `/integrations` reports the server as enabled (`--feature-url`, default `http://localhost:3000/vgarden`), and the server answers `/healthz` (`--multi-agent-url`); unreachable counts as missing. `--source vgarden` reviews one feature's workflows. |
 | `testing` | for every service (`--services`, all eight by default): the newest pre-commit result of each check in `.security-reports/`, the test results, log and endpoint coverage saved by `scripts/test/collect-test-evidence.py` (`--test-evidence`), the newest finished run of each GitHub Actions workflow on `main` (`--workflows`), and optional downloaded CI JUnit files (`--ci-evidence`) | each pre-commit check passed; each service's tests pass (failures, errors, skipped, log warnings); every endpoint is run by a test, measured with coverage.py, so a URL that is only mentioned doesn't count (`warn` with the untested endpoints listed); each workflow's latest run succeeded; `--endpoint-workflows` ran their endpoint test step |
 | `cloud-deployment` | `docs/evidence/release2/cloud-deployment/latest.json` from `scripts/deploy/azure-report.sh` (`--grounding`), the live site (`--url`, default the report's `app_url`) and the `cloud-deployment.yml` runs | AI-Mode, MCP, RAG and Multi-Agent disabled in the cloud baseline; the deploy's smoke test passed; container apps running with one public entry; database not public; the deployed commit passed CI; HTTPS; the same paths as `azure-smoke.sh` respond |
 
@@ -166,6 +166,11 @@ The review/validation log for each run is in the usual places:
 `--output` JSON holds the checks, the facts the model saw, the review, which
 step the verdict came from, and the human decision. Exit code `0` means every
 check passed.
+
+The `testing` and `cloud-deployment` modes read GitHub Actions through its public API,
+which allows 60 requests an hour without signing in (one `testing` run uses about 14).
+Set `GITHUB_TOKEN` to a read-only token to raise that to 5,000; it is only sent to
+`api.github.com`. When the API is unavailable, those checks are `missing`, never `pass`.
 
 Tests (fake model and evidence, no Ollama or GitHub; also run in `vgarden.yml`):
 
