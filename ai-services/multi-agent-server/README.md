@@ -99,3 +99,7 @@ abandoned runs failed so they can be retried, while preserving live local owners
 and workflows waiting for human review. Recovery assumes processes on one host.
 
 Open `/dashboard` for the read-only metrics, timings, workflow states and audit downloads.
+
+`python app.py` listens on `127.0.0.1:8003`. On a Linux or WSL Docker engine the
+containers reach the host at `172.17.0.1`, not loopback, so start it there with
+`MULTI_AGENT_HOST=0.0.0.0 python app.py` (the same convention as `MCP_HOST` and `RAG_HOST`).

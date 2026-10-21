@@ -1,3 +1,4 @@
+import os
 from uuid import uuid4
 
 from flask import Flask, Response, jsonify, request, render_template
@@ -164,4 +165,9 @@ def workflow_audit(filename):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8003)
+    # Loopback by default. Containers on a Linux/WSL Docker engine reach the host at
+    # 172.17.0.1 (host.docker.internal via extra_hosts), not at loopback, so there
+    # the server is started with MULTI_AGENT_HOST=0.0.0.0 — like MCP_HOST / RAG_HOST
+    # for the other two shared servers.
+    app.run(host=os.environ.get("MULTI_AGENT_HOST", "127.0.0.1"),
+            port=int(os.environ.get("MULTI_AGENT_PORT", "8003")))
