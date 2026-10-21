@@ -1,5 +1,5 @@
 {
-  "run_id": "review-testing-20261021-095138-c9f281",
+  "run_id": "review-testing-20261021-104049-dfe5eb",
   "mode": "testing",
   "passed": false,
   "checks": [
@@ -7,67 +7,325 @@
       "id": "TS-1",
       "title": "Pre-commit ruff check passes for vgarden",
       "status": "pass",
-      "detail": "0 Ruff security findings (2026-10-21T09:42, trigger report)."
+      "detail": "0 Ruff security findings (2026-10-21T10:39, trigger report)."
     },
     {
       "id": "TS-2",
       "title": "Pre-commit secrets check passes for vgarden",
       "status": "pass",
-      "detail": "no new secrets (2026-10-21T09:42, trigger report)."
+      "detail": "no new secrets (2026-10-21T10:39, trigger report)."
     },
     {
       "id": "TS-3",
       "title": "Pre-commit audit check passes for vgarden",
       "status": "pass",
-      "detail": "53 packages, 0 with known vulnerabilities (2026-10-21T09:42, trigger report)."
+      "detail": "53 packages, 0 with known vulnerabilities (2026-10-21T10:39, trigger report)."
     },
     {
       "id": "TS-4",
       "title": "Pre-commit tests check passes for vgarden",
       "status": "pass",
-      "detail": "137 passed in 11.05s (2026-10-21T09:42, trigger report)."
+      "detail": "137 passed in 10.82s (2026-10-21T10:39, trigger report)."
     },
     {
       "id": "TS-5",
       "title": "Pre-commit ruff check passes for auth",
       "status": "pass",
-      "detail": "0 Ruff security findings (2026-10-21T09:43, trigger report)."
+      "detail": "0 Ruff security findings (2026-10-21T10:40, trigger report)."
     },
     {
       "id": "TS-6",
       "title": "Pre-commit secrets check passes for auth",
       "status": "pass",
-      "detail": "no new secrets (2026-10-21T09:43, trigger report)."
+      "detail": "no new secrets (2026-10-21T10:40, trigger report)."
     },
     {
       "id": "TS-7",
       "title": "Pre-commit audit check passes for auth",
       "status": "pass",
-      "detail": "29 packages, 0 with known vulnerabilities (2026-10-21T09:43, trigger report)."
+      "detail": "29 packages, 0 with known vulnerabilities (2026-10-21T10:40, trigger report)."
     },
     {
       "id": "TS-8",
       "title": "Pre-commit tests check passes for auth",
       "status": "pass",
-      "detail": "10 passed in 1.26s (2026-10-21T09:43, trigger report)."
+      "detail": "10 passed in 1.28s (2026-10-21T10:40, trigger report)."
     },
     {
       "id": "TS-9",
+      "title": "Pre-commit ruff check passes for almanac",
+      "status": "fail",
+      "detail": "10 Ruff security findings (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-10",
+      "title": "Pre-commit secrets check passes for almanac",
+      "status": "pass",
+      "detail": "no new secrets (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-11",
+      "title": "Pre-commit audit check passes for almanac",
+      "status": "pass",
+      "detail": "47 packages, 0 with known vulnerabilities (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-12",
+      "title": "Pre-commit tests check passes for almanac",
+      "status": "pass",
+      "detail": "74 passed in 5.73s (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-13",
+      "title": "Pre-commit ruff check passes for health",
+      "status": "fail",
+      "detail": "4 Ruff security findings (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-14",
+      "title": "Pre-commit secrets check passes for health",
+      "status": "pass",
+      "detail": "no new secrets (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-15",
+      "title": "Pre-commit audit check passes for health",
+      "status": "pass",
+      "detail": "52 packages, 0 with known vulnerabilities (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-16",
+      "title": "Pre-commit tests check passes for health",
+      "status": "fail",
+      "detail": "60 errors in 1.11s (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-17",
+      "title": "Pre-commit ruff check passes for shared/frontend",
+      "status": "fail",
+      "detail": "2 Ruff security findings (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-18",
+      "title": "Pre-commit secrets check passes for shared/frontend",
+      "status": "pass",
+      "detail": "no new secrets (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-19",
+      "title": "Pre-commit audit check passes for shared/frontend",
+      "status": "pass",
+      "detail": "7 packages, 0 with known vulnerabilities (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-20",
+      "title": "Pre-commit ruff check passes for ai-services/mcp-server",
+      "status": "fail",
+      "detail": "5 Ruff security findings (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-21",
+      "title": "Pre-commit secrets check passes for ai-services/mcp-server",
+      "status": "pass",
+      "detail": "no new secrets (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-22",
+      "title": "Pre-commit audit check passes for ai-services/mcp-server",
+      "status": "pass",
+      "detail": "35 packages, 0 with known vulnerabilities (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-23",
+      "title": "Pre-commit ruff check passes for ai-services/rag-server",
+      "status": "fail",
+      "detail": "5 Ruff security findings (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-24",
+      "title": "Pre-commit secrets check passes for ai-services/rag-server",
+      "status": "pass",
+      "detail": "no new secrets (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-25",
+      "title": "Pre-commit audit check passes for ai-services/rag-server",
+      "status": "fail",
+      "detail": "92 packages, 1 with known vulnerabilities (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-26",
+      "title": "Pre-commit ruff check passes for ai-services/multi-agent-server",
+      "status": "pass",
+      "detail": "0 Ruff security findings (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-27",
+      "title": "Pre-commit secrets check passes for ai-services/multi-agent-server",
+      "status": "pass",
+      "detail": "no new secrets (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-28",
+      "title": "Pre-commit audit check passes for ai-services/multi-agent-server",
+      "status": "pass",
+      "detail": "37 packages, 0 with known vulnerabilities (2026-10-21T10:40, trigger report)."
+    },
+    {
+      "id": "TS-29",
       "title": "Latest vgarden.yml run on main succeeded",
       "status": "pass",
       "detail": "run 39495422400 on 0a31150 (push): success; jobs: Lint=success, Tests=success, Docker image builds=success, Compose smoke test (MCP + RAG + Multi-Agent disabled)=success"
     },
     {
-      "id": "TS-10",
+      "id": "TS-30",
       "title": "vgarden.yml ran the assigned endpoint tests",
       "status": "pass",
       "detail": "'Test the two assigned endpoint functions'=success; 'Save endpoint and regression test evidence'=success"
     },
     {
-      "id": "TS-11",
+      "id": "TS-31",
       "title": "Latest auth.yml run on main succeeded",
       "status": "missing",
       "detail": "No finished auth.yml run on main."
+    },
+    {
+      "id": "TS-32",
+      "title": "Latest plant_almanac.yml run on main succeeded",
+      "status": "pass",
+      "detail": "run 39428279251 on 0d330db (push): success; jobs: Tests=success, Lint=success, Docker image builds=success"
+    },
+    {
+      "id": "TS-33",
+      "title": "plant_almanac.yml ran the assigned endpoint tests",
+      "status": "pass",
+      "detail": "'Test the two assigned endpoint functions'=success; 'Save endpoint and regression test evidence'=success"
+    },
+    {
+      "id": "TS-34",
+      "title": "Latest health.yml run on main succeeded",
+      "status": "pass",
+      "detail": "run 39495422359 on 0a31150 (push): success; jobs: Docker image builds=success, Lint=success, Unit + e2e tests=success, Compose smoke test (MCP + RAG disabled)=success"
+    },
+    {
+      "id": "TS-35",
+      "title": "health.yml ran the assigned endpoint tests",
+      "status": "fail",
+      "detail": "No endpoint test step found."
+    },
+    {
+      "id": "TS-36",
+      "title": "Latest ai-services.yml run on main succeeded",
+      "status": "pass",
+      "detail": "run 39495422562 on 0a31150 (push): success; jobs: MCP server tests=success, Lint=success, RAG server tests=success"
+    },
+    {
+      "id": "TS-37",
+      "title": "Latest integration-ci.yml run on main succeeded",
+      "status": "pass",
+      "detail": "run 39495422420 on 0a31150 (push): success; jobs: Validate and build Compose stack=success, Start stack and smoke-check services=success"
+    },
+    {
+      "id": "TS-38",
+      "title": "Latest ruff.yml run on main succeeded",
+      "status": "pass",
+      "detail": "run 39495422419 on 0a31150 (push): success; jobs: Python lint=success"
+    },
+    {
+      "id": "TS-39",
+      "title": "vgarden tests pass",
+      "status": "pass",
+      "detail": "137 tests: 0 failures, 0 errors, 0 skipped (commit 48fcee1)."
+    },
+    {
+      "id": "TS-40",
+      "title": "Every vgarden endpoint is exercised by a test",
+      "status": "warn",
+      "detail": "34/36 endpoints run by the tests; not exercised: GET /healthz, GET /gardens Line coverage 95.5%."
+    },
+    {
+      "id": "TS-41",
+      "title": "auth tests pass",
+      "status": "pass",
+      "detail": "10 tests: 0 failures, 0 errors, 0 skipped (commit 48fcee1)."
+    },
+    {
+      "id": "TS-42",
+      "title": "Every auth endpoint is exercised by a test",
+      "status": "warn",
+      "detail": "2/8 endpoints run by the tests; not exercised: GET/POST /register, POST /logout, GET /account, POST /gardens, POST /gardens/<int:garden_id>/delete, GET /me Line coverage 77.3%."
+    },
+    {
+      "id": "TS-43",
+      "title": "almanac tests pass",
+      "status": "pass",
+      "detail": "74 tests: 0 failures, 0 errors, 0 skipped (commit 48fcee1)."
+    },
+    {
+      "id": "TS-44",
+      "title": "Every almanac endpoint is exercised by a test",
+      "status": "warn",
+      "detail": "28/29 endpoints run by the tests; not exercised: GET /health Line coverage 91.6%."
+    },
+    {
+      "id": "TS-45",
+      "title": "health tests pass",
+      "status": "fail",
+      "detail": "60 tests: 0 failures, 60 errors, 0 skipped (commit 48fcee1)."
+    },
+    {
+      "id": "TS-46",
+      "title": "Every health endpoint is exercised by a test",
+      "status": "warn",
+      "detail": "0/23 endpoints run by the tests; not exercised: GET /, GET /healthz, GET /, GET /<int:assessment_id>, GET /<int:assessment_id>/image, POST /assessments, POST /assessments/stream, GET /assessments and 15 more Line coverage 19.8%."
+    },
+    {
+      "id": "TS-47",
+      "title": "shared/frontend tests pass",
+      "status": "warn",
+      "detail": "The service has no tests."
+    },
+    {
+      "id": "TS-48",
+      "title": "Every shared/frontend endpoint is exercised by a test",
+      "status": "warn",
+      "detail": "0/1 endpoints run by the tests; not exercised: GET / Line coverage None%."
+    },
+    {
+      "id": "TS-49",
+      "title": "ai-services/mcp-server tests pass",
+      "status": "pass",
+      "detail": "42 tests: 0 failures, 0 errors, 0 skipped (commit 48fcee1)."
+    },
+    {
+      "id": "TS-50",
+      "title": "Every ai-services/mcp-server endpoint is exercised by a test",
+      "status": "warn",
+      "detail": "12/13 endpoints run by the tests; not exercised: GET /healthz Line coverage 95.0%."
+    },
+    {
+      "id": "TS-51",
+      "title": "ai-services/rag-server tests pass",
+      "status": "pass",
+      "detail": "68 tests: 0 failures, 0 errors, 0 skipped (commit 48fcee1)."
+    },
+    {
+      "id": "TS-52",
+      "title": "Every ai-services/rag-server endpoint is exercised by a test",
+      "status": "warn",
+      "detail": "5/6 endpoints run by the tests; not exercised: POST /rag/retrieve Line coverage 89.2%."
+    },
+    {
+      "id": "TS-53",
+      "title": "ai-services/multi-agent-server tests pass",
+      "status": "pass",
+      "detail": "25 tests: 0 failures, 0 errors, 0 skipped (commit 48fcee1)."
+    },
+    {
+      "id": "TS-54",
+      "title": "Every ai-services/multi-agent-server endpoint is exercised by a test",
+      "status": "warn",
+      "detail": "5/8 endpoints run by the tests; not exercised: GET /healthz, GET /dashboard, GET /workflow/metrics Line coverage 88.7%."
     }
   ],
   "facts": {
@@ -77,56 +335,196 @@
         "check": "ruff",
         "result": "pass",
         "summary": "0 Ruff security findings",
-        "at": "2026-10-21T09:42"
+        "at": "2026-10-21T10:39"
       },
       {
         "service": "vgarden",
         "check": "secrets",
         "result": "pass",
         "summary": "no new secrets",
-        "at": "2026-10-21T09:42"
+        "at": "2026-10-21T10:39"
       },
       {
         "service": "vgarden",
         "check": "audit",
         "result": "pass",
         "summary": "53 packages, 0 with known vulnerabilities",
-        "at": "2026-10-21T09:42"
+        "at": "2026-10-21T10:39"
       },
       {
         "service": "vgarden",
         "check": "tests",
         "result": "pass",
-        "summary": "137 passed in 11.05s",
-        "at": "2026-10-21T09:42"
+        "summary": "137 passed in 10.82s",
+        "at": "2026-10-21T10:39"
       },
       {
         "service": "auth",
         "check": "ruff",
         "result": "pass",
         "summary": "0 Ruff security findings",
-        "at": "2026-10-21T09:43"
+        "at": "2026-10-21T10:40"
       },
       {
         "service": "auth",
         "check": "secrets",
         "result": "pass",
         "summary": "no new secrets",
-        "at": "2026-10-21T09:43"
+        "at": "2026-10-21T10:40"
       },
       {
         "service": "auth",
         "check": "audit",
         "result": "pass",
         "summary": "29 packages, 0 with known vulnerabilities",
-        "at": "2026-10-21T09:43"
+        "at": "2026-10-21T10:40"
       },
       {
         "service": "auth",
         "check": "tests",
         "result": "pass",
-        "summary": "10 passed in 1.26s",
-        "at": "2026-10-21T09:43"
+        "summary": "10 passed in 1.28s",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "almanac",
+        "check": "ruff",
+        "result": "fail",
+        "summary": "10 Ruff security findings",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "almanac",
+        "check": "secrets",
+        "result": "pass",
+        "summary": "no new secrets",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "almanac",
+        "check": "audit",
+        "result": "pass",
+        "summary": "47 packages, 0 with known vulnerabilities",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "almanac",
+        "check": "tests",
+        "result": "pass",
+        "summary": "74 passed in 5.73s",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "health",
+        "check": "ruff",
+        "result": "fail",
+        "summary": "4 Ruff security findings",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "health",
+        "check": "secrets",
+        "result": "pass",
+        "summary": "no new secrets",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "health",
+        "check": "audit",
+        "result": "pass",
+        "summary": "52 packages, 0 with known vulnerabilities",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "health",
+        "check": "tests",
+        "result": "fail",
+        "summary": "60 errors in 1.11s",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "shared/frontend",
+        "check": "ruff",
+        "result": "fail",
+        "summary": "2 Ruff security findings",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "shared/frontend",
+        "check": "secrets",
+        "result": "pass",
+        "summary": "no new secrets",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "shared/frontend",
+        "check": "audit",
+        "result": "pass",
+        "summary": "7 packages, 0 with known vulnerabilities",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "ai-services/mcp-server",
+        "check": "ruff",
+        "result": "fail",
+        "summary": "5 Ruff security findings",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "ai-services/mcp-server",
+        "check": "secrets",
+        "result": "pass",
+        "summary": "no new secrets",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "ai-services/mcp-server",
+        "check": "audit",
+        "result": "pass",
+        "summary": "35 packages, 0 with known vulnerabilities",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "ai-services/rag-server",
+        "check": "ruff",
+        "result": "fail",
+        "summary": "5 Ruff security findings",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "ai-services/rag-server",
+        "check": "secrets",
+        "result": "pass",
+        "summary": "no new secrets",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "ai-services/rag-server",
+        "check": "audit",
+        "result": "fail",
+        "summary": "92 packages, 1 with known vulnerabilities",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "ai-services/multi-agent-server",
+        "check": "ruff",
+        "result": "pass",
+        "summary": "0 Ruff security findings",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "ai-services/multi-agent-server",
+        "check": "secrets",
+        "result": "pass",
+        "summary": "no new secrets",
+        "at": "2026-10-21T10:40"
+      },
+      {
+        "service": "ai-services/multi-agent-server",
+        "check": "audit",
+        "result": "pass",
+        "summary": "37 packages, 0 with known vulnerabilities",
+        "at": "2026-10-21T10:40"
       }
     ],
     "ci": [
@@ -146,25 +544,348 @@
           "Test the two assigned endpoint functions": "success",
           "Save endpoint and regression test evidence": "success"
         }
+      },
+      {
+        "workflow": "plant_almanac.yml",
+        "run_id": 39428279251,
+        "commit": "0d330db",
+        "conclusion": "success",
+        "url": "https://github.com/Bageutter/Plant-Management-System/actions/runs/39428279251",
+        "jobs": {
+          "Tests": "success",
+          "Lint": "success",
+          "Docker image builds": "success"
+        },
+        "endpoint_steps": {
+          "Test the two assigned endpoint functions": "success",
+          "Save endpoint and regression test evidence": "success"
+        }
+      },
+      {
+        "workflow": "health.yml",
+        "run_id": 39495422359,
+        "commit": "0a31150",
+        "conclusion": "success",
+        "url": "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422359",
+        "jobs": {
+          "Docker image builds": "success",
+          "Lint": "success",
+          "Unit + e2e tests": "success",
+          "Compose smoke test (MCP + RAG disabled)": "success"
+        },
+        "endpoint_steps": {}
+      },
+      {
+        "workflow": "ai-services.yml",
+        "run_id": 39495422562,
+        "commit": "0a31150",
+        "conclusion": "success",
+        "url": "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422562",
+        "jobs": {
+          "MCP server tests": "success",
+          "Lint": "success",
+          "RAG server tests": "success"
+        }
+      },
+      {
+        "workflow": "integration-ci.yml",
+        "run_id": 39495422420,
+        "commit": "0a31150",
+        "conclusion": "success",
+        "url": "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422420",
+        "jobs": {
+          "Validate and build Compose stack": "success",
+          "Start stack and smoke-check services": "success"
+        }
+      },
+      {
+        "workflow": "ruff.yml",
+        "run_id": 39495422419,
+        "commit": "0a31150",
+        "conclusion": "success",
+        "url": "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422419",
+        "jobs": {
+          "Python lint": "success"
+        }
       }
     ],
-    "junit": null
+    "junit": null,
+    "test_evidence": [
+      {
+        "service": "vgarden",
+        "commit": "48fcee1",
+        "tests": 137,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "warnings": 0,
+        "line_coverage_percent": 95.5,
+        "endpoints": 36,
+        "endpoints_tested": 34,
+        "untested_endpoints": [
+          "GET /healthz (vgarden/routes.py:93)",
+          "GET /gardens (vgarden/routes.py:212)"
+        ]
+      },
+      {
+        "service": "auth",
+        "commit": "48fcee1",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "warnings": 0,
+        "line_coverage_percent": 77.3,
+        "endpoints": 8,
+        "endpoints_tested": 2,
+        "untested_endpoints": [
+          "GET/POST /register (auth/routes.py:32)",
+          "POST /logout (auth/routes.py:72)",
+          "GET /account (auth/routes.py:79)",
+          "POST /gardens (auth/routes.py:114)",
+          "POST /gardens/<int:garden_id>/delete (auth/routes.py:149)",
+          "GET /me (auth/routes.py:211)"
+        ]
+      },
+      {
+        "service": "almanac",
+        "commit": "48fcee1",
+        "tests": 74,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "warnings": 0,
+        "line_coverage_percent": 91.6,
+        "endpoints": 29,
+        "endpoints_tested": 28,
+        "untested_endpoints": [
+          "GET /health (almanac/app.py:923)"
+        ]
+      },
+      {
+        "service": "health",
+        "commit": "48fcee1",
+        "tests": 60,
+        "failures": 0,
+        "errors": 60,
+        "skipped": 0,
+        "warnings": 0,
+        "line_coverage_percent": 19.8,
+        "endpoints": 23,
+        "endpoints_tested": 0,
+        "untested_endpoints": [
+          "GET / (health/routes.py:72)",
+          "GET /healthz (health/routes.py:77)",
+          "GET / (health/routes.py:96)",
+          "GET /<int:assessment_id> (health/routes.py:101)",
+          "GET /<int:assessment_id>/image (health/routes.py:114)",
+          "POST /assessments (health/routes.py:137)",
+          "POST /assessments/stream (health/routes.py:159)",
+          "GET /assessments (health/routes.py:263)",
+          "GET /assessments/<int:assessment_id> (health/routes.py:305)",
+          "PATCH/PUT /assessments/<int:assessment_id> (health/routes.py:313)",
+          "DELETE /assessments/<int:assessment_id> (health/routes.py:343)",
+          "POST /assessments/<int:assessment_id>/regenerate (health/routes.py:358)",
+          "POST /assessments/<int:assessment_id>/regenerate/stream (health/routes.py:389)",
+          "GET /assessments/<int:assessment_id>/loop (health/routes.py:403)",
+          "GET /<int:assessment_id>/loop (health/routes.py:413)",
+          "GET /plants (health/routes.py:573)",
+          "POST /plants (health/routes.py:583)",
+          "DELETE /plants/<int:plant_id> (health/routes.py:605)",
+          "GET /integrations (health/routes.py:651)",
+          "GET /tools (health/routes.py:674)",
+          "POST /tools/run (health/routes.py:684)",
+          "POST /ask (health/routes.py:708)",
+          "POST /ask/sync (health/routes.py:727)"
+        ]
+      },
+      {
+        "service": "shared/frontend",
+        "commit": "48fcee1",
+        "tests": 0,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "warnings": 0,
+        "line_coverage_percent": null,
+        "endpoints": 1,
+        "endpoints_tested": 0,
+        "untested_endpoints": [
+          "GET / (shared/frontend/app.py:21)"
+        ]
+      },
+      {
+        "service": "ai-services/mcp-server",
+        "commit": "48fcee1",
+        "tests": 42,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "warnings": 0,
+        "line_coverage_percent": 95.0,
+        "endpoints": 13,
+        "endpoints_tested": 12,
+        "untested_endpoints": [
+          "GET /healthz (ai-services/mcp-server/server.py:60)"
+        ]
+      },
+      {
+        "service": "ai-services/rag-server",
+        "commit": "48fcee1",
+        "tests": 68,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "warnings": 0,
+        "line_coverage_percent": 89.2,
+        "endpoints": 6,
+        "endpoints_tested": 5,
+        "untested_endpoints": [
+          "POST /rag/retrieve (ai-services/rag-server/routes.py:213)"
+        ]
+      },
+      {
+        "service": "ai-services/multi-agent-server",
+        "commit": "48fcee1",
+        "tests": 25,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "warnings": 0,
+        "line_coverage_percent": 88.7,
+        "endpoints": 8,
+        "endpoints_tested": 5,
+        "untested_endpoints": [
+          "GET /healthz (ai-services/multi-agent-server/app.py:18)",
+          "GET /dashboard (ai-services/multi-agent-server/app.py:130)",
+          "GET /workflow/metrics (ai-services/multi-agent-server/app.py:147)"
+        ]
+      }
+    ]
   },
   "review": {
-    "summary": "10 of 11 checks passed. Not passing: TS-11.",
+    "summary": "35 of 54 checks passed. Not passing: TS-9 (fail), TS-13 (fail), TS-16 (fail), TS-17 (fail), TS-20 (fail), TS-23 (fail), TS-25 (fail), TS-31 (missing), TS-35 (fail), TS-40 (warn), TS-42 (warn), TS-44 (warn), TS-45 (fail), TS-46 (warn), TS-47 (warn), TS-48 (warn), TS-50 (warn), TS-52 (warn), TS-54 (warn).",
     "findings": [
       {
-        "check_id": "TS-11",
+        "check_id": "TS-9",
+        "severity": "major",
+        "finding": "Pre-commit ruff check passes for almanac: 10 Ruff security findings (2026-10-21T10:40, trigger report)."
+      },
+      {
+        "check_id": "TS-13",
+        "severity": "major",
+        "finding": "Pre-commit ruff check passes for health: 4 Ruff security findings (2026-10-21T10:40, trigger report)."
+      },
+      {
+        "check_id": "TS-16",
+        "severity": "major",
+        "finding": "Pre-commit tests check passes for health: 60 errors in 1.11s (2026-10-21T10:40, trigger report)."
+      },
+      {
+        "check_id": "TS-17",
+        "severity": "major",
+        "finding": "Pre-commit ruff check passes for shared/frontend: 2 Ruff security findings (2026-10-21T10:40, trigger report)."
+      },
+      {
+        "check_id": "TS-20",
+        "severity": "major",
+        "finding": "Pre-commit ruff check passes for ai-services/mcp-server: 5 Ruff security findings (2026-10-21T10:40, trigger report)."
+      },
+      {
+        "check_id": "TS-23",
+        "severity": "major",
+        "finding": "Pre-commit ruff check passes for ai-services/rag-server: 5 Ruff security findings (2026-10-21T10:40, trigger report)."
+      },
+      {
+        "check_id": "TS-25",
+        "severity": "major",
+        "finding": "Pre-commit audit check passes for ai-services/rag-server: 92 packages, 1 with known vulnerabilities (2026-10-21T10:40, trigger report)."
+      },
+      {
+        "check_id": "TS-31",
         "severity": "blocker",
         "finding": "Latest auth.yml run on main succeeded: No finished auth.yml run on main."
+      },
+      {
+        "check_id": "TS-35",
+        "severity": "major",
+        "finding": "health.yml ran the assigned endpoint tests: No endpoint test step found."
+      },
+      {
+        "check_id": "TS-40",
+        "severity": "minor",
+        "finding": "Every vgarden endpoint is exercised by a test: 34/36 endpoints run by the tests; not exercised: GET /healthz, GET /gardens Line coverage 95.5%."
+      },
+      {
+        "check_id": "TS-42",
+        "severity": "minor",
+        "finding": "Every auth endpoint is exercised by a test: 2/8 endpoints run by the tests; not exercised: GET/POST /register, POST /logout, GET /account, POST /gardens, POST /gardens/<int:garden_id>/delete, GET /me Line coverage 77.3%."
+      },
+      {
+        "check_id": "TS-44",
+        "severity": "minor",
+        "finding": "Every almanac endpoint is exercised by a test: 28/29 endpoints run by the tests; not exercised: GET /health Line coverage 91.6%."
+      },
+      {
+        "check_id": "TS-45",
+        "severity": "major",
+        "finding": "health tests pass: 60 tests: 0 failures, 60 errors, 0 skipped (commit 48fcee1)."
+      },
+      {
+        "check_id": "TS-46",
+        "severity": "minor",
+        "finding": "Every health endpoint is exercised by a test: 0/23 endpoints run by the tests; not exercised: GET /, GET /healthz, GET /, GET /<int:assessment_id>, GET /<int:assessment_id>/image, POST /assessments, POST /assessments/stream, GET /assessments and 15 more Line coverage 19.8%."
+      },
+      {
+        "check_id": "TS-47",
+        "severity": "minor",
+        "finding": "shared/frontend tests pass: The service has no tests."
+      },
+      {
+        "check_id": "TS-48",
+        "severity": "minor",
+        "finding": "Every shared/frontend endpoint is exercised by a test: 0/1 endpoints run by the tests; not exercised: GET / Line coverage None%."
+      },
+      {
+        "check_id": "TS-50",
+        "severity": "minor",
+        "finding": "Every ai-services/mcp-server endpoint is exercised by a test: 12/13 endpoints run by the tests; not exercised: GET /healthz Line coverage 95.0%."
+      },
+      {
+        "check_id": "TS-52",
+        "severity": "minor",
+        "finding": "Every ai-services/rag-server endpoint is exercised by a test: 5/6 endpoints run by the tests; not exercised: POST /rag/retrieve Line coverage 89.2%."
+      },
+      {
+        "check_id": "TS-54",
+        "severity": "minor",
+        "finding": "Every ai-services/multi-agent-server endpoint is exercised by a test: 5/8 endpoints run by the tests; not exercised: GET /healthz, GET /dashboard, GET /workflow/metrics Line coverage 88.7%."
       }
     ],
     "recommendations": [
-      "Resolve TS-11: latest auth.yml run on main succeeded."
+      "Resolve TS-9: pre-commit ruff check passes for almanac.",
+      "Resolve TS-13: pre-commit ruff check passes for health.",
+      "Resolve TS-16: pre-commit tests check passes for health.",
+      "Resolve TS-17: pre-commit ruff check passes for shared/frontend.",
+      "Resolve TS-20: pre-commit ruff check passes for ai-services/mcp-server.",
+      "Resolve TS-23: pre-commit ruff check passes for ai-services/rag-server.",
+      "Resolve TS-25: pre-commit audit check passes for ai-services/rag-server.",
+      "Resolve TS-31: latest auth.yml run on main succeeded.",
+      "Resolve TS-35: health.yml ran the assigned endpoint tests.",
+      "Resolve TS-40: every vgarden endpoint is exercised by a test.",
+      "Resolve TS-42: every auth endpoint is exercised by a test.",
+      "Resolve TS-44: every almanac endpoint is exercised by a test.",
+      "Resolve TS-45: health tests pass.",
+      "Resolve TS-46: every health endpoint is exercised by a test.",
+      "Resolve TS-47: shared/frontend tests pass.",
+      "Resolve TS-48: every shared/frontend endpoint is exercised by a test.",
+      "Resolve TS-50: every ai-services/mcp-server endpoint is exercised by a test.",
+      "Resolve TS-52: every ai-services/rag-server endpoint is exercised by a test.",
+      "Resolve TS-54: every ai-services/multi-agent-server endpoint is exercised by a test."
     ],
     "verdict": "not_ready"
   },
-  "verdict_source": "checks_only",
+  "verdict_source": "checks_after_capped_model",
   "iterations": 2,
   "human_review": {
     "decision": "pending",
@@ -172,16 +893,50 @@
     "reviewer_id": "yunus"
   },
   "evidence_sources": [
-    ".security-reports/20261021T094243Z-ruff-f1770939.json",
-    ".security-reports/20261021T094243Z-secrets-94257500.json",
-    ".security-reports/20261021T094244Z-audit-01a63301.json",
-    ".security-reports/20261021T094249Z-tests-0dd60043.json",
-    ".security-reports/20261021T094301Z-ruff-e509b916.json",
-    ".security-reports/20261021T094301Z-secrets-bbf9cb4f.json",
-    ".security-reports/20261021T094302Z-audit-8413474b.json",
-    ".security-reports/20261021T094307Z-tests-95ddff38.json",
-    "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422400"
+    ".security-reports/20261021T103944Z-ruff-e97e526c.json",
+    ".security-reports/20261021T103944Z-secrets-0c6bea2b.json",
+    ".security-reports/20261021T103945Z-audit-bebc0d8d.json",
+    ".security-reports/20261021T103950Z-tests-7b5bcd84.json",
+    ".security-reports/20261021T104002Z-ruff-955c45df.json",
+    ".security-reports/20261021T104002Z-secrets-1ff1faa3.json",
+    ".security-reports/20261021T104002Z-audit-4093b8ad.json",
+    ".security-reports/20261021T104006Z-tests-1ac6e6aa.json",
+    ".security-reports/20261021T104008Z-ruff-6a401bf7.json",
+    ".security-reports/20261021T104008Z-secrets-ed7d0b40.json",
+    ".security-reports/20261021T104009Z-audit-ad64f2c0.json",
+    ".security-reports/20261021T104014Z-tests-a64a2279.json",
+    ".security-reports/20261021T104020Z-ruff-29615c69.json",
+    ".security-reports/20261021T104020Z-secrets-6655c542.json",
+    ".security-reports/20261021T104021Z-audit-dfd86282.json",
+    ".security-reports/20261021T104026Z-tests-4ef2df68.json",
+    ".security-reports/20261021T104028Z-ruff-1c75d824.json",
+    ".security-reports/20261021T104028Z-secrets-89580e08.json",
+    ".security-reports/20261021T104028Z-audit-cdabd089.json",
+    ".security-reports/20261021T104032Z-ruff-6b1b3c3d.json",
+    ".security-reports/20261021T104032Z-secrets-177dc3d7.json",
+    ".security-reports/20261021T104032Z-audit-5c48b76d.json",
+    ".security-reports/20261021T104037Z-ruff-18955f4a.json",
+    ".security-reports/20261021T104037Z-secrets-bad3dd86.json",
+    ".security-reports/20261021T104038Z-audit-b92c4676.json",
+    ".security-reports/20261021T104044Z-ruff-f6533d02.json",
+    ".security-reports/20261021T104044Z-secrets-6cb69c77.json",
+    ".security-reports/20261021T104045Z-audit-c6262b95.json",
+    "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422400",
+    "https://github.com/Bageutter/Plant-Management-System/actions/runs/39428279251",
+    "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422359",
+    "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422562",
+    "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422420",
+    "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422419",
+    "docs/evidence/release2/testing/vgarden",
+    "docs/evidence/release2/testing/auth",
+    "docs/evidence/release2/testing/almanac",
+    "docs/evidence/release2/testing/health",
+    "docs/evidence/release2/testing/frontend",
+    "docs/evidence/release2/testing/mcp-server",
+    "docs/evidence/release2/testing/rag-server",
+    "docs/evidence/release2/testing/multi-agent-server"
   ],
-  "transcript": "/Users/yunz/Documents/nerd/Plant-Management-System/tools/ai-loop/logs/reports/review-testing/review-testing-20261021-095138-c9f281.md",
-  "scope": "Reviews saved evidence; a passing review is not proof that every feature works."
+  "transcript": "/Users/yunz/Documents/nerd/Plant-Management-System/tools/ai-loop/logs/reports/review-testing/review-testing-20261021-104049-dfe5eb.md",
+  "scope": "Reviews saved evidence; a passing review is not proof that every feature works.",
+  "report": "docs/evidence/release2/testing-review.md"
 }

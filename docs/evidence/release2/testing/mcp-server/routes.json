@@ -1,0 +1,183 @@
+{
+  "service": "ai-services/mcp-server",
+  "generated_at": "2026-10-21T10:17:23+00:00",
+  "commit": "48fcee1",
+  "test_command": "coverage run -m pytest -q tests",
+  "exit_code": 0,
+  "line_coverage_percent": 95.0,
+  "endpoints": 13,
+  "endpoints_tested": 12,
+  "routes": [
+    {
+      "kind": "http",
+      "path": "/healthz",
+      "methods": [
+        "GET"
+      ],
+      "function": "server.healthz",
+      "file": "ai-services/mcp-server/server.py",
+      "line": 60,
+      "body_lines": [
+        61,
+        75
+      ],
+      "tested": false
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "search_almanac_catalogue",
+      "methods": [],
+      "function": "tools.almanac.search_almanac_catalogue",
+      "file": "ai-services/mcp-server/tools/almanac.py",
+      "line": 21,
+      "body_lines": [
+        25,
+        30
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "get_almanac_plant",
+      "methods": [],
+      "function": "tools.almanac.get_almanac_plant",
+      "file": "ai-services/mcp-server/tools/almanac.py",
+      "line": 33,
+      "body_lines": [
+        35,
+        40
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "health_service_status",
+      "methods": [],
+      "function": "tools.health.health_service_status",
+      "file": "ai-services/mcp-server/tools/health.py",
+      "line": 97,
+      "body_lines": [
+        99,
+        110
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "list_health_assessments",
+      "methods": [],
+      "function": "tools.health.list_health_assessments",
+      "file": "ai-services/mcp-server/tools/health.py",
+      "line": 113,
+      "body_lines": [
+        124,
+        132
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "get_health_assessment",
+      "methods": [],
+      "function": "tools.health.get_health_assessment",
+      "file": "ai-services/mcp-server/tools/health.py",
+      "line": 135,
+      "body_lines": [
+        140,
+        141
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "summarise_plant_health_history",
+      "methods": [],
+      "function": "tools.health.summarise_plant_health_history",
+      "file": "ai-services/mcp-server/tools/health.py",
+      "line": 144,
+      "body_lines": [
+        151,
+        191
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "assess_plant_health",
+      "methods": [],
+      "function": "tools.health.assess_plant_health",
+      "file": "ai-services/mcp-server/tools/health.py",
+      "line": 194,
+      "body_lines": [
+        203,
+        208
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "retrieve_context",
+      "methods": [],
+      "function": "tools.rag.retrieve_context",
+      "file": "ai-services/mcp-server/tools/rag.py",
+      "line": 37,
+      "body_lines": [
+        42,
+        43
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "answer_question",
+      "methods": [],
+      "function": "tools.rag.answer_question",
+      "file": "ai-services/mcp-server/tools/rag.py",
+      "line": 46,
+      "body_lines": [
+        50,
+        51
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "refresh_corpus",
+      "methods": [],
+      "function": "tools.rag.refresh_corpus",
+      "file": "ai-services/mcp-server/tools/rag.py",
+      "line": 55,
+      "body_lines": [
+        60,
+        63
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "get_garden_snapshot",
+      "methods": [],
+      "function": "tools.vgarden.get_garden_snapshot",
+      "file": "ai-services/mcp-server/tools/vgarden.py",
+      "line": 27,
+      "body_lines": [
+        29,
+        34
+      ],
+      "tested": true
+    },
+    {
+      "kind": "mcp_tool",
+      "path": "list_garden_plantings",
+      "methods": [],
+      "function": "tools.vgarden.list_garden_plantings",
+      "file": "ai-services/mcp-server/tools/vgarden.py",
+      "line": 37,
+      "body_lines": [
+        39,
+        44
+      ],
+      "tested": true
+    }
+  ]
+}

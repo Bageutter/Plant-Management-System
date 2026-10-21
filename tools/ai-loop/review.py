@@ -70,16 +70,17 @@ REVIEW_SCHEMA = {
 
 DRAFT_PROMPT = """You review {subject} for a university software release.
 EVIDENCE is the complete set of facts you may use: a list of checks (each with an
-id, a status of pass, fail or missing, and a detail) plus extra facts.
+id, a status of pass, warn, fail or missing, and a detail) plus extra facts.
 
 Write a short, specific review:
 - summary: two or three sentences on what the evidence shows.
 - findings: one entry for every check whose status is fail or missing (severity
-  major or blocker), plus any other notable point (info or minor). Use the exact
-  check_id from EVIDENCE. Never invent a check id, number, name or date.
+  major or blocker), one for every warn check (severity minor or higher), plus any
+  other notable point (info). Use the exact check_id from EVIDENCE. Never invent a
+  check id, number, name or date.
 - recommendations: concrete next steps, each tied to the evidence.
-- verdict: "ready" only when every check passes; "ready_with_fixes" when every
-  check passes but you have minor concerns; otherwise "not_ready".
+- verdict: "ready" only when every check passes; "ready_with_fixes" when nothing
+  fails or is missing but some checks warn; otherwise "not_ready".
 If the evidence cannot support a statement, leave it out rather than guess.
 Return JSON only."""
 
@@ -90,7 +91,7 @@ plus extra facts. Restating or summarising those values is correct, not an error
 Return "revise" only when one of these is clearly true:
 - The draft states a number, name, date or outcome that is absent from, or
   contradicts, the grounding.
-- The draft calls something passing that the grounding marks fail or missing.
+- The draft calls something passing that the grounding marks warn, fail or missing.
 - A recommendation has no basis in the grounding.
 Otherwise return "approved". When genuinely unsure, return "approved".
 
@@ -112,12 +113,17 @@ SUBJECTS = {
 class Check:
     id: str
     title: str
-    status: str  # pass | fail | missing
+    status: str  # pass | warn (needs work, not a blocker) | fail | missing
     detail: str
 
 
-def _check(checks, cid, title, ok, detail, missing=False):
-    checks.append(Check(cid, title, "missing" if missing else ("pass" if ok else "fail"), detail))
+def _check(checks, cid, title, ok, detail, missing=False, warn=False):
+    status = "missing" if missing else "pass" if ok else "warn" if warn else "fail"
+    checks.append(Check(cid, title, status, detail))
+
+
+BLOCKING = ("fail", "missing")
+HOOK_TESTED = ("almanac", "health", "vgarden", "auth")
 
 
 def _rel(path: Path) -> str:
@@ -278,7 +284,7 @@ def _scan_summary(report: dict) -> str:
         deps = json.loads(stdout or "{}").get("dependencies", [])
         return f"{len(deps)} packages, {sum(1 for d in deps if d.get('vulns'))} with known vulnerabilities"
     if report["scan"] == "tests":
-        lines = [line for line in stdout.splitlines() if re.search(r"\d+ (passed|failed)", line)]
+        lines = [line for line in stdout.splitlines() if re.search(r"\d+ (passed|failed|errors?)", line)]
         return lines[-1].strip() if lines else "no pytest summary"
     return "no new secrets" if report["exit_code"] == 0 else "possible secrets flagged"
 
@@ -311,7 +317,10 @@ def gather_testing(args) -> tuple[dict, list[Check], list[str]]:
             latest[(service, report["scan"])] = {**report, "_path": path}
     number = 0
     for service in args.services:
-        for scan in ("ruff", "secrets", "audit", "tests"):
+        # The hook runs pytest only for the four feature services
+        # (scripts/security/run_checks.py); the others' tests are in the test evidence below.
+        scans = ("ruff", "secrets", "audit", "tests") if service in HOOK_TESTED else ("ruff", "secrets", "audit")
+        for scan in scans:
             number += 1
             cid, title = f"TS-{number}", f"Pre-commit {scan} check passes for {service}"
             report = latest.get((service, scan))
@@ -357,6 +366,57 @@ def gather_testing(args) -> tuple[dict, list[Check], list[str]]:
                    "; ".join(f"'{s['name']}'={s['conclusion']}" for s in steps) or "No endpoint test step found.")
             entry["endpoint_steps"] = {s["name"]: s["conclusion"] for s in steps}
         facts["ci"].append(entry)
+
+    # Each service's own test results, log and endpoint coverage
+    # (scripts/test/collect-test-evidence.py).
+    evidence_dir = Path(args.test_evidence)
+    facts["test_evidence"] = []
+    for service in args.services:
+        name = service.rsplit("/", 1)[-1]
+        folder = evidence_dir / name
+        summary_path = folder / "routes.json"
+        number += 1
+        tests_id = f"TS-{number}"
+        number += 1
+        cover_id = f"TS-{number}"
+        if not summary_path.exists():
+            for cid, title in ((tests_id, f"{service} tests pass"), (cover_id, f"Every {service} endpoint is exercised by a test")):
+                _check(checks, cid, title, False, f"No saved test evidence in {_rel(folder)} "
+                       "(run scripts/test/collect-test-evidence.py).", missing=True)
+            continue
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        sources.append(_rel(folder))
+        log = (folder / "pytest.txt").read_text(encoding="utf-8") if (folder / "pytest.txt").exists() else ""
+        warnings = re.search(r"(\d+) warnings?", log.splitlines()[-1] if log.strip() else "")
+        totals = _junit_totals(folder) if (folder / "junit.xml").exists() else None
+        if summary.get("exit_code") is None:
+            _check(checks, tests_id, f"{service} tests pass", False, "The service has no tests.", warn=True)
+        else:
+            bad = (totals["failures"] + totals["errors"]) if totals else None
+            failing = re.findall(r"^FAILED (\S+)", log, re.MULTILINE)[:5]
+            _check(checks, tests_id, f"{service} tests pass", summary["exit_code"] == 0 and bad == 0,
+                   (f"{totals['tests']} tests: {totals['failures']} failures, {totals['errors']} errors, "
+                    f"{totals['skipped']} skipped" if totals else "no JUnit file")
+                   + (f"; {warnings.group(1)} warnings in the log" if warnings else "")
+                   + (f"; failing: {', '.join(failing)}" if failing else "")
+                   + f" (commit {summary.get('commit')}).")
+        untested = [r for r in summary["routes"] if not r["tested"]]
+        listed = ", ".join(f"{'/'.join(r['methods']) or 'tool'} {r['path']}" for r in untested[:8])
+        _check(checks, cover_id, f"Every {service} endpoint is exercised by a test", not untested,
+               f"{summary['endpoints_tested']}/{summary['endpoints']} endpoints run by the tests"
+               + (f"; not exercised: {listed}" + (f" and {len(untested) - 8} more" if len(untested) > 8 else "")
+                  if untested else ".") + f" Line coverage {summary.get('line_coverage_percent')}%.",
+               warn=True)
+        facts["test_evidence"].append({
+            "service": service, "commit": summary.get("commit"),
+            "tests": totals["tests"] if totals else 0, "failures": totals["failures"] if totals else 0,
+            "errors": totals["errors"] if totals else 0, "skipped": totals["skipped"] if totals else 0,
+            "warnings": int(warnings.group(1)) if warnings else 0,
+            "line_coverage_percent": summary.get("line_coverage_percent"),
+            "endpoints": summary["endpoints"], "endpoints_tested": summary["endpoints_tested"],
+            "untested_endpoints": [f"{'/'.join(r['methods']) or 'tool'} {r['path']} ({r['file']}:{r['line']})"
+                                   for r in untested],
+        })
 
     if args.ci_evidence:
         number += 1
@@ -502,7 +562,7 @@ def draft_review(args, grounding: dict, feedback: str | None) -> dict:
                 {"EVIDENCE": grounding, **({"REVIEWER_FEEDBACK": feedback} if feedback else {})},
                 ensure_ascii=False)},
         ],
-        "options": {"temperature": 0, "num_predict": 1600},
+        "options": {"temperature": 0, "num_predict": 1600, "num_ctx": args.num_ctx},
     }
     req = request.Request(  # noqa: S310 -- --ollama-url scheme checked in main()
         f"{args.ollama_url.rstrip('/')}/api/chat", data=json.dumps(payload).encode("utf-8"),
@@ -526,13 +586,18 @@ def rule_issues(draft: dict, checks: list[Check]) -> list[str]:
     if unknown:
         issues.append(f"Findings cite check ids that do not exist: {', '.join(unknown)}.")
     raised = {f.get("check_id") for f in findings if f.get("severity") in ("major", "blocker")}
+    noted = {f.get("check_id") for f in findings if f.get("severity") in ("minor", "major", "blocker")}
     for check in checks:
-        if check.status != "pass" and check.id not in raised:
+        if check.status in BLOCKING and check.id not in raised:
             issues.append(f"Check {check.id} is {check.status} but has no major or blocker finding.")
+        elif check.status == "warn" and check.id not in noted:
+            issues.append(f"Check {check.id} warns but has no minor (or higher) finding.")
     if draft.get("verdict") not in VERDICTS:
         issues.append(f"The verdict must be one of {', '.join(VERDICTS)}.")
-    elif draft["verdict"] != "not_ready" and any(c.status != "pass" for c in checks):
+    elif draft["verdict"] != "not_ready" and any(c.status in BLOCKING for c in checks):
         issues.append("The verdict must be not_ready while any check fails or is missing.")
+    elif draft["verdict"] == "ready" and any(c.status == "warn" for c in checks):
+        issues.append("The verdict cannot be ready while a check warns; use ready_with_fixes.")
     if not str(draft.get("summary") or "").strip():
         issues.append("The summary is empty.")
     return issues
@@ -541,13 +606,15 @@ def rule_issues(draft: dict, checks: list[Check]) -> list[str]:
 def deterministic_review(checks: list[Check]) -> dict:
     """The review written from the checks alone, used with --no-model."""
     bad = [c for c in checks if c.status != "pass"]
+    severity = {"missing": "blocker", "fail": "major", "warn": "minor"}
+    blocking = any(c.status in BLOCKING for c in bad)
     return {
         "summary": f"{len(checks) - len(bad)} of {len(checks)} checks passed."
-        + (f" Not passing: {', '.join(c.id for c in bad)}." if bad else ""),
-        "findings": [{"check_id": c.id, "severity": "blocker" if c.status == "missing" else "major",
+        + (f" Not passing: {', '.join(f'{c.id} ({c.status})' for c in bad)}." if bad else ""),
+        "findings": [{"check_id": c.id, "severity": severity[c.status],
                       "finding": f"{c.title}: {c.detail}"} for c in bad],
         "recommendations": [f"Resolve {c.id}: {c.title.lower()}." for c in bad],
-        "verdict": "not_ready" if bad else "ready",
+        "verdict": "not_ready" if blocking else "ready_with_fixes" if bad else "ready",
     }
 
 
@@ -558,6 +625,54 @@ def render(mode: str, review: dict, checks: list[Check], decision: dict) -> str:
     lines += ["", "Recommendations:"] + [f"  - {r}" for r in review["recommendations"]]
     lines += ["", f"Human decision ({'/'.join(DECISIONS[mode])}): {decision['decision']}"
               + (f" - {decision['reason']}" if decision.get("reason") else "")]
+    return "\n".join(lines)
+
+
+def render_markdown(result: dict) -> str:
+    """The review report for the technical report: checks, findings, decision."""
+    mode, review, decision = result["mode"], result["review"], result["human_review"]
+    icon = {"pass": "✅ pass", "warn": "⚠️ warn", "fail": "❌ fail", "missing": "❔ missing"}
+    lines = [
+        f"# {mode.replace('-', ' ').title()} review",
+        "",
+        f"Run `{result['run_id']}` · verdict **{review['verdict']}** (from {result['verdict_source'].replace('_', ' ')})"
+        f" · human decision **{decision['decision']}**"
+        + (f" by `{decision.get('reviewer_id')}`" if decision.get("reviewer_id") else ""),
+        "",
+        review["summary"],
+        "",
+        "## Checks",
+        "",
+        "| ID | Check | Result | Detail |",
+        "| --- | --- | --- | --- |",
+    ]
+    for check in result["checks"]:
+        detail = check["detail"].replace("|", "\\|")
+        lines.append(f"| {check['id']} | {check['title']} | {icon.get(check['status'], check['status'])} | {detail} |")
+    coverage = result["facts"].get("test_evidence") if isinstance(result["facts"], dict) else None
+    if coverage:
+        lines += ["", "## Tests and endpoint coverage per service", "",
+                  "| Service | Tests | Failures + errors | Skipped | Warnings | Line coverage | Endpoints exercised |",
+                  "| --- | --- | --- | --- | --- | --- | --- |"]
+        for row in coverage:
+            lines.append(f"| `{row['service']}` | {row['tests']} | {row['failures'] + row['errors']} | {row['skipped']} | "
+                         f"{row['warnings']} | {row['line_coverage_percent']}% | {row['endpoints_tested']}/{row['endpoints']} |")
+        gaps = [row for row in coverage if row["untested_endpoints"]]
+        if gaps:
+            lines += ["", "### Endpoints no test exercises", ""]
+            for row in gaps:
+                lines.append(f"- **`{row['service']}`**: " + ", ".join(f"`{e}`" for e in row["untested_endpoints"]))
+    lines += ["", "## Findings", ""]
+    lines += [f"- **{f['check_id']}** ({f['severity']}): {f['finding']}" for f in review["findings"]] or ["- None."]
+    lines += ["", "## Recommendations", ""]
+    lines += [f"- {r}" for r in review["recommendations"]] or ["- None."]
+    lines += ["", "## Human decision", "",
+              f"- Decision: **{decision['decision']}** (choices: {', '.join(DECISIONS[mode])})",
+              f"- Reason: {decision.get('reason') or '(none given)'}",
+              "", "## Evidence and log", ""]
+    lines += [f"- {source}" for source in result["evidence_sources"]]
+    lines += [f"- Review/validation log: `{_rel(Path(result['transcript']))}`", "",
+              f"_{result['scope']}_", ""]
     return "\n".join(lines)
 
 
@@ -608,7 +723,8 @@ def run_review(args) -> dict:
                      body=json.dumps(review, ensure_ascii=False, indent=2))
     else:
         reviewer = None if args.no_review_model else Reviewer(
-            args.ollama_url, args.review_model, timeout=args.timeout, num_predict=400, prompt=OBSERVE_PROMPT)
+            args.ollama_url, args.review_model, timeout=args.timeout, num_predict=400, prompt=OBSERVE_PROMPT,
+            num_ctx=args.num_ctx)
         feedback = None
         try:
             ensure_model(args.ollama_url, args.model, auto_pull=False)
@@ -657,10 +773,10 @@ def run_review(args) -> dict:
     logger.phase("result", {"verdict": review["verdict"], "verdict_source": verdict_source,
                             "decision": decision["decision"]}, body=rendered)
     print(rendered, file=sys.stderr)
-    return {
+    result = {
         "run_id": run_id,
         "mode": args.mode,
-        "passed": all(c.status == "pass" for c in checks),
+        "passed": not any(c.status in BLOCKING for c in checks),
         "checks": [asdict(c) for c in checks],
         "facts": facts,
         "review": review,
@@ -671,3 +787,8 @@ def run_review(args) -> dict:
         "transcript": logger.transcript_path,
         "scope": "Reviews saved evidence; a passing review is not proof that every feature works.",
     }
+    if getattr(args, "report", None):
+        Path(args.report).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.report).write_text(render_markdown(result), encoding="utf-8")
+        result["report"] = _rel(Path(args.report))
+    return result

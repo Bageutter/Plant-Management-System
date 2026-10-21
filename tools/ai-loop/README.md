@@ -126,14 +126,15 @@ unchanged.
 | Mode | Reviews | Checks |
 |---|---|---|
 | `multi-agent` | `workflow_history.jsonl`, `coordination_audit.jsonl` and `multi-agent-metrics.json` exported by the Multi-Agent Server (`--evidence-dir`, default `docs/evidence/release2`) | every run went Planner → Worker → Reviewer → human review in order; every workflow closed by a human; accepting against the Reviewer's advice has a reason; every change request started a new run; every handoff names its model; human reviews from both the UI and the terminal; metrics match the history. `--source vgarden` reviews one feature's workflows. |
-| `testing` | the newest pre-commit result of each check per service in `.security-reports/` (`--services`), the newest finished run of each GitHub Actions workflow on `main` (`--workflows`), and optional downloaded CI JUnit files (`--ci-evidence`) | each pre-commit check passed; each workflow's latest run succeeded; `--endpoint-workflows` ran their endpoint test step; JUnit has no failures |
+| `testing` | for every service (`--services`, all eight by default): the newest pre-commit result of each check in `.security-reports/`, the test results, log and endpoint coverage saved by `scripts/test/collect-test-evidence.py` (`--test-evidence`), the newest finished run of each GitHub Actions workflow on `main` (`--workflows`), and optional downloaded CI JUnit files (`--ci-evidence`) | each pre-commit check passed; each service's tests pass (failures, errors, skipped, log warnings); every endpoint is run by a test, measured with coverage.py, so a URL that is only mentioned doesn't count (`warn` with the untested endpoints listed); each workflow's latest run succeeded; `--endpoint-workflows` ran their endpoint test step |
 | `cloud-deployment` | `docs/evidence/release2/cloud-deployment/latest.json` from `scripts/deploy/azure-report.sh` (`--grounding`), the live site (`--url`, default the report's `app_url`) and the `cloud-deployment.yml` runs | AI-Mode, MCP, RAG and Multi-Agent disabled in the cloud baseline; the deploy's smoke test passed; container apps running with one public entry; database not public; the deployed commit passed CI; HTTPS; the same paths as `azure-smoke.sh` respond |
 
 Each run is one bounded loop:
 
-1. **Plan:** collect the evidence and run the checks above. No model is involved;
-   a check is `pass`, `fail` or `missing` (missing evidence is never a pass, and
-   neither is GitHub being unreachable).
+1. **Plan:** collect the evidence and run the checks above. No model is involved.
+   A check is `pass`, `warn` (needs work but doesn't block, such as an untested
+   endpoint), `fail` or `missing`. Missing evidence is never a pass, and neither is
+   GitHub being unreachable.
 2. **Act:** the local Ollama model (`--model`, default `qwen3:4b-instruct`) drafts
    a review from those facts only, at temperature 0 with a pinned JSON schema:
    summary, findings tied to check IDs, recommendations, and a verdict
@@ -154,7 +155,9 @@ Each run is one bounded loop:
 
 ```bash
 python3 tools/ai-loop/validate.py --mode multi-agent --output docs/evidence/release2/review-multi-agent.json
-python3 tools/ai-loop/validate.py --mode testing --output docs/evidence/release2/review-testing.json
+python3 scripts/test/collect-test-evidence.py      # tests + endpoint coverage, every service
+python3 tools/ai-loop/validate.py --mode testing --output docs/evidence/release2/review-testing.json \
+    --report docs/evidence/release2/testing-review.md
 python3 tools/ai-loop/validate.py --mode cloud-deployment --output docs/evidence/release2/review-cloud-deployment.json
 ```
 
