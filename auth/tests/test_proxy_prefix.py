@@ -8,7 +8,7 @@ from models import User
 PROXY = {"X-Forwarded-Prefix": "/auth", "X-Forwarded-Proto": "https"}
 
 
-def _make_user(app, email="o@example.com", password="password123"):
+def _make_user(app, email="o@example.com", password="password123"):  # noqa: S107 -- test fixture
     with app.app_context():
         user = User(email=email)
         user.set_password(password)

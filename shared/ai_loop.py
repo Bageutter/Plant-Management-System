@@ -69,14 +69,21 @@ class LoopError(RuntimeError):
 # Ollama helpers                                                              #
 # --------------------------------------------------------------------------- #
 
+def _http_url(base_url: str) -> str:
+    """Only http(s) Ollama URLs; a file: or custom scheme is never opened."""
+    if not base_url.startswith(("http://", "https://")):
+        raise LoopError(f"OLLAMA_URL must be an http(s) URL, not {base_url!r}")
+    return base_url.rstrip("/")
+
+
 def _ollama_post(base_url: str, path: str, payload: dict, timeout: int) -> dict:
-    req = request.Request(
-        f"{base_url.rstrip('/')}{path}",
+    req = request.Request(  # noqa: S310 -- scheme checked by _http_url
+        f"{_http_url(base_url)}{path}",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with request.urlopen(req, timeout=timeout) as response:
+    with request.urlopen(req, timeout=timeout) as response:  # noqa: S310 -- http(s) only
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -87,7 +94,7 @@ def ensure_model(base_url: str, model: str, auto_pull: bool, pull_timeout: int =
     vgarden/ai.py; kept here so the reviewer can guarantee its own model.
     """
     try:
-        with request.urlopen(f"{base_url.rstrip('/')}/api/tags", timeout=10) as response:
+        with request.urlopen(f"{_http_url(base_url)}/api/tags", timeout=10) as response:  # noqa: S310 -- http(s) only
             names = {m.get("name", "") for m in json.loads(response.read()).get("models", [])}
     except (error.URLError, TimeoutError, ValueError) as exc:
         raise LoopError(f"Cannot reach Ollama at {base_url}") from exc
@@ -120,6 +127,7 @@ class Reviewer:
         auto_pull: bool = False,
         num_predict: int = 300,
         prompt: str = PROMPT_REVIEW,
+        num_ctx: int | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -130,6 +138,9 @@ class Reviewer:
         # with a different kind of draft (e.g. the health service's structured
         # assessment) supplies its own.
         self.prompt = prompt
+        # Context window for long groundings (e.g. the release review modes);
+        # None keeps Ollama's default, as every chat feature does.
+        self.num_ctx = num_ctx
         self._ready = False
 
     def ensure_ready(self) -> None:
@@ -158,7 +169,8 @@ class Reviewer:
                         {"role": "system", "content": self.prompt},
                         {"role": "user", "content": user},
                     ],
-                    "options": {"temperature": 0, "num_predict": self.num_predict},
+                    "options": {"temperature": 0, "num_predict": self.num_predict,
+                                **({"num_ctx": self.num_ctx} if self.num_ctx else {})},
                 },
                 self.timeout,
             )

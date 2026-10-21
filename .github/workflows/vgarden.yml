@@ -15,8 +15,9 @@ on:
       - "ai-services/mcp-server/**"
       - "ai-services/rag-server/**"
       - "scripts/test/smoke-vgarden.sh"
+      - "tools/ai-loop/**"
       - "docker-compose.yml"
-      - "nginx.conf"
+      - "shared/proxy/**"
       - "pyproject.toml"
       - ".github/workflows/vgarden.yml"
   pull_request:
@@ -27,8 +28,9 @@ on:
       - "ai-services/mcp-server/**"
       - "ai-services/rag-server/**"
       - "scripts/test/smoke-vgarden.sh"
+      - "tools/ai-loop/**"
       - "docker-compose.yml"
-      - "nginx.conf"
+      - "shared/proxy/**"
       - "pyproject.toml"
       - ".github/workflows/vgarden.yml"
   workflow_dispatch:
@@ -131,6 +133,14 @@ jobs:
           python -m pytest -q --ignore=tests/test_endpoints.py \
             --junitxml="$RUNNER_TEMP/vgarden-results/regressions.xml" \
             2>&1 | tee "$RUNNER_TEMP/vgarden-results/regressions.log"
+
+      - name: Test the agentic-loop review modes (fake model, no Ollama)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tools/ai-loop/tests -v \
+            2>&1 | tee "$RUNNER_TEMP/vgarden-results/ai-loop-review-modes.log"
 
       - name: Save endpoint and regression test evidence
         if: always()

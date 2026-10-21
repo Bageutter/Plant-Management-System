@@ -31,7 +31,7 @@ SNAPSHOT = {
 PLANTING_LIST = {"garden_id": 1, "items": SNAPSHOT["plantings"], "count": 1}
 
 
-def call(handler, tool, arguments, *, enabled=True, token="dev-inter-service-secret-change-me"):
+def call(handler, tool, arguments, *, enabled=True, token="dev-inter-service-secret-change-me"):  # noqa: S107 -- test value
     server = create_server(
         Settings(enabled=enabled, vgarden_url="http://vgarden.test/vgarden", vgarden_service_token=token),
         transport=httpx.MockTransport(handler),
@@ -73,7 +73,7 @@ def test_configured_token_is_used_not_a_hardcoded_default():
         assert request.headers["authorization"] == "Bearer rotated-secret"
         return httpx.Response(200, json=SNAPSHOT)
 
-    result = call(handler, "get_garden_snapshot", {"garden_id": 1}, token="rotated-secret")
+    result = call(handler, "get_garden_snapshot", {"garden_id": 1}, token="rotated-secret")  # noqa: S106 -- test value
     assert not result.is_error
 
 

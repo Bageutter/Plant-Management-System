@@ -1,5 +1,7 @@
 import pytest
-from chroma_store import ChromaStore
+
+pytest.importorskip("chromadb", reason="optional backend: pip install -r requirements-chroma.txt")
+from chroma_store import ChromaStore  # noqa: E402
 from store import Chunk
 
 

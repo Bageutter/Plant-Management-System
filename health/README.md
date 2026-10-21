@@ -20,23 +20,18 @@ docker compose up --build health
 ```
 
 * UI: <http://localhost:5003/plant-health-records>
-* Ollama: <http://localhost:11434>
+* AI-Mode: the host's own Ollama at <http://localhost:11434> (`ollama serve`). It is
+  not a compose service; the container reaches it at `host.docker.internal:11434`
+  (override with `HEALTH_OLLAMA_URL`).
 
 The first assessment triggers a model pull (~3 GB), so it can take several minutes.
 To avoid that wait, pull the model up front:
 
 ```bash
-docker compose exec ollama ollama pull qwen2.5vl:3b
+ollama pull qwen2.5vl:3b
 ```
 
-### GPU acceleration (strongly recommended)
-
-By default Ollama runs on **CPU**, which is roughly an order of magnitude slower.
-If the host has an NVIDIA GPU and the NVIDIA Container Toolkit installed:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
-```
+The host's Ollama uses the GPU by itself (Metal on Apple silicon, CUDA on NVIDIA).
 
 ## Performance
 
@@ -96,7 +91,7 @@ python app.py
 | --- | --- | --- |
 | `DATABASE_URL` | SQLite in `health/instance/health.db` | Assessment storage |
 | `AUTH_PUBLIC_URL` | `http://localhost:5001` | Browser-facing auth URL for nav links |
-| `OLLAMA_URL` | `http://localhost:11434` | Local AI endpoint (`http://ollama:11434` in compose) |
+| `OLLAMA_URL` | `http://localhost:11434` | Local AI endpoint (`http://host.docker.internal:11434` in compose) |
 | `OLLAMA_MODEL` | `qwen2.5vl:3b` | Vision-capable model used for image + text analysis |
 | `OLLAMA_TIMEOUT` | `180` | Inference timeout, seconds |
 | `OLLAMA_AUTO_PULL` | `true` | Pull the model on first use if missing |
@@ -107,7 +102,7 @@ python app.py
 | `OLLAMA_PRELOAD` | `true` | Load the model in the background at startup |
 | `OLLAMA_PRELOAD_RETRIES` | `12` | Preload attempts while Ollama is still starting |
 | `OLLAMA_PRELOAD_RETRY_SECONDS` | `5` | Initial delay between attempts (grows ×1.5, capped at 60s) |
-| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `nginx.conf` above it) |
+| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `shared/proxy/default.conf.template` above it) |
 | `IMAGE_MAX_EDGE` | `896` | Photos are downscaled to this longest edge before inference |
 
 ## Agentic loop: Perceive → Reason → Act → Observe → Repeat
@@ -149,8 +144,8 @@ curl -s localhost:3000/health/plant-health-records/assessments/1/loop   # the tr
 | `AI_LOOP_MAX_ITERATIONS` | `2` | Maximum Reason/Observe rounds |
 | `AI_LOOP_LOG_DIR` | `tools/ai-loop/logs` (`/app/ai_loop_logs` in compose) | JSONL + transcripts |
 
-Compose sets `OLLAMA_MAX_LOADED_MODELS=2` on the Ollama service so the vision model and
-the reviewer stay resident together instead of evicting each other on every assessment.
+Set `OLLAMA_MAX_LOADED_MODELS=2` on the host's Ollama so the vision model and the
+reviewer stay resident together instead of evicting each other on every assessment.
 
 ## How the health score works
 
@@ -257,7 +252,7 @@ as a single `error` event, so a stream consumer sees it too.
 
 ### Oversized photos
 
-`MAX_UPLOAD_BYTES` (12 MiB) is the app's limit, and `nginx.conf` allows `13m` on the
+`MAX_UPLOAD_BYTES` (12 MiB) is the app's limit, and the proxy (`shared/proxy/default.conf.template`) allows `13m` on the
 `/health/` route so the app — not the proxy — is the one that answers. The upload form
 states the limit under the file picker, shows the chosen photo's size, and when a photo is
 over the limit it re-encodes it in the browser to `IMAGE_MAX_EDGE` pixels (the resolution

@@ -9,3 +9,5 @@ psycopg2-binary
 mcp==2.2.0
 httpx==0.28.1
 requests
+# Production WSGI server (the cloud deployment runs the app under gunicorn)
+gunicorn

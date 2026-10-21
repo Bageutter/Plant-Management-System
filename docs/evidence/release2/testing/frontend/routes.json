@@ -1,0 +1,27 @@
+{
+  "service": "shared/frontend",
+  "generated_at": "2026-10-21T10:17:15+00:00",
+  "commit": "48fcee1",
+  "test_command": null,
+  "exit_code": null,
+  "line_coverage_percent": null,
+  "endpoints": 1,
+  "endpoints_tested": 0,
+  "routes": [
+    {
+      "kind": "http",
+      "path": "/",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.index",
+      "file": "shared/frontend/app.py",
+      "line": 21,
+      "body_lines": [
+        22,
+        27
+      ],
+      "tested": false
+    }
+  ]
+}
