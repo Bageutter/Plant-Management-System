@@ -1,12 +1,12 @@
 {
   "service": "almanac",
-  "generated_at": "2026-10-21T13:41:43+00:00",
-  "commit": "228fec3",
+  "generated_at": "2026-10-21T14:27:47+00:00",
+  "commit": "49045f2",
   "test_command": "coverage run -m pytest -q tests",
   "exit_code": 0,
-  "line_coverage_percent": 91.6,
+  "line_coverage_percent": 92.2,
   "endpoints": 33,
-  "endpoints_tested": 30,
+  "endpoints_tested": 33,
   "routes": [
     {
       "kind": "http",
@@ -51,7 +51,7 @@
         482,
         483
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -66,7 +66,7 @@
         487,
         498
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -398,7 +398,7 @@
         1028,
         1029
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",

@@ -112,13 +112,18 @@ class AlmanacCrudTests(unittest.TestCase):
                 [
                     Ailment(id=7101, name="Local", category="pest", payload={"image": {"filename": "guide.png"}}),
                     Ailment(id=7102, name="Remote", category="pest", payload={"image": {
+                        "filename": "aphids.jpg",
                         "image_url": "https://raw.githubusercontent.com/0melette/my_garden/main/aphids.jpg"
                     }}),
                     Ailment(id=7103, name="Untrusted", category="pest", payload={"image": {
+                        "filename": "aphids.jpg",
                         "image_url": "https://example.com/aphids.jpg"
                     }}),
                     Ailment(id=7104, name="Unsafe", category="pest", payload={"image": {
                         "filename": "../secret.png"
+                    }}),
+                    Ailment(id=7105, name="Missing filename", category="pest", payload={"image": {
+                        "image_url": "https://raw.githubusercontent.com/0melette/my_garden/main/aphids.jpg"
                     }}),
                 ]
             )
@@ -138,6 +143,7 @@ class AlmanacCrudTests(unittest.TestCase):
         )
         self.assertEqual(self.client.get("/ailments/7103/photo").status_code, 404)
         self.assertEqual(self.client.get("/ailments/7104/photo").status_code, 404)
+        self.assertEqual(self.client.get("/ailments/7105/photo").status_code, 404)
         self.assertEqual(self.client.get("/ailments/7999/photo").status_code, 404)
 
     def test_health_is_public_and_reports_database_status(self):
