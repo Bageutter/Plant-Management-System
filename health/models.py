@@ -254,3 +254,33 @@ class AssessmentLoopRun(db.Model):
             "trace": self.trace,
             "created_at": self.created_at.isoformat(),
         }
+
+
+class HealthWorkflow(db.Model):
+    """One Multi-Agent Server workflow started from this service (Release 2).
+
+    The workflow itself (plan, worker answer, AI review, human decision, history)
+    lives on the shared Multi-Agent Server; this row ties its id to the plant the
+    task was about, so the browser only ever names a local row, and caches the last
+    status seen. Added by the 0006 migration (health/migrations/versions).
+    """
+
+    __tablename__ = "health_workflows"
+    __table_args__ = (db.UniqueConstraint("workflow_id", name="uq_health_workflows_workflow_id"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    workflow_id = db.Column(db.String(64), nullable=False)
+    plant_ref = db.Column(db.String(200), nullable=True)
+    task = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(40), nullable=False, default="received")
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "workflow_id": self.workflow_id,
+            "plant_ref": self.plant_ref,
+            "task": self.task,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

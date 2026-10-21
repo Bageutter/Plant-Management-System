@@ -61,6 +61,14 @@ class Config:
     # Per-call timeout for the shared servers (a RAG answer includes a model call).
     INTEGRATION_TIMEOUT = int(os.environ.get("INTEGRATION_TIMEOUT", "180"))
 
+    # Release 2: shared local Multi-Agent Server (Planner -> Worker -> Reviewer ->
+    # Human Review). Runs on the host like MCP/RAG; CI and the cloud baseline set
+    # MULTI_AGENT_ENABLED=false. A run makes three local model calls, so it gets
+    # its own, longer timeout and runs in the background (workflows.py).
+    MULTI_AGENT_ENABLED = _as_bool(os.environ.get("MULTI_AGENT_ENABLED"), True)
+    MULTI_AGENT_URL = os.environ.get("MULTI_AGENT_URL", "http://127.0.0.1:8003").rstrip("/")
+    MULTI_AGENT_TIMEOUT = int(os.environ.get("MULTI_AGENT_TIMEOUT", "900"))
+
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_BYTES", str(12 * 1024 * 1024)))
     ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     # Longest edge, in pixels, that an uploaded photo is scaled down to before

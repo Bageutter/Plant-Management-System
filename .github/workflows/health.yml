@@ -37,9 +37,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Release 1 rule: integration retained, both modes off during CI/CD.
+  # Release 1 rule: integration retained, both modes off during CI/CD. The Release 2
+  # Multi-Agent Server is a host process too, so it is off here as well.
   MCP_ENABLED: "false"
   RAG_ENABLED: "false"
+  MULTI_AGENT_ENABLED: "false"
 
 jobs:
   lint:
