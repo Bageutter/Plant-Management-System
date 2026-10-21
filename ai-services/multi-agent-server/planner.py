@@ -39,6 +39,17 @@ RETRIEVAL = {
         "The Worker has NOT read the records yet: do not claim to "
         "have retrieved facts, inspected the garden or completed work. "
     ),
+    "health": (
+        "The Plant Health backend supplies one plant's stored health assessments "
+        "(status, health score, confidence, summary, issues, recommendations and "
+        "missing information, each from a past local model run) as the only "
+        "evidence. First plan to read the assessments relevant to the task. Then "
+        "identify details the assessments do not contain, compare them across time, "
+        "and prepare an evidence-backed response for review. The assessments are "
+        "advisory records, not diagnoses: plan to report what they say, not to "
+        "diagnose the plant. The Worker has NOT read the records yet: do not claim "
+        "to have retrieved facts, inspected the plant or completed work. "
+    ),
 }
 
 

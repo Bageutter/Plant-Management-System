@@ -121,7 +121,7 @@ README describes the target shape.
 |---|---|
 | `ai-services/mcp-server/` | **Built (Release 1):** the shared local MCP server. Plant Health, Plant Almanac and Virtual Garden tools are all implemented. See [`mcp-rag-design.md`](mcp-rag-design.md). |
 | `ai-services/rag-server/` | **Built (Release 1):** the shared local RAG server. `health`, `almanac` and `vgarden` sources are all implemented. |
-| `ai-services/multi-agent-server/` | Orchestrate multiple specialised agents across services for a single user question |
+| `ai-services/multi-agent-server/` | **Built (Release 2):** the shared local Multi-Agent Server (Planner → Worker → Reviewer → Human Review). Plant Almanac, Virtual Garden and Plant Health all start workflows through their own backends; see its [README](../../ai-services/multi-agent-server/README.md). |
 | `ai-services/ai-mode/` | A conversational "manage my garden" front door spanning vgarden + almanac + health |
 | `ai-input/` | Convert unstructured natural-language / image input into structured Virtual Garden updates |
 

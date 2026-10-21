@@ -19,7 +19,7 @@ from ai import OllamaClient
 from db_upgrade import upgrade_database
 from extensions import db, migrate
 from images import format_bytes, upload_limit_message
-from integrations import McpToolClient, RagClient
+from integrations import McpToolClient, MultiAgentClient, RagClient
 
 
 def _sse_payload(event: dict) -> str:
@@ -104,12 +104,21 @@ def create_app(config_class: type | None = None) -> Flask:
         enabled=app.config["RAG_ENABLED"],
         timeout=app.config["INTEGRATION_TIMEOUT"],
     )
+    # Release 2: the shared local Multi-Agent Server, also reached only via this
+    # backend (see workflows.py).
+    app.extensions["multi_agent"] = MultiAgentClient(
+        app.config["MULTI_AGENT_URL"],
+        enabled=app.config["MULTI_AGENT_ENABLED"],
+        timeout=app.config["MULTI_AGENT_TIMEOUT"],
+    )
 
     from routes import bp as health_bp
     from routes import root_bp
+    from workflows import bp as workflows_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(root_bp)
+    app.register_blueprint(workflows_bp)
 
     @app.errorhandler(413)
     def payload_too_large(_error):
@@ -130,10 +139,15 @@ def create_app(config_class: type | None = None) -> Flask:
     def inject_template_globals():
         from ai import CONFIDENCE_EXPLANATION, SCORE_EXPLANATION
         from integrations import TOOL_LABELS
+        from workflows import recent_workflows
 
         return {
             "mcp_enabled": app.extensions["mcp"].enabled,
             "rag_enabled": app.extensions["rag"].enabled,
+            "multi_agent_enabled": app.extensions["multi_agent"].enabled,
+            # Called from the records page panel (Release 2), so the index route
+            # does not have to know about workflows.
+            "recent_workflows": recent_workflows,
             "mcp_tools": TOOL_LABELS,
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
             "health_public_url": app.config.get(
