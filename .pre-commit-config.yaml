@@ -1,27 +1,32 @@
+# Each hook is a thin launcher (scripts/security/run_checks.py, stdlib only) that runs
+# the real tool from .venv-security and keeps JSON evidence under .security-reports/.
+# `language: python` makes pre-commit run the launcher with its own interpreter, so the
+# same config works where the command is `python3` (macOS, Linux) and where only
+# `python` exists (Windows); `language: system` with `python3` failed on Windows.
 repos:
   - repo: local
     hooks:
       - id: ruff-security
         name: Ruff security rules
-        entry: python3 scripts/security/run_checks.py ruff
-        language: system
+        entry: python scripts/security/run_checks.py ruff
+        language: python
         types: [python]
         require_serial: true
       - id: detect-secrets
         name: Detect secrets
-        entry: python3 scripts/security/run_checks.py secrets
-        language: system
+        entry: python scripts/security/run_checks.py secrets
+        language: python
         exclude: ^\.secrets\.baseline$
         require_serial: true
       - id: pip-audit
         name: Dependency vulnerability audit
-        entry: python3 scripts/security/run_checks.py audit
-        language: system
+        entry: python scripts/security/run_checks.py audit
+        language: python
         pass_filenames: false
         always_run: true
       - id: pytest
         name: Assigned feature unit tests
-        entry: python3 scripts/security/run_checks.py tests
-        language: system
+        entry: python scripts/security/run_checks.py tests
+        language: python
         pass_filenames: false
         always_run: true

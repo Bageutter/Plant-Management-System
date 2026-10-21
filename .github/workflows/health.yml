@@ -1,13 +1,14 @@
-name: Health
+name: Plant Health (Guhan)
 
-# Plant Health feature CI (Release 1): lint, unit/e2e tests, image build, and a
-# compose smoke test of the containerised service through the proxy. The MCP and
-# RAG integration stays in the code but both modes are DISABLED here
-# (MCP_ENABLED=false, RAG_ENABLED=false) — the shared servers are local,
-# non-containerised processes that never run in CI.
+# Plant Health feature CI (Release 2): lint, post-commit tests of the two assigned
+# endpoint functions (routes.create_assessment, routes.list_assessments) with retained
+# evidence, the remaining regression suite, image build, and a compose smoke test of
+# the containerised service through the proxy. The MCP and RAG integration stays in
+# the code but both modes are DISABLED here (MCP_ENABLED=false, RAG_ENABLED=false) —
+# the shared servers are local, non-containerised processes that never run in CI.
 on:
   push:
-    branches: [main, "bageutter/**"]
+    branches: [main, "bageutter/**", "claude/**"]
     paths:
       - "health/**"
       - "ai-services/mcp-server/**"
@@ -62,7 +63,7 @@ jobs:
         run: python -m compileall -q health ai-services/mcp-server
 
   test:
-    name: Unit + e2e tests
+    name: Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -71,15 +72,71 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: health/requirements-dev.txt
+          cache-dependency-path: |
+            health/requirements.txt
+            health/requirements-dev.txt
       - name: Install dependencies
+        id: install
         run: pip install -r health/requirements-dev.txt
-      - name: Run tests (fake model; in-process shared MCP server)
+
+      - name: Prepare test evidence
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/health-results"
+          python - <<'PYTHON'
+          import json, os, platform, subprocess
+          from pathlib import Path
+          evidence = {
+              "workflow": os.environ["GITHUB_WORKFLOW"],
+              "owner": "Guhan Sundar",
+              "service": "health",
+              "workflow_file": ".github/workflows/health.yml",
+              "event": os.environ["GITHUB_EVENT_NAME"],
+              "source_sha": os.environ["SOURCE_SHA"],
+              "tested_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "run_url": f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              "python": platform.python_version(),
+              "endpoint_functions": {
+                  "routes.create_assessment": "POST /plant-health-records/assessments",
+                  "routes.list_assessments": "GET /plant-health-records/assessments",
+              },
+          }
+          Path(os.environ["RUNNER_TEMP"], "health-results", "run.json").write_text(json.dumps(evidence, indent=2))
+          PYTHON
+
+      - name: Test the two assigned endpoint functions
         working-directory: health
-        run: python -m pytest -q
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -v tests/test_endpoints.py \
+            --junitxml="$RUNNER_TEMP/health-results/endpoints.xml" \
+            2>&1 | tee "$RUNNER_TEMP/health-results/endpoints.log"
+
+      - name: Run remaining Plant Health regression tests (fake model; in-process shared MCP server)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        working-directory: health
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q --ignore=tests/test_endpoints.py \
+            --junitxml="$RUNNER_TEMP/health-results/regressions.xml" \
+            2>&1 | tee "$RUNNER_TEMP/health-results/regressions.log"
+
+      - name: Save endpoint and regression test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: health-test-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/health-results/
+          if-no-files-found: warn
+          retention-days: 30
 
   docker-build:
     name: Docker image builds
+    needs: [lint, test]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
