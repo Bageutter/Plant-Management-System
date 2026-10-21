@@ -95,6 +95,17 @@ federate() { # credential-name  subject
 }
 federate github-main "repo:${GITHUB_REPOSITORY}:ref:refs/heads/main"
 federate "github-env-${GITHUB_ENVIRONMENT}" "repo:${GITHUB_REPOSITORY}:environment:${GITHUB_ENVIRONMENT}"
+# Repositories that use GitHub's immutable OIDC subject send
+# "repo:<owner>@<owner id>/<repo>@<repo id>:..." instead (AADSTS700213 otherwise),
+# so register that form too. The ids come from the public repository API.
+repo_ids=${GITHUB_REPOSITORY_IDS:-$(curl -fsS "https://api.github.com/repos/${GITHUB_REPOSITORY}" 2>/dev/null \
+  | python3 -c 'import json,sys; d=json.load(sys.stdin); print("%s@%s/%s@%s" % (d["owner"]["login"], d["owner"]["id"], d["name"], d["id"]))' 2>/dev/null || true)}
+if [[ -n $repo_ids ]]; then
+  federate github-main-ids "repo:${repo_ids}:ref:refs/heads/main"
+  federate "github-env-${GITHUB_ENVIRONMENT}-ids" "repo:${repo_ids}:environment:${GITHUB_ENVIRONMENT}"
+else
+  echo "    (could not read the repository ids; set GITHUB_REPOSITORY_IDS=owner@id/repo@id if the deploy fails with AADSTS700213)"
+fi
 
 step "GitHub Actions secrets and variables"
 set_secret() {
