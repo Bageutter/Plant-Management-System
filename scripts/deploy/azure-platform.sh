@@ -42,6 +42,15 @@ almanac_secret=$(secret_value almanac-secret-key ALMANAC_SECRET_KEY random_key)
 inter_service_secret=$(secret_value inter-service-secret INTER_SERVICE_SECRET random_key)
 
 # Secure parameters travel in a private temp file, never on the command line.
+# Create the PostgreSQL server only on the first run; afterwards reference it (see
+# deployPostgres in infra/main.bicep). FORCE_POSTGRES=true re-sends its definition.
+deploy_postgres=true
+if [[ ${FORCE_POSTGRES:-false} != true ]] && [[ -n $(azq postgres flexible-server list -g "$AZURE_RESOURCE_GROUP" \
+    --query "[?starts_with(name, 'psql-${AZURE_BASE_NAME}-${AZURE_STAGE}-')].name | [0]" 2>/dev/null || true) ]]; then
+  deploy_postgres=false
+  echo "    PostgreSQL server exists: referencing it, not redeploying it"
+fi
+
 params=$(mktemp)
 chmod 600 "$params"
 trap 'rm -f "$params"' EXIT
@@ -55,6 +64,7 @@ cat >"$params" <<JSON
     "location": { "value": "$AZURE_LOCATION" },
     "appsIdentityName": { "value": "$APPS_IDENTITY" },
     "storageRestrictToVnet": { "value": ${STORAGE_RESTRICT_TO_VNET:-true} },
+    "deployPostgres": { "value": $deploy_postgres },
     "postgresAdminPassword": { "value": "$postgres_password" },
     "authSecretKey": { "value": "$auth_secret" },
     "vgardenSecretKey": { "value": "$vgarden_secret" },
