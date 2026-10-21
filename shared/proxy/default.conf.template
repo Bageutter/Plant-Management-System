@@ -26,6 +26,11 @@ map $http_x_forwarded_proto $client_scheme {
 proxy_read_timeout 300s;
 proxy_send_timeout 300s;
 
+# Speak HTTP/1.1 to the services. nginx proxies with HTTP/1.0 by default, which the
+# Azure Container Apps ingress in front of each internal app refuses with
+# "426 Upgrade Required" (docker compose accepts either, so it only showed in the cloud).
+proxy_http_version 1.1;
+
 upstream frontend {
     server ${FRONTEND_UPSTREAM};
 }
