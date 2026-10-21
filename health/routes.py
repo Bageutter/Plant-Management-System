@@ -133,6 +133,37 @@ def _recent(limit: int = RECENT_LIMIT, exclude_id: int | None = None):
     )
 
 
+AI_OFF_MESSAGE = (
+    "AI assessment is turned off in this deployment (the cloud runs without AI-Mode, as "
+    "required), so no score or diagnosis was made."
+)
+
+
+def _ai_mode_enabled() -> bool:
+    return current_app.config.get("AI_MODE_ENABLED", True)
+
+
+def _persist_unassessed(plant_ref, description, image_b64, image_mime) -> Assessment:
+    """Save a record without calling a model (AI-Mode off). It can be assessed later
+    with "Generate report again" in a deployment where AI-Mode is on."""
+
+    assessment = Assessment(
+        model="none (AI-Mode off)",
+        status="unknown",
+        plant_ref=plant_ref,
+        description=description,
+        has_image=image_b64 is not None,
+        image_mime=image_mime,
+        image_data=base64.b64decode(image_b64) if image_b64 else None,
+        summary=f"Not assessed. {AI_OFF_MESSAGE} The description and photo are saved.",
+        missing_information_json=json.dumps(["An AI assessment (AI-Mode is off in this deployment)"]),
+    )
+    db.session.add(assessment)
+    Plant.register(plant_ref)
+    db.session.commit()
+    return assessment
+
+
 @bp.route("/assessments", methods=["POST"])
 def create_assessment():
     wants_html = _wants_html()
@@ -141,6 +172,12 @@ def create_assessment():
         plant_ref, description, image_b64, image_mime = _read_input()
     except ValueError as exc:
         return _error(str(exc), 400, wants_html)
+
+    if not _ai_mode_enabled():
+        assessment = _persist_unassessed(plant_ref, description, image_b64, image_mime)
+        if wants_html:
+            return render_template("_assessment.html", assessment=assessment)
+        return jsonify({**assessment.to_dict(), "ai_mode": "disabled"}), 201
 
     client = _client()
     try:
@@ -164,6 +201,14 @@ def stream_assessment():
     except ValueError as exc:
         return _sse_error(str(exc))
 
+    if not _ai_mode_enabled():
+        assessment = _persist_unassessed(plant_ref, description, image_b64, image_mime)
+        html = render_template("_assessment.html", assessment=assessment)
+        return Response(
+            _sse({"type": "done", "id": assessment.id, "html": html, "ai_mode": "disabled"}),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache"},
+        )
     return _stream(plant_ref, description, image_b64, image_mime)
 
 
@@ -372,6 +417,9 @@ def regenerate_assessment(assessment_id):
     except ValueError as exc:
         return _error(str(exc), 400, wants_html)
 
+    if not _ai_mode_enabled():
+        return _error(AI_OFF_MESSAGE, 503, wants_html)
+
     client = _client()
     try:
         outcome = _loop().run(description, image_b64, plant_ref, history=_history(plant_ref))
@@ -396,6 +444,8 @@ def stream_regenerate_assessment(assessment_id):
     except ValueError as exc:
         return _sse_error(str(exc))
 
+    if not _ai_mode_enabled():
+        return _sse_error(AI_OFF_MESSAGE)
     return _stream(plant_ref, description, image_b64, image_mime)
 
 

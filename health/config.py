@@ -54,6 +54,10 @@ class Config:
     # Release 1: shared local MCP + RAG servers. Both run OUTSIDE docker compose; from
     # inside the health container they are reached via host.docker.internal (see
     # docker-compose.yml). CI sets both *_ENABLED flags to false.
+    # AI-Mode switch. False (the cloud baseline) means no model is ever called: a new
+    # record is saved "not assessed" so records can still be created, read, edited and
+    # deleted. True keeps the usual behaviour, where an unreachable model is a 503.
+    AI_MODE_ENABLED = _as_bool(os.environ.get("AI_MODE_ENABLED"), True)
     MCP_ENABLED = _as_bool(os.environ.get("MCP_ENABLED"), True)
     MCP_SERVER_URL = os.environ.get("MCP_SERVER_URL", "http://127.0.0.1:5105/mcp")
     RAG_ENABLED = _as_bool(os.environ.get("RAG_ENABLED"), True)
