@@ -77,6 +77,77 @@ class AlmanacCrudTests(unittest.TestCase):
         self.assertEqual(guide["control_steps"][0]["body"], "Check below the surface")
         self.assertNotIn(1001, [x["id"] for x in self.client.get("/api/catalogue?kind=ailment").json["items"]])
 
+    def test_ailment_index_is_public_and_orders_records(self):
+        from extensions import db
+        from models import Ailment
+
+        with self.app.app_context():
+            db.session.add_all(
+                [
+                    Ailment(id=7002, name="Wilting", category="symptom", description="Drooping leaves", payload={}),
+                    Ailment(id=7001, name="Aphids", category="pest", description="Small insects", payload={}),
+                ]
+            )
+            db.session.commit()
+
+        self.auth.user = None
+        response = self.client.get("/ailments")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Plant ailments", response.data)
+        self.assertIn(b'href="/ailments/7001"', response.data)
+        self.assertLess(response.data.index(b"<h2>Aphids</h2>"), response.data.index(b"<h2>Wilting</h2>"))
+
+    def test_ailment_photo_serves_local_images_redirects_allowed_images_and_rejects_others(self):
+        from extensions import db
+        from models import Ailment
+
+        self.app.instance_path = self.tmp.name
+        image_folder = os.path.join(self.app.instance_path, "reference_images")
+        os.makedirs(image_folder)
+        with open(os.path.join(image_folder, "guide.png"), "wb") as image_file:
+            image_file.write(b"local image")
+        with self.app.app_context():
+            db.session.add_all(
+                [
+                    Ailment(id=7101, name="Local", category="pest", payload={"image": {"filename": "guide.png"}}),
+                    Ailment(id=7102, name="Remote", category="pest", payload={"image": {
+                        "image_url": "https://raw.githubusercontent.com/0melette/my_garden/main/aphids.jpg"
+                    }}),
+                    Ailment(id=7103, name="Untrusted", category="pest", payload={"image": {
+                        "image_url": "https://example.com/aphids.jpg"
+                    }}),
+                    Ailment(id=7104, name="Unsafe", category="pest", payload={"image": {
+                        "filename": "../secret.png"
+                    }}),
+                ]
+            )
+            db.session.commit()
+
+        self.auth.user = None
+        local = self.client.get("/ailments/7101/photo")
+        self.assertEqual(local.status_code, 200)
+        self.assertEqual(local.mimetype, "image/png")
+        self.assertEqual(local.data, b"local image")
+
+        remote = self.client.get("/ailments/7102/photo")
+        self.assertEqual(remote.status_code, 302)
+        self.assertEqual(
+            remote.headers["Location"],
+            "https://raw.githubusercontent.com/0melette/my_garden/main/aphids.jpg",
+        )
+        self.assertEqual(self.client.get("/ailments/7103/photo").status_code, 404)
+        self.assertEqual(self.client.get("/ailments/7104/photo").status_code, 404)
+        self.assertEqual(self.client.get("/ailments/7999/photo").status_code, 404)
+
+    def test_health_is_public_and_reports_database_status(self):
+        self.auth.user = None
+
+        response = self.client.get("/health")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"status": "ok", "service": "almanac"})
+
     # -- create -------------------------------------------------------------
 
     def test_logged_out_user_cannot_reach_the_new_form(self):
