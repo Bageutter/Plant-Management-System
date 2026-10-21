@@ -69,7 +69,7 @@ def test_question_runs_agents_and_persists_evidence_in_chat(chat):
     page = client.get('/')
     assert b'Multi-Agent</button>' in page.data and b'Save my review' in page.data
     assert client.get('/integrations/multi-agent').status_code == 404
-    assert b'Ask the Almanac agents' not in client.get('/integrations').data
+    assert b'Ask the Almanac agents' not in client.get('/integrations', headers={'Accept': 'text/html'}).data
 
 
 def test_review_refresh_revision_and_multiple_owners(chat):
