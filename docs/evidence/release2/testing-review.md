@@ -162,6 +162,14 @@ _Reviews saved evidence; a passing review is not proof that every feature works.
 
 Amy explicitly accepted these results on 22 October 2026 (Sydney): required tests pass; retain the six coverage gaps as follow-ups. Testing Review is **passed/accepted with follow-ups**; the model verdict remains `ready_with_fixes` and the six warnings remain unchanged. This is not cloud or final group release approval.
 
+## TS-40 follow-up
+
+**Current status: ✅ resolved.** Refreshed evidence generated on commit `a3982a4` records 139 vgarden tests passing with 0 failures, errors, or skips; line coverage is 95.7%, and all 36/36 endpoints are exercised. The route evidence marks both `GET /healthz` and `GET /gardens` as tested.
+
+The added tests verify the public health response and the garden-list service-token checks, unfiltered results, owner filtering, and empty results. The evidence collector disables MCP, RAG, Multi-Agent, and Ollama preload/auto-pull; tests use SQLite and offline test doubles, so these bodies execute without live model or cloud dependencies.
+
+The original review snapshot and human decision above are retained as historical evidence; this follow-up supersedes only its TS-40 warning. The other five follow-up warnings are unchanged.
+
 Parent: #94
 - #95: Virtual Garden (TS-40)
 - #96: Plant Almanac (TS-44)
