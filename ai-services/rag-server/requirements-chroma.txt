@@ -1,0 +1,10 @@
+# Optional vector backend: only needed with RAG_BACKEND=chroma (the default is sqlite).
+#   pip install -r ai-services/rag-server/requirements-chroma.txt
+#
+# Known advisories on chromadb 1.5.5, with no fixed release yet (pip-audit, Oct 2026):
+#   PYSEC-2026-311, PYSEC-2026-3813, PYSEC-2026-3814, PYSEC-2026-3815.
+# All four are in Chroma's own HTTP server API (trust_remote_code model loading and
+# tenant authorisation). chroma_store.py only uses the embedded PersistentClient
+# inside the RAG process, so that server never runs. Still, it is kept out of the
+# default install until a fixed version exists: upgrade and move it back then.
+chromadb==1.5.5

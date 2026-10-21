@@ -6,6 +6,8 @@ import calendar
 from zoneinfo import ZoneInfo
 from datetime import datetime
 
+import httpx
+
 from flask import (
     Flask,
     abort,
@@ -47,6 +49,7 @@ from models import Ailment, Disease, Pest, PlantCompanion, PlantFunctionTag, Pla
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 from catalogue_api import catalogue_api
 from integrations import integrations, chat_reference_result
+from multi_agent import request_workflow, review_view
 
 try:
     import ai_loop
@@ -375,6 +378,8 @@ def create_app(test_config: dict | None = None) -> Flask:
         OLLAMA_AUTO_PULL=os.environ.get("OLLAMA_AUTO_PULL", "false").lower() == "true",
         MCP_ENABLED=os.environ.get("MCP_ENABLED", "true").lower() == "true",
         MCP_SERVER_URL=os.environ.get("MCP_SERVER_URL", "http://127.0.0.1:5105/mcp"),
+        MULTI_AGENT_ENABLED=os.environ.get("MULTI_AGENT_ENABLED", "false").lower() == "true",
+        MULTI_AGENT_SERVER_URL=os.environ.get("MULTI_AGENT_SERVER_URL", "http://127.0.0.1:8003"),
         RAG_ENABLED=os.environ.get("RAG_ENABLED", "true").lower() == "true",
         RAG_SERVER_URL=os.environ.get("RAG_SERVER_URL", "http://127.0.0.1:5106"),
         # Agentic loop (Plan -> Act -> Observe -> Adapt); see docs/agentic-ai-workflow.md.
@@ -410,6 +415,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     db.init_app(app)
     csrf.init_app(app)
     app.jinja_env.filters["plant_mentions"] = _plant_mentions
+    app.jinja_env.filters["workflow_review"] = review_view
     app.jinja_env.filters["highlight_excerpt"] = _highlight_excerpt
     app.register_blueprint(catalogue_api)
     app.register_blueprint(integrations)
@@ -819,8 +825,31 @@ def create_app(test_config: dict | None = None) -> Flask:
             return _render_chat(owner_key, "Keep your question under 500 characters."), 400
 
         mode = request.form.get("mode", "planning")
-        if mode not in ("planning", "rag", "mcp"):
+        if mode not in ("planning", "rag", "mcp", "multi_agent"):
             return _render_chat(owner_key, "Choose an answer or reference search."), 400
+        if mode == "multi_agent":
+            if not app.config["MULTI_AGENT_ENABLED"]:
+                return _render_chat(owner_key, "Multi-Agent is disabled in this environment."), 503
+            try:
+                workflow = request_workflow("/workflow", {"task": question})
+            except (httpx.HTTPError, RuntimeError):
+                app.logger.warning("Multi-Agent submission failed", exc_info=True)
+                return _render_chat(owner_key, "The Multi-Agent Server is unavailable. Your question has not been saved."), 503
+            message = AIChatMessage(
+                owner_key=owner_key, role="assistant", content="The agents are ready to check the saved Almanac sources.",
+                evidence={"mode": "multi_agent", "result": workflow, "question": question},
+            )
+            db.session.add_all([AIChatMessage(owner_key=owner_key, role="user", content=question), message])
+            # Persist the workflow before the long model call so timeouts are recoverable.
+            db.session.commit()
+            try:
+                result = request_workflow("/workflow/run", {"workflow_id": workflow["workflow_id"]})
+                save_agent_answer(message, result)
+            except (httpx.HTTPError, RuntimeError):
+                app.logger.warning("Multi-Agent run interrupted", exc_info=True)
+                return _render_chat(owner_key, "The agents could not finish this request. Your question is saved; refresh its status before running again.")
+            return _render_chat(owner_key)
+
         if mode in ("rag", "mcp"):
             if mode == "mcp" and len(question) > 120:
                 return _render_chat(owner_key, "For reference search, enter a name under 120 characters."), 400
@@ -929,6 +958,51 @@ def create_app(test_config: dict | None = None) -> Flask:
         db.session.commit()
         return _render_chat(owner_key)
 
+    def save_agent_answer(message, workflow):
+        if workflow["workflow_id"] != message.evidence["result"]["workflow_id"]:
+            raise RuntimeError("Workflow response does not match this message")
+        message.evidence = {**message.evidence, "result": workflow}
+        answer = workflow.get("result", {}).get("answer")
+        message.content = answer or "The agents have not produced an answer yet."
+        db.session.commit()
+
+    @app.route("/ai/multi-agent/<int:message_id>", methods=["GET", "POST"])
+    def chat_multi_agent(message_id):
+        owner_key = _chat_owner_key()
+        message = db.session.get(AIChatMessage, message_id)
+        if (owner_key is None or message is None or message.owner_key != owner_key
+                or message.role != "assistant" or (message.evidence or {}).get("mode") != "multi_agent"):
+            abort(404)
+        if not app.config["MULTI_AGENT_ENABLED"]:
+            return _render_chat(owner_key, "Multi-Agent is disabled in this environment."), 503
+        workflow_id = message.evidence["result"]["workflow_id"]
+        try:
+            if request.method == "GET":
+                result = request_workflow("/workflow/status", workflow_id=workflow_id)
+            else:
+                action = request.form.get("action", "")
+                payload = {"workflow_id": workflow_id}
+                if action == "review":
+                    decision = request.form.get("decision", "")
+                    feedback = request.form.get("feedback", "").strip()
+                    if decision not in ("accept", "partially_accept", "request_changes", "reject"):
+                        return _render_chat(owner_key, "Choose a review decision."), 400
+                    if len(feedback) > 2000 or (decision in ("partially_accept", "request_changes") and not feedback):
+                        return _render_chat(owner_key, "Explain your decision in up to 2000 characters."), 400
+                    payload.update(decision=decision, feedback=feedback, reviewer_id=owner_key)
+                elif action != "run":
+                    return _render_chat(owner_key, "Unknown workflow action."), 400
+                result = request_workflow("/workflow/" + action, payload)
+            save_agent_answer(message, result)
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            if status in (400, 404, 409):
+                return _render_chat(owner_key, "The workflow could not perform this action. Refresh its status and check your review feedback."), status
+            return _render_chat(owner_key, "The agents could not finish. Refresh status before retrying."), 502
+        except (httpx.HTTPError, RuntimeError):
+            return _render_chat(owner_key, "The Multi-Agent Server is unavailable. Refresh status before retrying; the agents may still be running."), 502
+        return _render_chat(owner_key)
+
     @app.get("/ai/loop/<int:run_id>")
     def ai_loop_trace(run_id: int):
         owner_key = _chat_owner_key()
@@ -1008,4 +1082,5 @@ def create_app(test_config: dict | None = None) -> Flask:
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # 0.0.0.0 inside the container only; compose exposes 5000 to the proxy, not the host.
+    app.run(host="0.0.0.0", port=5000, debug=True)  # noqa: S104

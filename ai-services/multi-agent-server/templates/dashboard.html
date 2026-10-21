@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Workflow dashboard · Plant Management</title>
+<style>
+:root{color-scheme:light;--ink:#203b31;--muted:#657469;--line:#dce4db;--paper:#f5f6f0;--green:#315e47}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 system-ui,sans-serif}a{color:var(--green);text-underline-offset:4px}a:hover{color:#111}a:focus-visible{outline:3px solid #b97936;outline-offset:4px}header{border-bottom:1px solid var(--line);background:#fff}nav,main{max-width:1200px;margin:auto;padding:22px 32px}nav{display:flex;justify-content:space-between;align-items:center;gap:20px}.brand{display:flex;align-items:center;gap:12px;font-weight:650}.leaf{width:30px;height:35px}.nav-links{display:flex;gap:24px;font-size:14px}main{padding-top:44px;padding-bottom:60px}.intro{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:30px}.eyebrow{text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:700;color:var(--muted);margin:0 0 8px}h1,h2{font-family:Georgia,serif;font-weight:400;line-height:1.15}h1{font-size:42px;margin:0 0 14px}h2{font-size:25px;margin:0 0 18px}p{margin:0 0 12px}.muted,small{color:var(--muted)}.button{display:inline-block;text-decoration:none;background:var(--green);color:#fff;padding:10px 20px;border-radius:6px;white-space:nowrap}.button:hover{color:#fff;background:#244c37}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}.card,.panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:24px}.card .value{font-size:36px;line-height:1.15;font-weight:500;letter-spacing:-.04em;margin:10px 0}.card .label{font-size:13px;color:var(--muted)}.card small{font-size:12px}.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;margin-bottom:24px}.panel{padding:28px}.tag{display:inline-block;font-size:12px;font-weight:600;border-radius:4px;background:#e9f0e7;padding:4px 9px;white-space:nowrap}.tag.failed,.tag.rejected{background:#f6e8e0;color:#884b30}.tag.awaiting_human_review{background:#f7edcf;color:#73551c}.states{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 22px}.stage{display:grid;grid-template-columns:80px 1fr 62px;gap:12px;align-items:center;margin:16px 0}.track{height:10px;border-radius:8px;background:#eef2ec;overflow:hidden}.fill{height:100%;background:#6e9474;border-radius:8px}.seconds{text-align:right;font-variant-numeric:tabular-nums}.table-scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:14px}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}th,td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:top}th:first-child,td:first-child{padding-left:0}tbody tr:last-child td{border:0}.rate{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}.notes{font-size:12px;margin-top:18px}.downloads{display:flex;gap:20px;flex-wrap:wrap}.id{font-family:ui-monospace,monospace;font-size:12px}.task{max-width:560px}.footer{margin-top:28px;font-size:12px;color:var(--muted)}.empty{padding:18px 0;color:var(--muted)}@media(max-width:850px){.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.intro{align-items:start}h1{font-size:34px}}@media(max-width:500px){nav,main{padding-left:18px;padding-right:18px}nav{flex-wrap:wrap}.intro{display:block}.intro .button{margin-top:12px}.cards{gap:10px}.card{padding:16px}.panel{padding:20px}.card .value{font-size:30px}.nav-links{gap:20px}}
+</style>
+</head>
+<body>
+<header><nav aria-label="Main navigation">
+<div class="brand"><svg class="leaf" viewBox="0 0 32 38" fill="none" aria-hidden="true"><path d="M27 3C9 3 2 12 6 23c12 5 22-3 21-20Z" fill="#dbe8d6" stroke="#315e47" stroke-width="1.5"/><path d="M4 35C8 23 15 16 23 8M11 21l-1-8m5 4 8-1" stroke="#315e47" stroke-width="1.5" stroke-linecap="round"/></svg>Plant Management <span class="muted">/ Multi-Agent</span></div>
+<div class="nav-links"><a href="/workflow/metrics">Metrics JSON</a><a href="/healthz">Service health</a></div>
+</nav></header>
+<main>
+<div class="intro"><div><p class="eyebrow">Local service · Release 2</p><h1>Workflow dashboard</h1><p class="muted">Execution, review and the decisions still waiting for you.</p></div><a class="button" href="/dashboard">Refresh data</a></div>
+<div class="cards">
+<div class="card"><div class="label">Tracked workflows</div><div class="value">{{ data.tracked_workflows }}</div><small>{{ data.run_attempts }} execution attempts</small></div>
+<div class="card"><div class="label">Awaiting human review</div><div class="value">{{ data.current_states.get('awaiting_human_review', 0) }}</div><small>AI review finished; decision pending</small></div>
+<div class="card"><div class="label">Human approvals</div><div class="value">{{ data.human_approval_rate.numerator }}</div><small>Accepted or partially accepted</small></div>
+<div class="card"><div class="label">Latest agent execution</div><div class="value">{% if data.latest_agent_run %}{{ '%.2f'|format(data.latest_agent_run.seconds_to_human_review) }}<span style="font-size:18px"> s</span>{% else %}—{% endif %}</div><small>Planning to human-review handoff</small></div>
+</div>
+<div class="grid">
+<section class="panel" aria-labelledby="quality"><p class="eyebrow">Across saved development runs</p><h2 id="quality">Coordination</h2>
+<table><thead><tr><th>Measure</th><th>Rate</th><th>Count</th></tr></thead><tbody>
+{% for label, key in [('Plan generation', 'plan_generation_rate'),('Worker completion', 'worker_completion_rate'),('AI-stage handoffs', 'handoff_success_rate'),('Repeat runs', 'rework_ratio'),('Final human decisions', 'workflow_completion_rate')] %}
+{% set metric = data[key] %}<tr><td>{{ label }}</td><td class="rate">{% if metric.value is not none %}{{ '%.1f'|format(metric.value * 100) }}%{% else %}—{% endif %}</td><td>{{ metric.numerator }} / {{ metric.denominator }}</td></tr>
+{% endfor %}</tbody></table>
+<p class="notes muted">Includes failures, interruptions and retries. Final decisions include rejection. Plan acceptance is not separately measured.</p>
+</section>
+<section class="panel" aria-labelledby="timing"><p class="eyebrow">Latest completed agent run</p><h2 id="timing">Where the time went</h2>
+{% if data.latest_agent_run %}{% set run = data.latest_agent_run %}
+{% for role in ['planner','worker','reviewer'] %}{% set duration = run.stage_seconds.get(role, 0) %}
+<div class="stage"><span>{{ role|capitalize }}</span><div class="track" aria-hidden="true"><div class="fill" style="width:{{ 100 * duration / run.seconds_to_human_review if run.seconds_to_human_review else 0 }}%"></div></div><span class="seconds">{{ '%.2f'|format(duration) }} s</span></div>
+{% endfor %}
+<p class="notes muted">{{ run.workflow_id }}</p>
+<p class="notes">{% for role in ['planner','worker','reviewer'] %}{{ role|capitalize }}: <span class="id">{{ models.get(role, 'unknown') }}</span>{% if not loop.last %}<br>{% endif %}{% endfor %}</p>
+{% else %}<p class="empty">Stage timings appear after an agent run reaches human review.</p>{% endif %}
+</section>
+</div>
+<section class="panel" aria-labelledby="workflows"><p class="eyebrow">Current state</p><h2 id="workflows">Saved workflows</h2>
+<div class="states">{% for state, count in data.current_states.items() %}<span class="tag {{ state }}">{{ state|replace('_',' ')|capitalize }} · {{ count }}</span>{% endfor %}</div>
+{% if workflows %}<div class="table-scroll"><table><thead><tr><th>Task</th><th>State</th><th>Record</th></tr></thead><tbody>
+{% for flow in workflows %}<tr><td class="task">{{ flow.task }}</td><td><span class="tag {{ flow.status }}">{{ flow.status|replace('_',' ')|capitalize }}</span></td><td><a class="id" href="{{ url_for('workflow_status', id=flow.id) }}">{{ flow.id[:8] }}…</a></td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="empty">No workflows yet.</p>{% endif %}
+<p class="notes muted">{{ data.untracked_legacy_workflows }} older storage-only records have no execution history. Record links open the saved JSON.</p>
+</section>
+<div class="grid" style="margin-top:24px">
+<section class="panel" aria-labelledby="review"><p class="eyebrow">Review activity</p><h2 id="review">Issues raised</h2><p><strong>{{ data.reviewer_defect_yield.issues_reported }}</strong> reported issues across <strong>{{ data.reviewer_defect_yield.reviews }}</strong> AI reviews.</p><p class="muted">Reported issues are not confirmed defects. Model accuracy is checked separately with regression cases.</p></section>
+<section class="panel" aria-labelledby="audit"><p class="eyebrow">Download a current snapshot</p><h2 id="audit">Evidence &amp; audit</h2><div class="downloads"><a href="/workflow/audit/workflow_history.jsonl">Execution history ↓</a><a href="/workflow/audit/coordination_audit.jsonl">Coordination audit ↓</a></div><p class="notes muted">JSONL files include workflow IDs, outputs, model records and decisions.</p></section>
+</div>
+<p class="footer">Snapshot: <time datetime="{{ data.generated_at }}">{{ data.generated_at[:19]|replace('T',' ') }} UTC</time> · Refresh to load the latest data. This view does not submit human decisions.</p>
+</main>
+</body></html>

@@ -147,7 +147,7 @@ def _free_port() -> int:
 
 def test_streamable_http_listener_serves_healthz_and_protocol(tmp_path):
     port = _free_port()
-    process = subprocess.Popen(
+    process = subprocess.Popen(  # noqa: S603 -- starts our own server.py with this interpreter
         [sys.executable, str(Path(__file__).resolve().parents[1] / "server.py"), "--port", str(port)],
         env={
             **os.environ,
@@ -184,7 +184,7 @@ def test_streamable_http_listener_serves_healthz_and_protocol(tmp_path):
             method="POST",
         )
         try:
-            urllib.request.urlopen(request, timeout=5)
+            urllib.request.urlopen(request, timeout=5)  # noqa: S310 -- local test server URL
         except urllib.error.HTTPError as error:
             assert error.code == 421
         else:  # pragma: no cover

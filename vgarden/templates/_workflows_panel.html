@@ -1,0 +1,55 @@
+{# Release 2: frontend access to the shared local Multi-Agent Server, always routed
+   through this service's own backend (garden_workflows.py). Planner -> Worker ->
+   Reviewer run on the server against this garden's records only; the owner then
+   accepts, partially accepts, requests changes or rejects here. #}
+<section class="mt-8 border border-border rounded-lg p-6" id="workflows">
+    <header class="flex items-center justify-between gap-4 flex-wrap mb-2">
+        <h2 class="text-2xl m-0">Agent workflow (Planner → Worker → Reviewer → you)</h2>
+        <span class="badge {{ 'status-on' if multi_agent_enabled else 'status-off' }}">Multi-Agent {{ 'on' if multi_agent_enabled else 'off' }}</span>
+    </header>
+    <p class="text-sm text-muted-foreground mb-4">
+        Hands a task to the shared local Multi-Agent Server with <strong>this garden's records only</strong>.
+        A Planner sets the steps, a Worker answers from the records with citations, and a Reviewer checks
+        the answer against them. Nothing is final until you review it below.
+    </p>
+
+    {% if multi_agent_enabled %}
+    <form class="flex flex-col gap-3"
+          hx-post="{{ url_for('garden_workflows.start_workflow', garden_id=garden.id) }}"
+          hx-target="#workflow-detail" hx-swap="innerHTML" hx-indicator="#workflow-busy">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <label class="uk-form-label" for="workflow-task">Task</label>
+        <input class="uk-input" type="text" id="workflow-task" name="task" required maxlength="500"
+               placeholder="e.g. Summarise what is planted in each area and what is due for harvest">
+        <div class="flex items-center gap-3 flex-wrap">
+            <button class="uk-btn uk-btn-primary" type="submit">Start workflow</button>
+            <span id="workflow-busy" class="htmx-indicator text-sm text-muted-foreground">
+                <span class="spinner" aria-hidden="true"></span> Sending this garden's records…
+            </span>
+        </div>
+    </form>
+
+    <div id="workflow-detail" class="mt-4" aria-live="polite"></div>
+
+    {% set recent = garden.workflows | sort(attribute='created_at', reverse=True) %}
+    {% if recent %}
+    <h3 class="text-sm font-semibold mt-6 mb-2">Recent workflows</h3>
+    <ul class="uk-list text-sm">
+        {% for w in recent[:8] %}
+        <li class="py-1 flex items-center gap-3 flex-wrap">
+            <span class="badge status-off" data-workflow-status="{{ w.status }}">{{ w.status | replace('_', ' ') }}</span>
+            <a href="#workflow-detail"
+               hx-get="{{ url_for('garden_workflows.workflow_detail', garden_id=garden.id, local_id=w.id) }}"
+               hx-target="#workflow-detail" hx-swap="innerHTML">{{ w.task | truncate(90) }}</a>
+            <span class="text-xs text-muted-foreground">{{ w.created_at.strftime('%d %b %H:%M') }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% else %}
+    <p class="text-sm text-muted-foreground m-0" data-integration="multi-agent-disabled">
+        The Multi-Agent Server is disabled for this deployment (<code>MULTI_AGENT_ENABLED=false</code>),
+        as it is during CI and in the cloud baseline.
+    </p>
+    {% endif %}
+</section>

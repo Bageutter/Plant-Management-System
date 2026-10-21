@@ -136,3 +136,29 @@ those images.
 ## Yield planning and growing knowledge
 
 See [PLANNING.md](PLANNING.md) for migrations, public starter data, field explanations, companion suggestions, editing and API usage.
+
+### Shared Multi-Agent answers
+
+Set `MULTI_AGENT_ENABLED=true` and `MULTI_AGENT_SERVER_URL=http://127.0.0.1:8003`
+when starting Almanac. In Compose the URL uses `host.docker.internal:8003`;
+the shared server must be reachable from Docker (a loopback-only listener is
+not reachable through that hostname). Keep this local service on a trusted
+network; its existing API has no authentication.
+
+Log in and open the existing **Ask the Almanac** chat, select **Multi-Agent**, and
+send your question. The agents run automatically. The shared Worker retrieves
+Almanac evidence through MCP/RAG; these servers and local Ollama must also be
+running. The conversation stores the workflow, plan, proposed answer, evidence,
+AI review and human decision. Accept, partially accept, request changes or reject
+inside that message; requested changes can be run again. Answers never edit
+catalogue records. Refresh agent status after a timeout before retrying. Workflows
+belong to the signed-in chat owner, and reviewer IDs come from that identity.
+All workflow mutations require CSRF tokens. Clearing the chat removes its local
+messages; the shared server retains its audit history. The feature defaults off
+so CI does not invoke local models.
+
+`GET /integrations` returns JSON configuration status for MCP, RAG and Multi-Agent
+to API clients (including `Accept: application/json` and the review validator).
+Each entry contains `enabled` and `url`; this reports configuration, not server
+reachability, and does not invoke a model or an external service. Browsers asking
+for `text/html` still receive the reference-tools page.

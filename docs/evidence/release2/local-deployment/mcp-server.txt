@@ -1,0 +1,16 @@
+2026-10-21 20:55:47,045 INFO shared MCP server listening on http://127.0.0.1:5105/mcp (enabled=True)
+INFO:     Started server process [37105]
+INFO:     Waiting for application startup.
+2026-10-21 20:55:47,065 INFO StreamableHTTP session manager started
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:5105 (Press CTRL+C to quit)
+2026-10-21 21:03:58,250 INFO shared MCP server listening on http://127.0.0.1:5105/mcp (enabled=True)
+INFO:     Started server process [1474]
+INFO:     Waiting for application startup.
+2026-10-21 21:03:58,274 INFO StreamableHTTP session manager started
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:5105 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50379 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50408 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50418 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50428 - "GET /healthz HTTP/1.1" 200 OK

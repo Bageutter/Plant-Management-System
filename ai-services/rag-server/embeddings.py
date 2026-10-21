@@ -1,13 +1,18 @@
-"""Optional dense embeddings from local Ollama (``/api/embed``).
+"""Deterministic local embeddings, with optional Ollama (``/api/embed``).
 
-Embeddings are a best-effort enhancement: when the embedding model is not
-configured, not installed, or Ollama is down, retrieval silently stays lexical and
-the response says so (``retrieval.mode``). Nothing leaves the local network.
+The default versioned 256D function needs no model runtime. Explicit Ollama
+models remain optional. SQLite can fall back to lexical retrieval if embeddings
+are unavailable; Chroma requires embeddings and fails a refresh without replacing
+the active index. Nothing leaves the local network.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import math
+import re
+import unicodedata
 
 import requests
 
@@ -16,6 +21,33 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingUnavailable(RuntimeError):
     pass
+
+
+DETERMINISTIC_MODEL = "deterministic-256-v1"
+DETERMINISTIC_DIMENSIONS = 256
+
+
+class DeterministicEmbedder:
+    """Local feature hashing, shared by passage ingestion and query retrieval.
+
+    NFKC/casefolded word counts map through SHA-256 into 256 positive buckets,
+    then L2 normalization makes cosine similarity independent of text length.
+    The versioned model ID must change if this algorithm changes. This is lexical
+    overlap with hash collisions, not a learned semantic embedding model.
+    """
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        vectors = []
+        for text in texts:
+            tokens = re.findall(r"\w+", unicodedata.normalize("NFKC", text).casefold())
+            vector = [0.0] * DETERMINISTIC_DIMENSIONS
+            # Keep blank/punctuation-only passages valid for Chroma cosine search.
+            for token in tokens or [""]:
+                bucket = hashlib.sha256(token.encode("utf-8")).digest()[0]
+                vector[bucket] += 1.0
+            norm = math.sqrt(sum(value * value for value in vector))
+            vectors.append([value / norm for value in vector])
+        return vectors
 
 
 class OllamaEmbedder:
@@ -79,12 +111,14 @@ class OllamaEmbedder:
         return [[float(x) for x in vector] for vector in vectors]
 
 
-def build_embedder(config) -> OllamaEmbedder | None:
+def build_embedder(config) -> DeterministicEmbedder | OllamaEmbedder | None:
     """An embedder from app config, or None when ``RAG_EMBED_MODEL`` is empty."""
 
-    model = config.get("RAG_EMBED_MODEL")
+    model = config.get("RAG_EMBED_MODEL", DETERMINISTIC_MODEL)
     if not model:
         return None
+    if model == DETERMINISTIC_MODEL:
+        return DeterministicEmbedder()
     return OllamaEmbedder(
         base_url=config["OLLAMA_URL"],
         model=model,

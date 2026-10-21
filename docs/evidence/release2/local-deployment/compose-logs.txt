@@ -1,0 +1,147 @@
+frontend-1  |  * Serving Flask app 'app'
+frontend-1  |  * Debug mode: on
+frontend-1  | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+frontend-1  |  * Running on all addresses (0.0.0.0)
+frontend-1  |  * Running on http://127.0.0.1:5000
+frontend-1  |  * Running on http://172.18.0.2:5000
+frontend-1  | [33mPress CTRL+C to quit[0m
+frontend-1  |  * Restarting with stat
+frontend-1  |  * Debugger is active!
+frontend-1  |  * Debugger PIN: 509-670-211
+frontend-1  |  * Serving Flask app 'app'
+frontend-1  |  * Debug mode: on
+frontend-1  | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+frontend-1  |  * Running on all addresses (0.0.0.0)
+frontend-1  |  * Running on http://127.0.0.1:5000
+frontend-1  |  * Running on http://172.18.0.4:5000
+frontend-1  | [33mPress CTRL+C to quit[0m
+frontend-1  |  * Restarting with stat
+frontend-1  |  * Debugger is active!
+frontend-1  |  * Debugger PIN: 656-429-352
+frontend-1  | 192.168.65.1 - - [21/Oct/2026 10:04:29] "GET / HTTP/1.1" 200 -
+auth-1      |  * Serving Flask app 'app'
+almanac-1   |  * Serving Flask app 'app'
+auth-1      |  * Debug mode: on
+proxy-1     | 2026/10/21 09:58:17 [error] 30#30: health could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:17 [error] 30#30: frontend could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:18 [error] 30#30: vgarden could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:24 [error] 30#30: health could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:24 [error] 30#30: frontend could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:24 [error] 30#30: vgarden could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:28 [error] 30#30: auth could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:30 [error] 30#30: health could not be resolved (3: Host not found)
+vgarden-1   |  * Serving Flask app 'app'
+auth-1      | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+auth-1      |  * Running on all addresses (0.0.0.0)
+auth-1      |  * Running on http://127.0.0.1:5000
+auth-1      |  * Running on http://172.18.0.5:5000
+auth-1      | [33mPress CTRL+C to quit[0m
+auth-1      |  * Restarting with stat
+auth-1      |  * Debugger is active!
+auth-1      |  * Debugger PIN: 974-784-120
+auth-1      |  * Serving Flask app 'app'
+auth-1      |  * Debug mode: on
+auth-1      | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+auth-1      |  * Running on all addresses (0.0.0.0)
+auth-1      |  * Running on http://127.0.0.1:5000
+auth-1      |  * Running on http://172.18.0.3:5000
+auth-1      | [33mPress CTRL+C to quit[0m
+auth-1      |  * Restarting with stat
+auth-1      |  * Debugger is active!
+almanac-1   |  * Debug mode: on
+almanac-1   | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+almanac-1   |  * Running on all addresses (0.0.0.0)
+almanac-1   |  * Running on http://127.0.0.1:5000
+almanac-1   |  * Running on http://172.18.0.6:5000
+almanac-1   | [33mPress CTRL+C to quit[0m
+almanac-1   |  * Restarting with stat
+vgarden-1   |  * Debug mode: on
+vgarden-1   | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+vgarden-1   |  * Running on all addresses (0.0.0.0)
+vgarden-1   |  * Running on http://127.0.0.1:5000
+vgarden-1   |  * Running on http://172.18.0.3:5000
+vgarden-1   | [33mPress CTRL+C to quit[0m
+vgarden-1   |  * Restarting with stat
+vgarden-1   |  * Debugger is active!
+vgarden-1   |  * Debugger PIN: 155-257-848
+vgarden-1   |  * Serving Flask app 'app'
+almanac-1   |  * Debugger is active!
+almanac-1   |  * Debugger PIN: 736-093-329
+almanac-1   |  * Serving Flask app 'app'
+almanac-1   |  * Debug mode: on
+almanac-1   | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+almanac-1   |  * Running on all addresses (0.0.0.0)
+almanac-1   |  * Running on http://127.0.0.1:5000
+almanac-1   |  * Running on http://172.18.0.6:5000
+almanac-1   | [33mPress CTRL+C to quit[0m
+auth-1      |  * Debugger PIN: 539-403-569
+auth-1      | 192.168.65.1 - - [21/Oct/2026 10:04:29] "GET /login HTTP/1.1" 200 -
+proxy-1     | 2026/10/21 09:58:30 [error] 30#30: frontend could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:30 [error] 30#30: vgarden could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:35 [error] 30#30: auth could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:37 [error] 30#30: health could not be resolved (3: Host not found)
+vgarden-1   |  * Debug mode: on
+vgarden-1   | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+vgarden-1   |  * Running on all addresses (0.0.0.0)
+health-1    |  * Serving Flask app 'app'
+health-1    |  * Debug mode: on
+proxy-1     | 2026/10/21 09:58:37 [error] 30#30: frontend could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:37 [error] 30#30: vgarden could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:41 [error] 30#30: almanac could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:41 [error] 30#30: auth could not be resolved (3: Host not found)
+vgarden-1   |  * Running on http://127.0.0.1:5000
+vgarden-1   |  * Running on http://172.18.0.2:5000
+vgarden-1   | [33mPress CTRL+C to quit[0m
+vgarden-1   |  * Restarting with stat
+vgarden-1   |  * Debugger is active!
+vgarden-1   |  * Debugger PIN: 135-512-570
+health-1    | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+health-1    |  * Running on all addresses (0.0.0.0)
+health-1    |  * Running on http://127.0.0.1:5000
+health-1    |  * Running on http://172.18.0.4:5000
+health-1    | [33mPress CTRL+C to quit[0m
+health-1    |  * Restarting with stat
+health-1    |  * Debugger is active!
+health-1    |  * Debugger PIN: 793-879-392
+health-1    |  * Serving Flask app 'app'
+health-1    |  * Debug mode: on
+health-1    | [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+health-1    |  * Running on all addresses (0.0.0.0)
+almanac-1   |  * Restarting with stat
+almanac-1   |  * Debugger is active!
+almanac-1   |  * Debugger PIN: 328-780-279
+almanac-1   | 192.168.65.1 - - [21/Oct/2026 10:04:30] "GET / HTTP/1.1" 200 -
+health-1    |  * Running on http://127.0.0.1:5000
+health-1    |  * Running on http://172.18.0.5:5000
+vgarden-1   | 192.168.65.1 - - [21/Oct/2026 10:04:30] "GET /healthz HTTP/1.1" 200 -
+health-1    | [33mPress CTRL+C to quit[0m
+health-1    |  * Restarting with stat
+health-1    |  * Debugger is active!
+health-1    |  * Debugger PIN: 816-990-540
+proxy-1     | 2026/10/21 09:58:43 [error] 30#30: vgarden could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:43 [error] 30#30: frontend could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:43 [error] 30#30: health could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:47 [error] 30#30: almanac could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:47 [error] 30#30: auth could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:49 [error] 30#30: health could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:53 [error] 30#30: almanac could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:58:53 [error] 30#30: auth could not be resolved (3: Host not found)
+proxy-1     | 2026/10/21 09:59:00 [error] 30#30: almanac could not be resolved (3: Host not found)
+proxy-1     | /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+proxy-1     | /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+proxy-1     | /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+proxy-1     | 10-listen-on-ipv6-by-default.sh: info: IPv6 listen already enabled
+proxy-1     | /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+proxy-1     | /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+vgarden-1   | 192.168.65.1 - - [21/Oct/2026 10:04:30] "GET /integrations HTTP/1.1" 200 -
+proxy-1     | /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+proxy-1     | /docker-entrypoint.sh: Configuration complete; ready for start up
+proxy-1     | 192.168.65.1 - - [21/Oct/2026:10:04:29 +0000] "GET / HTTP/1.1" 200 14524 "-" "curl/8.7.1"
+proxy-1     | 192.168.65.1 - - [21/Oct/2026:10:04:29 +0000] "GET /auth/login HTTP/1.1" 200 6766 "-" "curl/8.7.1"
+proxy-1     | 192.168.65.1 - - [21/Oct/2026:10:04:30 +0000] "GET /vgarden/healthz HTTP/1.1" 200 45 "-" "curl/8.7.1"
+proxy-1     | 192.168.65.1 - - [21/Oct/2026:10:04:30 +0000] "GET /almanac/ HTTP/1.1" 200 51733 "-" "curl/8.7.1"
+proxy-1     | 192.168.65.1 - - [21/Oct/2026:10:04:30 +0000] "GET /health/plant-health-records/ HTTP/1.1" 200 30608 "-" "curl/8.7.1"
+proxy-1     | 192.168.65.1 - - [21/Oct/2026:10:04:30 +0000] "GET /vgarden/integrations HTTP/1.1" 200 264 "-" "curl/8.7.1"
+proxy-1     | 192.168.65.1 - - [21/Oct/2026:10:04:30 +0000] "GET /health/healthz HTTP/1.1" 200 356 "-" "curl/8.7.1"
+health-1    | 192.168.65.1 - - [21/Oct/2026 10:04:30] "GET /plant-health-records/ HTTP/1.1" 200 -
+health-1    | 192.168.65.1 - - [21/Oct/2026 10:04:30] "GET /healthz HTTP/1.1" 200 -

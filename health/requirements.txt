@@ -8,3 +8,5 @@ Pillow
 # Release 1: client for the shared local MCP server (the server itself is not containerised)
 mcp==2.2.0
 httpx==0.28.1
+# Production WSGI server (the cloud deployment runs the app under gunicorn)
+gunicorn

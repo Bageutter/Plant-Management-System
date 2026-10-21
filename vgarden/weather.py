@@ -72,6 +72,9 @@ class OpenMeteoClient:
         cache_ttl: int = 1800,
         forecast_days: int = 7,
     ):
+        for url in (geocoding_url, forecast_url):
+            if not url.startswith(("http://", "https://")):
+                raise ValueError(f"Weather URL must be http(s): {url}")
         self.geocoding_url = geocoding_url
         self.forecast_url = forecast_url
         self.timeout = timeout
@@ -84,7 +87,9 @@ class OpenMeteoClient:
     def _get(self, url: str, params: dict) -> dict:
         query = parse.urlencode({k: v for k, v in params.items() if v is not None})
         try:
-            with request.urlopen(f"{url}?{query}", timeout=self.timeout) as response:
+            with request.urlopen(  # noqa: S310 -- URLs are http(s), checked in __init__
+                f"{url}?{query}", timeout=self.timeout
+            ) as response:
                 return json.loads(response.read().decode("utf-8"))
         except (error.URLError, TimeoutError, ValueError) as exc:
             raise WeatherUnavailableError(str(exc)) from exc

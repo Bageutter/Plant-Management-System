@@ -49,7 +49,20 @@ async def _call_tool(target, tool, arguments):
 
 @integrations.get("")
 def index():
-    return render_template("integrations.html", mcp_enabled=_enabled("mcp"), rag_enabled=_enabled("rag"))
+    # Browsers keep the reference-tools page; API clients (including the review
+    # validator) receive configuration status without invoking local services.
+    if request.accept_mimetypes.best_match(["application/json", "text/html"]) == "text/html":
+        response = current_app.make_response(render_template(
+            "integrations.html", mcp_enabled=_enabled("mcp"), rag_enabled=_enabled("rag")))
+    else:
+        response = jsonify({
+            "mcp": {"enabled": _enabled("mcp"), "url": current_app.config["MCP_SERVER_URL"]},
+            "rag": {"enabled": _enabled("rag"), "url": current_app.config["RAG_SERVER_URL"]},
+            "multi_agent": {"enabled": _enabled("multi_agent"),
+                            "url": current_app.config["MULTI_AGENT_SERVER_URL"]},
+        })
+    response.vary.add("Accept")
+    return response
 
 
 @integrations.post("/mcp")

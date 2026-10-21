@@ -85,3 +85,34 @@
 .timeline-month.unique .timeline-bar{background:#bc642c}
 .timeline-label{display:block;margin-top:.3rem;font-size:.67rem;color:#546047}
 .timeline-month.current:before{content:"";position:absolute;top:-10px;left:calc(50% - 5px);border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #42563a}
+
+/* Human review keeps the draft, concerns and recorded evidence readable. */
+.agent-review{display:grid;gap:.9rem;min-width:0}
+.agent-review p,.agent-review h3,.agent-review h4{margin:0}
+.agent-review h3{font-size:1rem;line-height:1.4;text-wrap:balance}
+.agent-review h4{font-size:.95rem;line-height:1.4}
+.agent-status{font-size:.78rem;font-weight:650;color:#49634d}
+.agent-answer,.agent-passage{white-space:pre-wrap;overflow-wrap:anywhere}
+.agent-review-summary{padding:.9rem;border:1px solid #d5e1cf;border-radius:.75rem;background:#f2f7ed}
+.agent-review-summary.needs-changes,.agent-review-note{background:#fff8e9;border:1px solid #e4d4ad;color:#654b1b}
+.agent-review-summary p{margin-top:.45rem}
+.agent-review-summary ul{padding-left:1.2rem;margin:.5rem 0 0}
+.agent-review-summary li+li{margin-top:.55rem}
+.agent-review-note{padding:.75rem;border-radius:.65rem;font-size:.84rem}
+.agent-sources>summary,.agent-plan>summary,.agent-technical>summary{cursor:pointer;min-height:2rem;color:#285c3c}
+.agent-source{padding:.8rem;margin-top:.6rem;border:1px solid #dce5d7;border-radius:.65rem;background:#fafcf7}
+.agent-source dl{display:grid;gap:.45rem;margin:.65rem 0;font-size:.83rem}
+.agent-source dl>div{display:grid;grid-template-columns:minmax(5rem,1fr) minmax(0,2fr);gap:.6rem}
+.agent-source dt{font-weight:550;color:#4c604e}
+.agent-source dd{margin:0;overflow-wrap:anywhere}
+.agent-source dd.missing{color:#765321;font-style:italic}
+.agent-source details{font-size:.8rem;margin-top:.6rem}
+.agent-source .agent-passage{margin-top:.5rem}
+.agent-decision-form{display:grid;gap:.65rem;padding-top:.8rem;border-top:1px solid #dce5d7}
+.agent-decision-form select,.agent-decision-form textarea{width:100%;box-sizing:border-box;border:1px solid #a5b69e;border-radius:.65rem;padding:.65rem;background:#fff;font:inherit;color:inherit}
+.agent-decision-help{font-size:.78rem;color:#526450;line-height:1.5}
+.agent-text-button{border:0;background:none;color:#285c3c;text-decoration:underline;text-underline-offset:3px;padding:.4rem 0;text-align:left;font:inherit;font-size:.8rem;cursor:pointer}
+.agent-review-tools{border-top:1px solid #dce5d7;padding-top:.4rem}
+.agent-technical{font-size:.75rem}
+.agent-technical pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:18rem;overflow:auto}
+.agent-review :is(button,select,textarea,a,summary):focus-visible{outline:3px solid #426843;outline-offset:3px}

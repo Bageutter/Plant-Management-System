@@ -1,0 +1,63 @@
+{# Release 2: frontend access to the shared local Multi-Agent Server, always routed
+   through this service's own backend (workflows.py). Planner -> Worker -> Reviewer run
+   on the server against this plant's stored assessments only; the gardener then
+   accepts, partially accepts, requests changes or rejects here. #}
+<section class="mt-8 border border-border rounded-lg p-6" id="workflows">
+    <header class="flex items-center justify-between gap-4 flex-wrap mb-2">
+        <h2 class="text-2xl m-0">Agent workflow (Planner → Worker → Reviewer → you)</h2>
+        <span class="badge {{ 'status-healthy' if multi_agent_enabled else 'status-unknown' }}">Multi-Agent {{ 'on' if multi_agent_enabled else 'off' }}</span>
+    </header>
+    <p class="text-sm text-muted-foreground mb-4">
+        Hands a task to the shared local Multi-Agent Server with <strong>this plant's stored
+        assessments only</strong>. A Planner sets the steps, a Worker answers from the records with
+        citations, and a Reviewer checks the answer against them. Nothing is final until you review
+        it below. Assessments are advisory outputs of past local model runs, not diagnoses.
+    </p>
+
+    {% if multi_agent_enabled %}
+    <form class="flex flex-col gap-3"
+          hx-post="{{ url_for('health_workflows.start_workflow') }}"
+          hx-target="#workflow-detail" hx-swap="innerHTML" hx-indicator="#workflow-busy">
+        <label class="uk-form-label" for="workflow-plant">Plant (its assessments are the evidence)</label>
+        <select class="uk-select" id="workflow-plant" name="plant_ref">
+            <option value="">— Latest assessments of any plant —</option>
+            {% for plant in plants %}
+                <option value="{{ plant.name }}">{{ plant.name }} ({{ plant.assessment_count }} assessment{{ '' if plant.assessment_count == 1 else 's' }})</option>
+            {% endfor %}
+        </select>
+        <label class="uk-form-label" for="workflow-task">Task</label>
+        <input class="uk-input" type="text" id="workflow-task" name="task" required maxlength="500"
+               placeholder="e.g. Summarise how this plant's health has changed and which issues keep recurring">
+        <div class="flex items-center gap-3 flex-wrap">
+            <button class="uk-btn uk-btn-primary" type="submit">Start workflow</button>
+            <span id="workflow-busy" class="htmx-indicator text-sm text-muted-foreground">
+                <span class="spinner" aria-hidden="true"></span> Sending this plant's records…
+            </span>
+        </div>
+    </form>
+
+    <div id="workflow-detail" class="mt-4" aria-live="polite"></div>
+
+    {% set recent = recent_workflows() %}
+    {% if recent %}
+    <h3 class="text-sm font-semibold mt-6 mb-2">Recent workflows</h3>
+    <ul class="uk-list text-sm">
+        {% for w in recent %}
+        <li class="py-1 flex items-center gap-3 flex-wrap">
+            <span class="badge status-unknown" data-workflow-status="{{ w.status }}">{{ w.status | replace('_', ' ') }}</span>
+            <a href="#workflow-detail"
+               hx-get="{{ url_for('health_workflows.workflow_detail', local_id=w.id) }}"
+               hx-target="#workflow-detail" hx-swap="innerHTML">{{ w.task | truncate(90) }}</a>
+            {% if w.plant_ref %}<span class="text-xs text-muted-foreground">· {{ w.plant_ref }}</span>{% endif %}
+            <span class="text-xs text-muted-foreground">{{ w.created_at.strftime('%d %b %H:%M') }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% else %}
+    <p class="text-sm text-muted-foreground m-0" data-integration="multi-agent-disabled">
+        The Multi-Agent Server is disabled for this deployment (<code>MULTI_AGENT_ENABLED=false</code>),
+        as it is during CI and in the cloud baseline.
+    </p>
+    {% endif %}
+</section>

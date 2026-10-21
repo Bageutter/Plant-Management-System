@@ -35,8 +35,10 @@ PLANT_FIELDS = (
 
 def fetch_snapshot(url: str, timeout: int = 10) -> dict:
     """Fetch a versioned public snapshot without sending credentials."""
-    req = request.Request(url, headers={"User-Agent": "Plant-Management-System/1"})
-    with request.urlopen(req, timeout=timeout) as response:
+    if not url.startswith(("http://", "https://")):
+        raise ValueError("The public snapshot URL must be http(s)")
+    req = request.Request(url, headers={"User-Agent": "Plant-Management-System/1"})  # noqa: S310 -- checked above
+    with request.urlopen(req, timeout=timeout) as response:  # noqa: S310 -- http(s) only
         return json.load(response)
 
 

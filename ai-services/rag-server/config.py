@@ -53,13 +53,13 @@ class Config:
     SERVICE_TIMEOUT = float(os.environ.get("SERVICE_TIMEOUT", "15"))
 
     # Local Ollama only. Answering model matches the project's chat features;
-    # the embedding model is optional (empty -> lexical retrieval only).
+    # embeddings default to local deterministic 256D (empty -> lexical only).
     OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
     OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct")
     OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
     OLLAMA_AUTO_PULL = _as_bool(os.environ.get("OLLAMA_AUTO_PULL"), True)
     OLLAMA_PULL_TIMEOUT = int(os.environ.get("OLLAMA_PULL_TIMEOUT", "1800"))
-    RAG_EMBED_MODEL = os.environ.get("RAG_EMBED_MODEL", "nomic-embed-text")
+    RAG_EMBED_MODEL = os.environ.get("RAG_EMBED_MODEL", "deterministic-256-v1")
 
     # Retrieval budgets and the relevance gate that triggers "insufficient context".
     RAG_TOP_K = int(os.environ.get("RAG_TOP_K", "5"))

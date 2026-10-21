@@ -13,6 +13,8 @@ rationale.
 | `SYSTEM_PROMPT` (Virtual Garden assistant) | `vgarden/ai.py` | vgarden chat ACT | `ANSWER_SCHEMA` (`{answer: string}`) |
 | `PROMPT_REVIEW` | `shared/ai_loop.py` | OBSERVE step for both chats | inline `{verdict, issues, guidance}` |
 | `SYSTEM_PROMPT` + `_build_prompt()` | `health/ai.py` | Plant Health assessment | `RESPONSE_SCHEMA` (status, score, confidence, issues, recs, …) |
+| `PROMPT_CLOUD_DEPLOYMENT_ACT` | `shared/ai_loop.py` | Release 2 Cloud Deployment Report Review ACT (`tools/ai-loop/cloud_report_review.py`) | `CLOUD_DECISION_SCHEMA` (`{decision, baseline_compliant, findings[], release_recommendation}`) |
+| `PROMPT_CLOUD_DEPLOYMENT_OBSERVE` | `shared/ai_loop.py` | OBSERVE step for the cloud deployment review | inline `{verdict, issues, guidance}` |
 | `act.txt` | `tools/ai-dev/prompts/act.txt` | Build-time proposer | inline finding schema |
 | `observe.txt` | `tools/ai-dev/prompts/observe.txt` | Build-time reviewer | `{status, summary, findings}` |
 
@@ -34,6 +36,11 @@ tools). The model *cannot* return prose. Then the code parses and **re-checks**:
   string and truncate to 2000 chars.
 - `shared/ai_loop.py::Reviewer.review()` coerces `verdict` to exactly
   `approved`/`revise` and strips the issue list.
+- `shared/ai_loop.py::validate_cloud_decision()` / `normalise_cloud_decision()` reject a
+  cloud deployment decision outside `CLOUD_DECISION_SCHEMA`, clip every field, and
+  enforce the release rules in code: evidence gaps refuse (`insufficient_evidence`,
+  decided before any model call), an enabled AI switch is a high `cloud_baseline`
+  finding that blocks `approve`, a failed smoke test is `reject`.
 - `tools/ai-dev/pipeline.py::validate_finding()` rejects any finding that cites a
   file it wasn't shown.
 

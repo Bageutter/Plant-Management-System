@@ -28,4 +28,6 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    # 0.0.0.0 inside the container only; compose exposes 5000 to the proxy, not the host.
+    # Debug (auto-reload) stays on by default for local development; FLASK_DEBUG=false turns it off.
+    app.run(host="0.0.0.0", debug=os.environ.get("FLASK_DEBUG", "true").lower() == "true")  # noqa: S104

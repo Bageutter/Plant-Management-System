@@ -1,0 +1,134 @@
+{
+  "service": "auth",
+  "generated_at": "2026-10-21T10:16:11+00:00",
+  "commit": "48fcee1",
+  "test_command": "coverage run -m pytest -q tests",
+  "exit_code": 0,
+  "line_coverage_percent": 77.3,
+  "endpoints": 8,
+  "endpoints_tested": 2,
+  "routes": [
+    {
+      "kind": "http",
+      "path": "/register",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "function": "routes.register",
+      "file": "auth/routes.py",
+      "line": 32,
+      "body_lines": [
+        33,
+        49
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/login",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "function": "routes.login",
+      "file": "auth/routes.py",
+      "line": 53,
+      "body_lines": [
+        54,
+        67
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/logout",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.logout",
+      "file": "auth/routes.py",
+      "line": 72,
+      "body_lines": [
+        73,
+        74
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/account",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.account",
+      "file": "auth/routes.py",
+      "line": 79,
+      "body_lines": [
+        80,
+        109
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/gardens",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.create_garden",
+      "file": "auth/routes.py",
+      "line": 114,
+      "body_lines": [
+        115,
+        144
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/delete",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.delete_garden",
+      "file": "auth/routes.py",
+      "line": 149,
+      "body_lines": [
+        150,
+        192
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/open",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.open_garden",
+      "file": "auth/routes.py",
+      "line": 197,
+      "body_lines": [
+        199,
+        206
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/me",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.me",
+      "file": "auth/routes.py",
+      "line": 211,
+      "body_lines": [
+        212,
+        212
+      ],
+      "tested": false
+    }
+  ]
+}
