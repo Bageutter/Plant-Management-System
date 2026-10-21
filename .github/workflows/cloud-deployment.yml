@@ -1,0 +1,187 @@
+name: Cloud deployment (Azure)
+
+# Release 2 cloud deployment (Assessment 3, criteria 5-7).
+#
+# Flow: source control -> pre-commit security scans (local) -> this workflow:
+#   validation gates  lint, the post-commit endpoint tests of every service,
+#                     Docker build + compose smoke test
+#   deploy            only after every gate is green: Bicep platform, image build
+#                     and push, container apps roll-out, cloud smoke test, report.
+#
+# The deploy job runs under the GitHub environment "azure-production". Give that
+# environment required reviewers and each deployment waits for a human release
+# decision. Azure access is OpenID Connect federation (scripts/deploy/
+# azure-bootstrap.sh); no cloud credential is stored in GitHub.
+#
+# Cloud baseline: AI-Mode, MCP, RAG and the Multi-Agent Server are disabled. The
+# same env values that the feature workflows use for CI are passed through to the
+# deployment (scripts/deploy/azure-config.sh -> infra/apps.bicep).
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - "tools/ai-dev/logs/**"
+      - "tools/ai-loop/logs/**"
+  workflow_dispatch:
+    inputs:
+      service_min_replicas:
+        description: "Minimum replicas per service (0 = scale to zero when idle; 1 keeps everything warm for a demo)"
+        required: false
+        default: "0"
+      proxy_min_replicas:
+        description: "Minimum replicas for the public proxy"
+        required: false
+        default: "1"
+
+permissions:
+  contents: read
+  # OIDC token for azure/login.
+  id-token: write
+
+concurrency:
+  group: cloud-deployment
+  cancel-in-progress: false
+
+env:
+  # Cloud baseline and CI rule: the shared AI services are local processes that
+  # never run in CI or in the required cloud deployment.
+  MCP_ENABLED: "false"
+  RAG_ENABLED: "false"
+  MULTI_AGENT_ENABLED: "false"
+  OLLAMA_PRELOAD: "false"
+
+jobs:
+  # ---------------------------------------------------------------- gates ----
+  lint:
+    name: Gate · Ruff + compile check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Run Ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.16.4"
+          args: check --output-format=github
+      - name: Compile-check Python files
+        run: python -m compileall -q auth shared vgarden almanac health ai-services scripts
+
+  endpoint-tests:
+    name: Gate · endpoint tests (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth, vgarden, almanac, health]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ${{ matrix.service }}/requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r ${{ matrix.service }}/requirements-dev.txt
+      - name: Run the service's test suite (includes its two assigned endpoint tests)
+        working-directory: ${{ matrix.service }}
+        run: python -m pytest -q --junitxml=../cloud-gate-${{ matrix.service }}.xml
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cloud-gate-tests-${{ matrix.service }}-${{ github.run_id }}
+          path: cloud-gate-${{ matrix.service }}.xml
+          retention-days: 30
+
+  build-validate:
+    name: Gate · Docker build + compose smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: plant-management-cloud-gate
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate the compose file
+        run: docker compose config --quiet
+      - name: Build every image and start the stack
+        run: docker compose up --detach --build
+      - name: Smoke-check through the proxy
+        run: |
+          base=http://127.0.0.1:3000
+          curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/" >/dev/null
+          curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/auth/login" >/dev/null
+          curl --retry 15 --retry-delay 3 --retry-all-errors --fail --silent "$base/almanac/" >/dev/null
+          bash scripts/test/smoke-health.sh "$base"
+          bash scripts/test/smoke-vgarden.sh "$base"
+      - name: Save logs
+        if: always()
+        run: docker compose logs --no-color > compose.log 2>&1 || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: cloud-gate-compose-logs-${{ github.run_id }}
+          path: compose.log
+          retention-days: 7
+      - name: Tear down
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+
+  # --------------------------------------------------------------- deploy ----
+  deploy:
+    name: Deploy to Azure Container Apps
+    needs: [lint, endpoint-tests, build-validate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: azure-production
+      url: ${{ steps.apps.outputs.app_url }}
+    env:
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'rg-plantms-prod' }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'australiaeast' }}
+      AZURE_BASE_NAME: ${{ vars.AZURE_BASE_NAME || 'plantms' }}
+      AZURE_STAGE: ${{ vars.AZURE_STAGE || 'prod' }}
+      PROXY_MIN_REPLICAS: ${{ inputs.proxy_min_replicas || vars.PROXY_MIN_REPLICAS || '1' }}
+      SERVICE_MIN_REPLICAS: ${{ inputs.service_min_replicas || vars.SERVICE_MIN_REPLICAS || '0' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Image tag = short commit SHA
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Sign in to Azure (OIDC, no stored credentials)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Platform (infra/main.bicep)
+        run: bash scripts/deploy/azure-platform.sh
+
+      - name: Build and push images
+        run: bash scripts/deploy/azure-build-push.sh
+
+      - name: Container apps (infra/apps.bicep)
+        id: apps
+        run: bash scripts/deploy/azure-apps.sh
+
+      - name: Cloud smoke test
+        id: smoke
+        run: bash scripts/deploy/azure-smoke.sh
+
+      - name: Deployment report
+        if: always()
+        run: bash scripts/deploy/azure-report.sh "${{ steps.smoke.outcome == 'success' && 'pass' || 'fail' }}"
+
+      - name: Keep the report as evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cloud-deployment-report-${{ github.run_id }}
+          path: docs/evidence/release2/cloud-deployment/
+          retention-days: 90

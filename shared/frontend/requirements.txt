@@ -1,1 +1,3 @@
 Flask
+# Production WSGI server (the cloud deployment runs the app under gunicorn)
+gunicorn

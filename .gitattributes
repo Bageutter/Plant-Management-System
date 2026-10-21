@@ -1,0 +1,8 @@
+# Files that Linux tooling executes must stay LF even on a Windows checkout with
+# core.autocrlf=true: bash rejects CRLF scripts ("set: pipefail: invalid option
+# name"), and the proxy's nginx template and Dockerfiles are read inside containers.
+*.sh        text eol=lf
+*.bicep     text eol=lf
+*.template  text eol=lf
+Dockerfile  text eol=lf
+.dockerignore text eol=lf

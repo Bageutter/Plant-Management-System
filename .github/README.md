@@ -9,6 +9,7 @@
 | `plant_almanac.yml` | Amy's Almanac CI — Ruff, compile check, two named endpoint tests, remaining pytest suite, retained test evidence, and Docker build; runs for matching `main`/`amy/**` pushes, PRs and manual runs |
 | `vgarden.yml` | Yunus's Virtual Garden CI — Ruff, compile check, two named endpoint tests, remaining pytest suite, retained test evidence, Docker build and compose smoke test; runs for matching `main`/`yunz/**` pushes, PRs and manual runs |
 | `health.yml` | health monitoring service CI — triggers on `bageutter/**` branches and `health/` path changes |
+| `cloud-deployment.yml` | **Release 2 cloud deployment** — re-runs the gates (Ruff, every service's endpoint tests, Docker build + compose smoke) and, only when all pass, deploys to **Azure Container Apps** with `infra/*.bicep` + `scripts/deploy/*.sh`; the deploy job waits for approval on the `azure-production` environment. Walkthrough: [docs/deployment/azure.md](../docs/deployment/azure.md) |
 
 ## integration CI
 
@@ -87,3 +88,14 @@ meaningful tests, successful **push** run, commit SHA and saved test evidence.
 Amy's passing run does not establish completion for the other students.
 Docker builds in `plant_almanac.yml` depend on successful lint and endpoint/regression
 validation. Deployment and agentic-loop Testing Report Review are separate work.
+
+## cloud deployment (Release 2)
+
+`cloud-deployment.yml` runs on every push to `main` (and by hand). Its `deploy` job
+needs three gates: `lint`, `endpoint-tests` (auth, vgarden, almanac, health) and
+`build-validate` (compose build + smoke). It then signs in to Azure with OIDC (no
+stored credentials) and runs `scripts/deploy/azure-deploy.sh`: platform Bicep ->
+image build/push -> apps Bicep -> cloud smoke test -> deployment report. The report
+lands in `docs/evidence/release2/cloud-deployment/` and as a workflow artifact.
+AI-Mode, MCP, RAG and the Multi-Agent Server are disabled in the cloud baseline.
+One-time setup and everything else: [docs/deployment/azure.md](../docs/deployment/azure.md).
