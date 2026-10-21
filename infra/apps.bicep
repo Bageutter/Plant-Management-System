@@ -155,6 +155,8 @@ var commonEnv = [
 
 // Cloud baseline switches (all four services read the ones they know about).
 var aiEnv = [
+  // Explicit AI-Mode switch (health saves records "not assessed" when off).
+  { name: 'AI_MODE_ENABLED', value: string(aiEnabled) }
   { name: 'OLLAMA_URL', value: aiEnabled ? ollamaUrl : 'http://127.0.0.1:11434' }
   { name: 'OLLAMA_AUTO_PULL', value: string(aiEnabled) }
   { name: 'OLLAMA_PRELOAD', value: string(aiEnabled) }

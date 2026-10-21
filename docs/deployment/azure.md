@@ -245,7 +245,25 @@ Useful knobs (environment variables, or repository variables / workflow inputs):
 
 Cold start: with `SERVICE_MIN_REPLICAS=0` the first request to an idle service
 takes 20–40 seconds (image pull from cache, gunicorn start, migration check). The
-smoke script retries for that reason.
+smoke script retries for that reason. **auth and vgarden are always kept warm**
+(`dependencyMinReplicas=1` in `infra/apps.bicep`): other services call them
+server-to-server, and a cold start there showed up as "Couldn't reach the garden
+service".
+
+`python3 scripts/deploy/azure-e2e.py <public URL>` goes beyond the smoke test and
+uses the site like a person, timing each step: register, add a garden, open it
+(SSO), add an area and a planting; the almanac catalogue and logged-in state;
+health plant titles and a record saved "not assessed" with AI-Mode off; the AI
+baseline.
+
+### Before a demo or marking: keep everything warm
+
+```bash
+gh workflow run cloud-deployment.yml -f service_min_replicas=1   # then approve the run
+```
+
+Every page is then instant. Afterwards, run it again with `service_min_replicas=0`
+(or without `-f`) to go back to scale-to-zero, which costs less.
 
 ### Rehearsing the cloud configuration locally
 
@@ -277,7 +295,8 @@ workflow also uploads them as a 90-day artifact).
 Approximate monthly cost in `australiaeast` with the defaults (services scale to
 zero, proxy always on): PostgreSQL B1ms + 32 GB ≈ US$17, Container Apps ≈ US$10,
 Container Registry Basic ≈ US$5, storage and logs ≈ US$2. Keeping all five services
-warm (`SERVICE_MIN_REPLICAS=1`) adds roughly US$9 per service per month. A credit-
+warm (`SERVICE_MIN_REPLICAS=1`) adds roughly US$9 per service per month; auth and
+vgarden are always warm (about US$18 of that). A credit-
 based subscription (Visual Studio, Azure for Students) has a spending limit: when
 the credit is gone the resources pause instead of charging a card.
 
@@ -296,6 +315,13 @@ bash scripts/deploy/azure-teardown.sh
 
 | Symptom | Cause / fix |
 |---|---|
+| Sign-in fails with `AADSTS700213` (no matching federated identity) | the repository sends GitHub's immutable OIDC subject `repo:owner@id/repo@id:...`; re-run `azure-bootstrap.sh`, which registers both forms |
+| A later step fails with `AADSTS700024` (assertion expired) | the OIDC token lasts 5 minutes; the workflow signs in again before each long step |
+| Every page answers `426 Upgrade Required` | the proxy must speak HTTP/1.1 to the internal apps (`proxy_http_version 1.1` in `shared/proxy/default.conf.template`) |
+| The Platform step stays Running for an hour (`DeploymentActive` on the next run) | the PostgreSQL server is created once and referenced afterwards (`deployPostgres`); cancel a stuck deployment with `az deployment group cancel -g rg-plantms-prod -n plantms-platform` |
+| DB apps crash-loop: `password authentication failed for user "plantadmin"` | Key Vault and the server disagree on the password. Set one clean value on both (`az postgres flexible-server update --admin-password`, `az keyvault secret set ... postgres-admin-password`), then rerun the platform and apps steps |
+| `SSL error: decryption failed or bad record mac` | gunicorn `--preload` workers shared the start-up DB connection; each app now disposes its engine at the end of `create_app` |
+| Health says the model is not available | expected in the cloud baseline (AI-Mode off): new records are saved "not assessed" |
 | `az` targets the wrong tenant or subscription | `az login --use-device-code --tenant <student tenant>` then `az account show`; the scripts honour `AZURE_SUBSCRIPTION_ID` for the bootstrap and the signed-in context afterwards |
 | `SkuNotAvailable` / `OfferNotAvailable` / quota exceeded on the student offer | try another region (`AZURE_LOCATION`) or a different `postgresSkuName`; the resource group can be deleted and re-created in the new region with `azure-teardown.sh` + `azure-bootstrap.sh` |
 | `AuthorizationFailed` in the first deploy after bootstrap | role assignments still propagating; re-run after a few minutes |

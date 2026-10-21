@@ -134,6 +134,25 @@ def main() -> int:
         check(status in (200, 204), f"HTTP {status}: {body[:200]}")
     step("health: delete the plant title", health_delete)
 
+    record: dict = {}
+
+    def health_record_create():
+        status, body = send("POST", "/health/plant-health-records/assessments",
+                            {"plant_ref": f"E2E basil {session.garden_id}", "description": "Wilting at noon."})
+        check(status == 201, f"HTTP {status}: {body[:200]}")
+        record.update(json.loads(body))
+        check(record.get("ai_mode") == "disabled" and record.get("status") == "unknown",
+              f"expected a not-assessed record, got {record.get('status')}")
+        return f"record {record['id']} saved, not assessed (AI-Mode off)"
+    step("health: create a record with AI-Mode off", health_record_create)
+
+    def health_record_read_delete():
+        status, _ = get(f"/health/plant-health-records/assessments/{record['id']}", "application/json")
+        check(status == 200, f"read: HTTP {status}")
+        status, body = send("DELETE", f"/health/plant-health-records/assessments/{record['id']}")
+        check(status in (200, 204), f"delete: HTTP {status}: {body[:200]}")
+    step("health: read and delete the record", health_record_read_delete)
+
     # cloud baseline
     def baseline():
         status, body = get("/vgarden/integrations", "application/json")
