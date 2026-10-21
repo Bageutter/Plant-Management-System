@@ -97,6 +97,8 @@ def import_snapshot(
             for field in PLANT_FIELDS:
                 if getattr(existing, field) in (None, ""):
                     value = row.get(field)
+                    if value is None:
+                        continue
                     if field == "soil_ph_min" and existing.soil_ph_max is not None:
                         if value is not None and value > existing.soil_ph_max:
                             continue
@@ -108,7 +110,10 @@ def import_snapshot(
                 existing.rotation_group = rotation_groups[row["rotation_group_id"]]
             plants[row["id"]] = existing
             continue
-        plant = PlantReference(**{field: row.get(field) for field in PLANT_FIELDS})
+        values = {field: row.get(field) for field in PLANT_FIELDS}
+        for field in ("common_name", "scientific_name", "family", "summary"):
+            values[field] = values[field] or ""
+        plant = PlantReference(**values)
         if row.get("rotation_group_id") is not None:
             plant.rotation_group = rotation_groups[row["rotation_group_id"]]
         db.session.add(plant)

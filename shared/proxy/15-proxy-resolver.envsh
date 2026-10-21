@@ -1,0 +1,3 @@
+#!/bin/sh
+# Use the runtime DNS server in Docker and cloud environments.
+export PROXY_DNS_RESOLVER="${PROXY_DNS_RESOLVER:-$(awk '/^nameserver / {print $2; exit}' /etc/resolv.conf)}"

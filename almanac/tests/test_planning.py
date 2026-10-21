@@ -413,7 +413,7 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
         assert plant.yield_qty is None
         assert plant.image.filename == "original.png"
         assert plant.planting_months[0].month_number == 3
-        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "007"
+        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "008"
         assert any(
             c["name"] == "ck_yield_qty_positive"
             for c in inspect(db.engine).get_check_constraints("plant_references")
@@ -598,3 +598,39 @@ def test_refresh_updates_old_problem_copy_but_preserves_custom_descriptions(app)
     refresh_garden_wording()
     assert mildew.description == "My local observations and management notes"
     assert refresh_garden_wording() == 0
+
+
+def test_startup_refreshes_existing_catalogue_and_survives_offline(tmp_path, monkeypatch):
+    config = {
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'restart.db'}",
+        "PLANT_IMAGE_FOLDER": str(tmp_path / "images"),
+        "LOAD_MY_GARDEN_SEED": True,
+    }
+    monkeypatch.setattr("app.fetch_snapshot", lambda *_: _public_snapshot())
+    first = create_app(config)
+    with first.app_context():
+        tomato = PlantReference.query.filter_by(slug="test-tomato").one()
+        tomato.summary = "Local edit"
+        db.session.commit()
+    calls = []
+    def refreshed(*_):
+        calls.append(True)
+        snapshot = _public_snapshot()
+        snapshot["tables"]["plant_references"].append({
+            "id": 999, "slug": "startup-new", "common_name": "New plant",
+            "scientific_name": "New species", "family": None, "summary": None,
+        })
+        return snapshot
+    monkeypatch.setattr("app.fetch_snapshot", refreshed)
+    second = create_app(config)
+    with second.app_context():
+        assert calls == [True]
+        assert PlantReference.query.filter_by(slug="startup-new").one().summary == ""
+        assert PlantReference.query.filter_by(slug="test-tomato").one().summary == "Local edit"
+    def offline(*_):
+        raise OSError("offline")
+    monkeypatch.setattr("app.fetch_snapshot", offline)
+    third = create_app(config)
+    with third.app_context():
+        assert PlantReference.query.filter_by(slug="startup-new").count() == 1

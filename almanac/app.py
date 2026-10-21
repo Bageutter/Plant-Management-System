@@ -1001,22 +1001,21 @@ def create_app(test_config: dict | None = None) -> Flask:
     with app.app_context():
         upgrade_schema()
         seed_lookups()
+        if app.config["LOAD_MY_GARDEN_SEED"]:
+            try:
+                import_snapshot(
+                    fetch_snapshot(
+                        app.config["MY_GARDEN_SEED_URL"],
+                        app.config["MY_GARDEN_SEED_TIMEOUT"],
+                    ),
+                    app.config["MY_GARDEN_IMAGE_BASE_URL"],
+                    add_missing=True,
+                )
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.warning("Could not refresh My Garden catalogue; keeping saved data: %s", exc)
         if not PlantReference.query.first():
-            imported = 0
-            if app.config["LOAD_MY_GARDEN_SEED"]:
-                try:
-                    imported = import_snapshot(
-                        fetch_snapshot(
-                            app.config["MY_GARDEN_SEED_URL"],
-                            app.config["MY_GARDEN_SEED_TIMEOUT"],
-                        ),
-                        app.config["MY_GARDEN_IMAGE_BASE_URL"],
-                    )
-                except Exception as exc:
-                    db.session.rollback()
-                    app.logger.warning("Could not load My Garden starter data: %s", exc)
-            if not imported:
-                seed_reference_data()
+            seed_reference_data()
 
     @app.cli.command("import-my-garden")
     def import_my_garden_command():

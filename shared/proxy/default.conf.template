@@ -26,24 +26,31 @@ map $http_x_forwarded_proto $client_scheme {
 proxy_read_timeout 300s;
 proxy_send_timeout 300s;
 
+resolver ${PROXY_DNS_RESOLVER} valid=10s ipv6=off;
+
 upstream frontend {
-    server ${FRONTEND_UPSTREAM};
+    zone frontend 64k;
+    server ${FRONTEND_UPSTREAM} resolve;
 }
 
 upstream auth {
-    server ${AUTH_UPSTREAM};
+    zone auth 64k;
+    server ${AUTH_UPSTREAM} resolve;
 }
 
 upstream vgarden {
-    server ${VGARDEN_UPSTREAM};
+    zone vgarden 64k;
+    server ${VGARDEN_UPSTREAM} resolve;
 }
 
 upstream health {
-    server ${HEALTH_UPSTREAM};
+    zone health 64k;
+    server ${HEALTH_UPSTREAM} resolve;
 }
 
 upstream almanac {
-    server ${ALMANAC_UPSTREAM};
+    zone almanac 64k;
+    server ${ALMANAC_UPSTREAM} resolve;
 }
 
 server {

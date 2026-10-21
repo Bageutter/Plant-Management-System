@@ -52,8 +52,10 @@ curl http://localhost:3000/almanac/health
 ### Import My Garden into an existing database
 
 The public source is [0melette/my_garden](https://github.com/0melette/my_garden).
-Startup only seeds an empty database. If this checkout already has the older
-starter plants, back up its database and explicitly import missing source data:
+Every startup fetches the public snapshot and adds missing plants, relationships
+and images while filling blank fields. Existing local values are preserved. If
+the source is unavailable, startup keeps the saved catalogue (or uses the built-in
+starter plants for an empty database). To refresh without restarting:
 
 ```bash
 docker compose exec almanac python -m flask --app app import-my-garden
