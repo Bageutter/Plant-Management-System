@@ -26,6 +26,7 @@ az deployment group create \
     imageTag="$IMAGE_TAG" \
     proxyMinReplicas="$PROXY_MIN_REPLICAS" \
     serviceMinReplicas="$SERVICE_MIN_REPLICAS" \
+    dependencyMinReplicas="${DEPENDENCY_MIN_REPLICAS:-1}" \
     aiEnabled="$CLOUD_AI_ENABLED" \
     mcpEnabled="$MCP_ENABLED" \
     ragEnabled="$RAG_ENABLED" \
