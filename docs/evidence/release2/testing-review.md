@@ -1,6 +1,6 @@
 # Testing review
 
-Run `review-testing-20261021-134337-18a37a` · verdict **ready_with_fixes** (from model) · human decision **pending** by `amy`
+Run `review-testing-20261021-134337-18a37a` · verdict **ready_with_fixes** (from model) · human decision **accept** by `amy`
 
 All pre-commit security and code quality checks passed, with no vulnerabilities or secrets detected. However, multiple services have untested endpoints, resulting in incomplete test coverage. These gaps represent a minor risk to long-term maintainability and reliability.
 
@@ -106,8 +106,8 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 
 ## Human decision
 
-- Decision: **pending** (choices: accept, partially_accept, reject)
-- Reason: No --decision given and no terminal to ask.
+- Decision: **accept** (choices: accept, partially_accept, reject)
+- Reason: The required tests pass; keep the six coverage gaps as follow-up improvements.
 
 ## Evidence and log
 
@@ -157,3 +157,15 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 - Review/validation log: `tools/ai-loop/logs/reports/review-testing/review-testing-20261021-134337-18a37a.md`
 
 _Reviews saved evidence; a passing review is not proof that every feature works._
+
+## Acceptance and follow-ups
+
+Amy explicitly accepted these results on 22 October 2026 (Sydney): required tests pass; retain the six coverage gaps as follow-ups. Testing Review is **passed/accepted with follow-ups**; the model verdict remains `ready_with_fixes` and the six warnings remain unchanged. This is not cloud or final group release approval.
+
+Parent: #94
+- #95: Virtual Garden (TS-40)
+- #96: Plant Almanac (TS-44)
+- #97: Plant Health (TS-46)
+- #98: MCP Server (TS-50)
+- #99: RAG Server (TS-52)
+- #100: Multi-Agent Server (TS-54)

@@ -797,9 +797,12 @@
   "verdict_source": "model",
   "iterations": 1,
   "human_review": {
-    "decision": "pending",
-    "reason": "No --decision given and no terminal to ask.",
-    "reviewer_id": "amy"
+    "decision": "accept",
+    "reason": "The required tests pass; keep the six coverage gaps as follow-up improvements.",
+    "reviewer_id": "amy",
+    "confirmed_at": "2026-10-21T14:16:03+00:00",
+    "source": "Explicit confirmation by Amy in this chat on 22 October 2026 (Australia/Sydney).",
+    "scope": "Testing Review only; not cloud deployment or whole-release approval."
   },
   "evidence_sources": [
     ".security-reports/20261021T134207Z-ruff-b8863770.json",
@@ -848,5 +851,49 @@
   ],
   "transcript": "tools/ai-loop/logs/reports/review-testing/review-testing-20261021-134337-18a37a.md",
   "scope": "Reviews saved evidence; a passing review is not proof that every feature works.",
-  "report": "docs/evidence/release2/testing-review.md"
+  "report": "docs/evidence/release2/testing-review.md",
+  "follow_up_issues": {
+    "parent": {
+      "number": 94,
+      "url": "https://github.com/Bageutter/Plant-Management-System/issues/94"
+    },
+    "children": [
+      {
+        "number": 95,
+        "url": "https://github.com/Bageutter/Plant-Management-System/issues/95",
+        "check": "TS-40",
+        "service": "Virtual Garden"
+      },
+      {
+        "number": 96,
+        "url": "https://github.com/Bageutter/Plant-Management-System/issues/96",
+        "check": "TS-44",
+        "service": "Plant Almanac"
+      },
+      {
+        "number": 97,
+        "url": "https://github.com/Bageutter/Plant-Management-System/issues/97",
+        "check": "TS-46",
+        "service": "Plant Health"
+      },
+      {
+        "number": 98,
+        "url": "https://github.com/Bageutter/Plant-Management-System/issues/98",
+        "check": "TS-50",
+        "service": "MCP Server"
+      },
+      {
+        "number": 99,
+        "url": "https://github.com/Bageutter/Plant-Management-System/issues/99",
+        "check": "TS-52",
+        "service": "RAG Server"
+      },
+      {
+        "number": 100,
+        "url": "https://github.com/Bageutter/Plant-Management-System/issues/100",
+        "check": "TS-54",
+        "service": "Multi-Agent Server"
+      }
+    ]
+  }
 }
