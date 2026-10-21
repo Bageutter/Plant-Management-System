@@ -47,6 +47,10 @@ param proxyMinReplicas int = 1
 @minValue(0)
 param serviceMinReplicas int = 0
 
+@description('auth and vgarden are called server-to-server (auth -> vgarden for every garden action, almanac -> auth for every page), so a cold start there surfaces as "could not reach" errors. Keep them warm by default.')
+@minValue(0)
+param dependencyMinReplicas int = 1
+
 // --- Optional bonus profile: all off for the required cloud baseline -------------
 param aiEnabled bool = false
 param ollamaUrl string = 'http://127.0.0.1:11434'
@@ -240,7 +244,7 @@ module auth 'modules/container-app.bicep' = {
     image: image.auth
     command: gunicorn
     probePath: '/login'
-    minReplicas: serviceMinReplicas
+    minReplicas: max(serviceMinReplicas, dependencyMinReplicas)
     secrets: [
       { name: 'secret-key', keyVaultUrl: secretUrl(vaultUri, 'auth-secret-key') }
       { name: 'database-url', keyVaultUrl: secretUrl(vaultUri, 'database-url-auth') }
@@ -270,7 +274,7 @@ module vgarden 'modules/container-app.bicep' = {
     image: image.vgarden
     command: gunicorn
     probePath: '/healthz'
-    minReplicas: serviceMinReplicas
+    minReplicas: max(serviceMinReplicas, dependencyMinReplicas)
     secrets: [
       { name: 'secret-key', keyVaultUrl: secretUrl(vaultUri, 'vgarden-secret-key') }
       { name: 'database-url', keyVaultUrl: secretUrl(vaultUri, 'database-url-vgarden') }
