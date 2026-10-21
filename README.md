@@ -44,7 +44,7 @@ orrrr just what you need (the `proxy` is what publishes port 3000, so include it
 
 ```bash
 docker compose up -d --build proxy auth vgarden
-docker compose up -d --build proxy auth ollama almanac
+docker compose up -d --build proxy auth almanac   # AI-Mode is the host's Ollama (`ollama serve`)
 ```
 
 Everything is served through the nginx proxy on **one port, 3000**, and path-routed:

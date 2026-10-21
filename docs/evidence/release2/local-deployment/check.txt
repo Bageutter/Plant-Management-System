@@ -1,0 +1,63 @@
+Local deployment check — 2026-10-21 10:07:39 UTC
+Commit 0a31150 on yunz/release2-evidence
+
+=== 1. Containers (docker compose)
+SERVICE    STATE     STATUS         PORTS
+almanac    running   Up 3 minutes   5000/tcp
+auth       running   Up 3 minutes   5000/tcp
+frontend   running   Up 3 minutes   5000/tcp
+health     running   Up 3 minutes   5000/tcp
+proxy      running   Up 3 minutes   0.0.0.0:3000->80/tcp, [::]:3000->80/tcp
+vgarden    running   Up 3 minutes   5000/tcp
+  PASS  proxy container is running
+  PASS  frontend container is running
+  PASS  auth container is running
+  PASS  vgarden container is running
+  PASS  almanac container is running
+  PASS  health container is running
+  PASS  no 'ollama' compose service (stays non-containerised)
+  PASS  no 'mcp' compose service (stays non-containerised)
+  PASS  no 'rag' compose service (stays non-containerised)
+  PASS  no 'multi-agent' compose service (stays non-containerised)
+
+=== 2. Non-containerised services on the host
+  port 11434 ollama pid 1041
+  port 5105  Python pid 1474
+  port 5106  Python pid 1476
+  port 8003  Python pid 1478
+  PASS  AI-Mode: Ollama version  (http://127.0.0.1:11434/api/version)
+        {"version":"0.35.0"}
+  PASS  AI-Mode: models loaded right now  (http://127.0.0.1:11434/api/ps)
+        qwen2.5vl:3b
+  PASS  MCP server  (http://127.0.0.1:5105/healthz)
+        {"service":"mcp-server","status":"ok","enabled":true,"version":"0.1.0","tools":["answer_question","assess_plant_health","get_almanac_plant","get_garden_snapshot","get_health_assessment","health_service_status","list_garden_plantings","list_health_assessments","refresh_corpus","retrieve_context","search_almanac_catalogue","summarise_plant_health_history"],"features":{"health":"http://127.0.0.1:3000/health","almanac":"http://127.0.0.1:3000/almanac","vgarden":"http://127.0.0.1:3000/vgarden"}}
+  PASS  RAG server  (http://127.0.0.1:5106/healthz)
+        {"ai":{"embed_model":"nomic-embed-text","model":"qwen3:4b-instruct","reachable":true,"url":"http://localhost:11434"},"chunks":0,"enabled":true,"service":"rag-server","sources":["almanac","health","vgarden"],"status":"ok"}
+  PASS  Multi-Agent Server  (http://127.0.0.1:8003/healthz)
+        {"service":"multi-agent-server","status":"ok"}
+
+=== 3. Frontend UI and backends through the proxy (http://127.0.0.1:3000)
+  PASS  frontend home page  (http://127.0.0.1:3000/ -> HTTP 200)
+  PASS  auth login page  (http://127.0.0.1:3000/auth/login -> HTTP 200)
+  PASS  vgarden health  (http://127.0.0.1:3000/vgarden/healthz -> HTTP 200)
+  PASS  almanac catalogue  (http://127.0.0.1:3000/almanac/ -> HTTP 200)
+  PASS  health records page  (http://127.0.0.1:3000/health/plant-health-records/ -> HTTP 200)
+  PASS  vgarden: AI integrations it is configured to use  (http://127.0.0.1:3000/vgarden/integrations)
+        {"mcp":{"enabled":true,"url":"http://host.docker.internal:5105/mcp"},"multi_agent":{"enabled":true,"url":"http://host.docker.internal:8003"},"rag":{"enabled":true,"url":"http://host.docker.internal:5106"}}
+  PASS  health: AI status  (http://127.0.0.1:3000/health/healthz)
+        {"ai":{"model":"qwen2.5vl:3b","preload":{"attempts":1,"detail":"loaded in 7.7s","duration_ms":7666,"loaded_at":"2026-10-21T10:04:07+00:00","status":"loaded"},"reachable":true,"url":"http://host.docker.internal:11434"},"service":"health-monitoring-service","status":"ok"}
+
+=== 4. Backends reach the host services from inside their containers
+  PASS  vgarden -> http://host.docker.internal:11434/api/version
+  PASS  vgarden -> http://host.docker.internal:5105/healthz
+  PASS  vgarden -> http://host.docker.internal:5106/healthz
+  PASS  almanac -> http://host.docker.internal:11434/api/version
+  PASS  almanac -> http://host.docker.internal:5105/healthz
+  PASS  almanac -> http://host.docker.internal:5106/healthz
+  PASS  health -> http://host.docker.internal:11434/api/version
+  PASS  health -> http://host.docker.internal:5105/healthz
+  PASS  health -> http://host.docker.internal:5106/healthz
+  PASS  vgarden -> http://host.docker.internal:8003/healthz
+
+=== Result
+All checks passed
