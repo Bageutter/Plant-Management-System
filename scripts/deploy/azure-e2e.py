@@ -4,11 +4,13 @@ The smoke test (azure-smoke.sh) proves pages answer. This goes further and
 exercises the features across services through the public URL, timing each step:
 
   auth + vgarden  register, add a garden (auth -> vgarden), see it on the account
-                  page (auth -> vgarden), open it (SSO handoff), add an area and a
-                  Tomato planting, see them on the garden page
+                  page, open it (SSO handoff), add an area and a Tomato planting,
+                  rename the garden, edit then delete the planting, delete the area,
+                  delete the garden (auth -> vgarden): full CRUD
   almanac         the catalogue is seeded; a logged-in visitor is recognised
-                  (almanac -> auth); the AI chat says it is switched off (baseline)
-  health          create a plant title, list it, delete it (CRUD without a model)
+                  (almanac -> auth); create, read, update and delete a plant
+  health          plant titles and records (saved "not assessed" with AI-Mode off):
+                  create, read, update, delete
   baseline        vgarden reports MCP, RAG and Multi-Agent disabled
 
 It creates a throwaway account and garden (kept, like the agentic-loop checks).
@@ -97,6 +99,47 @@ def main() -> int:
         check("Tomato" in html and "Validation bed" in html, "planting or area missing from the garden page")
     step("garden page shows the area and the planting", garden_page)
 
+    import re
+
+    ids: dict = {}
+    def form(path: str, fields: dict) -> tuple[int, str]:
+        from urllib import parse
+        req = request.Request(base + path, data=parse.urlencode(fields).encode(), method="POST")  # noqa: S310 -- https only
+        try:
+            with opener.open(req, timeout=60) as response:
+                return response.status, response.read().decode("utf-8", "replace")
+        except error.HTTPError as exc:
+            return exc.code, exc.read().decode("utf-8", "replace")
+
+    def garden_update():
+        new_name = f"{session.garden_name} (renamed)"
+        status, html = form(f"/vgarden/gardens/{session.garden_id}/edit",
+                            {"csrf_token": session.csrf_token, "name": new_name})
+        check(status == 200 and new_name in html, f"rename not shown (HTTP {status})")
+        session.garden_name = new_name
+        page = get(f"/vgarden/gardens/{session.garden_id}/view")[1]
+        ids["area"] = int(re.search(rf"/gardens/{session.garden_id}/areas/(\d+)", page).group(1))
+        ids["planting"] = int(re.search(rf"/gardens/{session.garden_id}/plantings/(\d+)", page).group(1))
+    step("vgarden: update the garden (rename)", garden_update)
+
+    def planting_update_delete():
+        base_path = f"/vgarden/gardens/{session.garden_id}/plantings/{ids['planting']}"
+        status, html = form(f"{base_path}/edit", {
+            "csrf_token": session.csrf_token, "crop_name": "Cherry tomato", "quantity": "5",
+            "lifecycle_state": "growing", "garden_area_id": str(ids["area"]), "pos_x": "0", "pos_y": "0"})
+        check(status == 200 and "Cherry tomato" in html, f"planting edit not shown (HTTP {status})")
+        status, html = form(f"{base_path}/delete", {"csrf_token": session.csrf_token})
+        check(status == 200, f"delete: HTTP {status}")
+        check("Cherry tomato" not in get(f"/vgarden/gardens/{session.garden_id}/view")[1], "planting still listed")
+    step("vgarden: update then delete the planting", planting_update_delete)
+
+    def area_delete():
+        status, _ = form(f"/vgarden/gardens/{session.garden_id}/areas/{ids['area']}/delete",
+                         {"csrf_token": session.csrf_token})
+        check(status == 200, f"HTTP {status}")
+        check("Validation bed" not in get(f"/vgarden/gardens/{session.garden_id}/view")[1], "area still listed")
+    step("vgarden: delete the area", area_delete)
+
     # almanac
     def catalogue():
         status, body = get("/almanac/api/plants", "application/json")
@@ -112,6 +155,24 @@ def main() -> int:
         # A logged-in visitor gets the "+ Add a plant" button (only shown with auth_user).
         check("+ Add a plant" in html, "almanac did not recognise the logged-in user")
     step("almanac recognises the logged-in user (almanac -> auth)", almanac_knows_user)
+
+    plant: dict = {}
+
+    def almanac_crud():
+        name = f"E2E Basil {session.garden_id}"
+        status, body = send("POST", "/almanac/api/plants", {"common_name": name, "scientific_name": "Ocimum basilicum"})
+        check(status == 201, f"create: HTTP {status}: {body[:200]}")
+        plant.update(json.loads(body))
+        slug = plant["slug"]
+        status, body = send("PATCH", f"/almanac/api/plants/{slug}", {"summary": "Updated by the e2e check."})
+        check(status == 200 and json.loads(body).get("summary") == "Updated by the e2e check.", f"update: HTTP {status}")
+        status, body = get(f"/almanac/api/plants/{slug}", "application/json")
+        check(status == 200 and json.loads(body)["common_name"] == name, f"read: HTTP {status}")
+        status, body = send("DELETE", f"/almanac/api/plants/{slug}")
+        check(status in (200, 204), f"delete: HTTP {status}: {body[:200]}")
+        check(get(f"/almanac/api/plants/{slug}", "application/json")[0] == 404, "plant still readable after delete")
+        return f"plant {slug}: created, updated, read, deleted"
+    step("almanac: create, update, read and delete a plant (as the logged-in user)", almanac_crud)
 
     # health: CRUD without any model call
     created: dict = {}
@@ -149,9 +210,22 @@ def main() -> int:
     def health_record_read_delete():
         status, _ = get(f"/health/plant-health-records/assessments/{record['id']}", "application/json")
         check(status == 200, f"read: HTTP {status}")
+        status, body = send("PATCH", f"/health/plant-health-records/assessments/{record['id']}",
+                            {"description": "Wilting at noon; soil dry."})
+        check(status == 200 and "soil dry" in body, f"update: HTTP {status}: {body[:200]}")
         status, body = send("DELETE", f"/health/plant-health-records/assessments/{record['id']}")
         check(status in (200, 204), f"delete: HTTP {status}: {body[:200]}")
-    step("health: read and delete the record", health_record_read_delete)
+    step("health: read, update and delete the record", health_record_read_delete)
+
+    def garden_delete():
+        status, html = get("/auth/account")
+        token = session._csrf(html)
+        status, html = form(f"/auth/gardens/{session.garden_id}/delete",
+                            {"csrf_token": token, "confirm_name": session.garden_name})
+        check(status == 200, f"HTTP {status}")
+        check(session.garden_name not in get("/auth/account")[1], "garden still on the account page")
+        check(get(f"/vgarden/gardens/{session.garden_id}/view")[0] in (403, 404), "garden still opens in vgarden")
+    step("auth + vgarden: delete the garden (auth -> vgarden)", garden_delete)
 
     # cloud baseline
     def baseline():
