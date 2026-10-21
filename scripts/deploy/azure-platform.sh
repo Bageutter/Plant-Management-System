@@ -27,9 +27,15 @@ secret_value() { # secret-name  env-override-name  generator
     value=$($3)
     echo "    generated new value for $name" >&2
   fi
-  # Keep it out of the Actions log even if something echoes it later.
-  [[ -n ${GITHUB_ACTIONS:-} ]] && echo "::add-mask::$value"
+  # Only the value goes to stdout: callers capture it with $(...). (The Actions
+  # "::add-mask::" line used to be printed here too, so it was captured into the
+  # secret itself and every CI deploy wrote a new, longer value: the database
+  # password then no longer matched the server.) Masking happens in mask() below.
   printf '%s' "$value"
+}
+mask() { # keep a value out of the GitHub Actions log; must not run inside $(...)
+  [[ -n ${GITHUB_ACTIONS:-} ]] && printf '::add-mask::%s\n' "$1"
+  return 0
 }
 random_key() { openssl rand -hex 32; }
 # PostgreSQL wants 8-128 chars from at least three character classes.
@@ -40,6 +46,9 @@ auth_secret=$(secret_value auth-secret-key AUTH_SECRET_KEY random_key)
 vgarden_secret=$(secret_value vgarden-secret-key VGARDEN_SECRET_KEY random_key)
 almanac_secret=$(secret_value almanac-secret-key ALMANAC_SECRET_KEY random_key)
 inter_service_secret=$(secret_value inter-service-secret INTER_SERVICE_SECRET random_key)
+for value in "$postgres_password" "$auth_secret" "$vgarden_secret" "$almanac_secret" "$inter_service_secret"; do
+  mask "$value"
+done
 
 # Secure parameters travel in a private temp file, never on the command line.
 # Create the PostgreSQL server only on the first run; afterwards reference it (see
