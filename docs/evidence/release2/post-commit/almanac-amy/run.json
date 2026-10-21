@@ -1,0 +1,15 @@
+{
+  "workflow": "Plant Almanac (Amy)",
+  "owner": "Amy Zhou",
+  "service": "almanac",
+  "workflow_file": ".github/workflows/plant_almanac.yml",
+  "event": "push",
+  "source_sha": "02b2deabd0a076846d6c8a71e28097426c2c005a",
+  "tested_sha": "02b2deabd0a076846d6c8a71e28097426c2c005a",
+  "run_url": "https://github.com/Bageutter/Plant-Management-System/actions/runs/39624128438",
+  "python": "3.12.15",
+  "endpoint_functions": {
+    "catalogue_api.search": "GET /api/catalogue",
+    "catalogue_api.plant": "GET /api/catalogue/plant/<slug>"
+  }
+}
