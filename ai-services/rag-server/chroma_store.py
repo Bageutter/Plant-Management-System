@@ -16,6 +16,7 @@ from pathlib import Path
 import chromadb
 from chromadb.config import Settings
 from store import Chunk
+from embeddings import DETERMINISTIC_MODEL, DETERMINISTIC_DIMENSIONS
 
 
 class ChromaStore:
@@ -35,6 +36,8 @@ class ChromaStore:
     def replace_source(self, source, chunks, documents):
         with self.lock:
             dimensions = {len(c.embedding or []) for c in chunks}
+            if chunks and self.model == DETERMINISTIC_MODEL and dimensions != {DETERMINISTIC_DIMENSIONS}:
+                raise ValueError('Deterministic embeddings require 256 dimensions; previous index retained.')
             if chunks and (0 in dimensions or len(dimensions) != 1 or any(
                 not all(math.isfinite(v) for v in c.embedding) or not any(c.embedding) for c in chunks
             )):
