@@ -40,7 +40,8 @@ check_url() { # path  [expected substring]
 
 check_url "/" "Plant"
 check_url "/auth/login" "Log"
-check_url "/vgarden/healthz" '"service": "vgarden"'
+# gunicorn's compact JSON ({"service":"vgarden"}) and Flask's dev server's pretty JSON both match.
+check_url "/vgarden/healthz" '"service": *"vgarden"'
 check_url "/almanac/" ""
 check_url "/health/plant-health-records/" "Plant Health Records"
 
@@ -52,8 +53,16 @@ echo "==> internal service addresses are not reachable from the internet"
 if command -v az >/dev/null && az account show -o none 2>/dev/null; then
   for fqdn in $(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n "$APPS_DEPLOYMENT" \
     --query "properties.outputs.internalFqdns.value.*" -o tsv 2>/dev/null | tr -d '\r'); do
-    code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 "https://$fqdn/" || true)
-    [[ $code == 000 ]] || fail "$fqdn answered $code from the internet"
+    # Unreachable is either no answer at all (000) or the environment edge's own
+    # "Azure Container App - Unavailable" page: the internal app itself never answers.
+    # Anything else (the app's own page) means it is exposed.
+    body=$(curl --silent --max-time 15 --write-out '\n%{http_code}' "https://$fqdn/" || true)
+    code=${body##*$'\n'}
+    if [[ $code == 000 ]] || { [[ $code == 404 ]] && grep -q "Azure Container App - Unavailable" <<<"$body"; }; then
+      echo "    $fqdn: not reachable from the internet ($code)"
+    else
+      fail "$fqdn answered $code from the internet"
+    fi
   done
 else
   echo "    (skipped: not signed in to Azure, cannot read the internal addresses)"
