@@ -167,6 +167,13 @@ The review/validation log for each run is in the usual places:
 step the verdict came from, and the human decision. Exit code `0` means every
 check passed.
 
+Testing Review applies a combined security scan to every service named in its
+file scope. The report labels combined results: a passing combined scan covers
+all listed services; a failing combined scan remains a failure for each until
+more specific evidence resolves it. Combined finding counts are not per-service
+counts. Fresh full scans are labelled `trigger report`; they do not replace
+proof of each student's actual commit-triggered hooks.
+
 The `testing` and `cloud-deployment` modes read GitHub Actions through its public API,
 which allows 60 requests an hour without signing in (one `testing` run uses about 14).
 Set `GITHUB_TOKEN` to a read-only token to raise that to 5,000; it is only sent to

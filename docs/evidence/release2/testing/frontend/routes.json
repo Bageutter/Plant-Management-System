@@ -1,12 +1,12 @@
 {
   "service": "shared/frontend",
-  "generated_at": "2026-10-21T10:17:15+00:00",
-  "commit": "48fcee1",
-  "test_command": null,
-  "exit_code": null,
-  "line_coverage_percent": null,
+  "generated_at": "2026-10-21T13:42:10+00:00",
+  "commit": "228fec3",
+  "test_command": "coverage run -m pytest -q tests",
+  "exit_code": 0,
+  "line_coverage_percent": 98.0,
   "endpoints": 1,
-  "endpoints_tested": 0,
+  "endpoints_tested": 1,
   "routes": [
     {
       "kind": "http",
@@ -21,7 +21,7 @@
         22,
         27
       ],
-      "tested": false
+      "tested": true
     }
   ]
 }
