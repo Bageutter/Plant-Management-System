@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ record.name }} — Almanac{% endblock %}
+{% block extra_head %}
+<style>
+.ailment-detail .guide-hero h1 { position:relative; z-index:1; margin:.65rem 0 1rem; font-size:clamp(2rem,5vw,3.5rem); line-height:1.1; }
+.ailment-photo { margin:1.5rem 0; overflow:hidden; border:1px solid hsl(var(--border)); border-radius:1rem; background:hsl(var(--card)); }
+.ailment-photo-frame { display:flex; align-items:center; justify-content:center; height:clamp(15rem,42vw,25rem); padding:1rem; background:hsl(80 22% 95%); }
+.ailment-photo img { display:block; width:100%; height:100%; object-fit:contain; border-radius:.5rem; }
+.ailment-photo figcaption { padding:1rem 1.25rem; border-top:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:.8rem; line-height:1.6; }
+.ailment-photo figcaption a { text-decoration:underline; text-underline-offset:3px; }
+</style>
+{% endblock %}
+{% block content %}
+<article class="ailment-detail" style="max-width:58rem;margin:auto">
+<a href="{{ url_for('ailment_index') }}">← Plant ailments</a>
+<header class="guide-hero" style="margin-top:1.5rem"><p class="tag">{{ record.category }}</p><h1>{{ record.name }}</h1><p>{{ record.description }}</p></header>
+{% if record.payload.image %}
+<figure class="ailment-photo">
+<div class="ailment-photo-frame"><img src="{{ url_for('ailment_photo', ailment_id=record.id) }}" alt="{{ record.payload.image.caption }}"></div>
+<figcaption>{{ record.payload.image.caption }} · {{ record.payload.image.creator }}{% if record.payload.image.license_url %} · <a href="{{ record.payload.image.license_url }}">{{ record.payload.image.license }}</a>{% endif %}{% if record.payload.image.description_url %} · <a href="{{ record.payload.image.description_url }}">Photo source</a>{% endif %}</figcaption>
+</figure>
+{% endif %}
+{% for label, key in [('Visible signs','signs'),('Similar-looking problems','similar'),('Checks to make','checks'),('First actions and prevention','actions'),('Affected plants','affected_plants')] %}
+{% if record.payload[key] %}<section class="guide-section" style="margin-top:1rem"><h2>{{ label }}</h2><p>{{ record.payload[key] }}</p></section>{% endif %}
+{% endfor %}
+{% if causes %}<section class="guide-section"><h2>Possible causes</h2><ul>{% for cause in causes %}<li><a href="{{ url_for('ailment_detail',ailment_id=cause.id) }}">{{ cause.name }}</a></li>{% endfor %}</ul></section>{% endif %}
+{% if record.payload.sources %}<section class="guide-section"><h2>Sources</h2><ul>{% for source in record.payload.sources %}<li><a href="{{ source.url }}">{{ source.title }}</a></li>{% endfor %}</ul></section>{% endif %}
+</article>{% endblock %}

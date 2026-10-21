@@ -41,6 +41,42 @@ class AlmanacCrudTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_shared_chat_on_reference_pages(self):
+        for path in ["/", "/pests", "/diseases", "/plants/new"]:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data.count(b'id="ai-chat-panel"'), 1)
+                self.assertIn(b'id="validation-report-dialog"', response.data)
+        self.auth.user = None
+        response = self.client.get("/diseases")
+        self.assertIn(b"Log in to ask the Almanac", response.data)
+        self.assertNotIn(b'id="ai-chat-panel"', response.data)
+
+    def test_ailment_import_search_and_symptom_links(self):
+        from extensions import db
+        from models import Ailment
+        from public_seed import import_snapshot
+        snapshot = {"snapshot_format": 1, "tables": {"plant_references": [], "ailments": [
+            {"id": 3001, "name": "Underwatering", "category": "environment", "description": "Check soil moisture", "checks": "Check below the surface"},
+            {"id": 5001, "name": "Wilting", "category": "symptom", "possible_causes": ["Water and environment/Underwatering"]},
+            {"id": 1001, "name": "Powdery mildew", "category": "disease"}]}}
+        with self.app.app_context():
+            import_snapshot(snapshot, add_missing=True)
+            item = db.session.get(Ailment, 3001)
+            item.description = "Local wording"
+            db.session.commit()
+            import_snapshot(snapshot, add_missing=True)
+            self.assertEqual(Ailment.query.count(), 3)
+            self.assertEqual(db.session.get(Ailment, 3001).description, "Local wording")
+        response = self.client.get("/api/catalogue?kind=ailment&q=underwatering")
+        self.assertEqual(response.json["items"][0]["id"], 3001)
+        self.assertIn(b'/ailments/3001', self.client.get("/ailments/5001").data)
+        self.assertIn(b'id="ai-chat-panel"', self.client.get("/ailments/3001").data)
+        guide = self.client.get("/api/catalogue/ailment/3001").json["guide"]
+        self.assertEqual(guide["control_steps"][0]["body"], "Check below the surface")
+        self.assertNotIn(1001, [x["id"] for x in self.client.get("/api/catalogue?kind=ailment").json["items"]])
+
     # -- create -------------------------------------------------------------
 
     def test_logged_out_user_cannot_reach_the_new_form(self):

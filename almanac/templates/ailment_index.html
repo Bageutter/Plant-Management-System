@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Plant ailments — Almanac{% endblock %}
+{% block content %}
+<div style="max-width:66rem;margin:auto">
+<h1>Plant ailments</h1><p>Diseases, pests, water and environmental stress, nutrient problems, and symptoms. Check possible causes before treating.</p>
+<div class="problem-list">
+{% for record in records %}
+<a class="planning-card card-interactive" href="{{ url_for('ailment_detail', ailment_id=record.id) }}">
+{% if record.payload.image %}<img src="{{ url_for('ailment_photo', ailment_id=record.id) }}" alt="{{ record.payload.image.caption }}" loading="lazy" style="width:100%;height:12rem;object-fit:cover;border-radius:.6rem">{% endif %}
+<p class="tag">{{ record.category }}</p><h2>{{ record.name }}</h2><p>{{ record.payload.signs or record.description }}</p>
+</a>
+{% else %}<p>No ailment guides imported yet.</p>{% endfor %}
+</div></div>
+{% endblock %}
