@@ -1,10 +1,10 @@
 {
   "service": "health",
-  "generated_at": "2026-10-21T14:42:12+00:00",
-  "commit": "1505d8b",
+  "generated_at": "2026-10-21T14:45:27+00:00",
+  "commit": "6fe67f1",
   "test_command": "coverage run -m pytest -q tests",
   "exit_code": 0,
-  "line_coverage_percent": 91.9,
+  "line_coverage_percent": 92.0,
   "endpoints": 32,
   "endpoints_tested": 32,
   "routes": [

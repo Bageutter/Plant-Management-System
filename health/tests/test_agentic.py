@@ -267,7 +267,7 @@ def test_regenerate_stream_emits_done_and_keeps_the_original(client, fake_ai):
     assert len(client.get("/plant-health-records/assessments").get_json()) == 2
 
 
-def test_regenerate_stream_reports_missing_assessment_and_source_as_sse_errors(client):
+def test_regenerate_stream_reports_missing_assessment_and_source_as_sse_errors(client, fake_ai):
     missing = client.post("/plant-health-records/assessments/999/regenerate/stream")
     assert missing.status_code == 200 and missing.mimetype == "text/event-stream"
     missing_event = json.loads(missing.get_data(as_text=True)[6:])
@@ -283,6 +283,21 @@ def test_regenerate_stream_reports_missing_assessment_and_source_as_sse_errors(c
     source_error = json.loads(invalid_source.get_data(as_text=True)[6:])
     assert source_error["type"] == "error"
     assert "neither a description nor a stored photo" in source_error["message"]
+
+    available_source = make_assessment(client)
+    fake_ai.reachable = False
+    unavailable = client.post(
+        f"/plant-health-records/assessments/{available_source['id']}/regenerate/stream"
+    )
+    assert unavailable.status_code == 200 and unavailable.mimetype == "text/event-stream"
+    unavailable_events = [
+        json.loads(part[6:])
+        for part in unavailable.get_data(as_text=True).split("\n\n")
+        if part.startswith("data: ")
+    ]
+    unavailable_event = next(event for event in unavailable_events if event["type"] == "error")
+    assert unavailable_event["type"] == "error"
+    assert "Could not reach the local AI instance" in unavailable_event["message"]
 
 
 def test_deleting_an_assessment_removes_its_loop_run(app, client):
