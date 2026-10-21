@@ -1,12 +1,12 @@
 {
   "service": "ai-services/rag-server",
-  "generated_at": "2026-10-21T13:42:25+00:00",
-  "commit": "228fec3",
+  "generated_at": "2026-10-21T14:26:04+00:00",
+  "commit": "fe59115",
   "test_command": "coverage run -m pytest -q tests",
   "exit_code": 0,
-  "line_coverage_percent": 82.6,
+  "line_coverage_percent": 83.4,
   "endpoints": 6,
-  "endpoints_tested": 5,
+  "endpoints_tested": 6,
   "routes": [
     {
       "kind": "http",
@@ -96,7 +96,7 @@
         215,
         236
       ],
-      "tested": false
+      "tested": true
     }
   ]
 }
