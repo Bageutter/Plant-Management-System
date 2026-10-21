@@ -158,6 +158,30 @@ MCP/RAG validation modes run from `tools/ai-loop/validate.py --feature {almanac,
 register → create-garden → SSO-handoff flow before validating its owner-scoped
 MCP/RAG routes (see [`tools/ai-loop/README.md`](tools/ai-loop/README.md#release-1-validate-mcp-and-rag-through-the-feature)).
 
+## Release 2: shared Multi-Agent Server, commit checks, endpoint CI
+
+Release 2 keeps the Release 1 servers and adds one shared, non-containerised **Multi-Agent
+Server** (`ai-services/multi-agent-server/`, Planner → Worker → Reviewer → Human Review)
+that every feature calls through its own backend, local **pre-commit security checks**,
+per-student **post-commit endpoint tests**, three **agentic-loop review modes**, and the
+Azure deployment described above.
+
+```bash
+python ai-services/multi-agent-server/app.py      # http://127.0.0.1:8003  (+ /healthz, /dashboard)
+# Linux/WSL docker engine: containers reach the host at 172.17.0.1, so bind all interfaces
+MULTI_AGENT_HOST=0.0.0.0 python ai-services/multi-agent-server/app.py
+```
+
+| | Where |
+| --- | --- |
+| Multi-Agent flows (UI and terminal) | Plant Health: *Agent workflow* panel on the records page, `bash scripts/test/multi-agent-health.sh "<plant>"`. Virtual Garden: panel on each garden page, `bash scripts/test/multi-agent-vgarden.sh`. Plant Almanac: through the server API / `python ai-services/multi-agent-server/application_integration.py almanac "<task>"` |
+| Server contract, sources, audit | [`ai-services/multi-agent-server/README.md`](ai-services/multi-agent-server/README.md) |
+| Pre-commit checks (Ruff S, detect-secrets, pip-audit, feature tests) | `python scripts/security/install.py <service>`; evidence page with `python scripts/security/report.py <service> --owner "<name>" --out docs/evidence/release2/pre-commit-<name>.md` |
+| Post-commit endpoint tests per student | [`.github/README.md`](.github/README.md) (`plant_almanac.yml`, `vgarden.yml`, `health.yml`) |
+| Agentic-loop review modes | `tools/ai-loop/validate.py --mode multi-agent|testing|cloud-deployment` ([`tools/ai-loop/README.md`](tools/ai-loop/README.md)) |
+| Switch (CI and cloud baseline set `false`) | `MULTI_AGENT_ENABLED`, alongside `MCP_ENABLED` / `RAG_ENABLED` |
+| Diagrams, evidence, report | [`docs/architecture/`](docs/architecture/README.md), [`docs/evidence/release2/`](docs/evidence/release2/README.md), [`docs/report/`](docs/report/release2-group-report.md) |
+
 ## Agentic AI workflow
 
 The almanac and virtual-garden chat answers run through an explicit

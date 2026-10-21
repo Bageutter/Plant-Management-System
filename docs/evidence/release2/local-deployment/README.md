@@ -24,3 +24,9 @@ bash scripts/test/local-deployment-check.sh | tee docs/evidence/release2/local-d
 
 The RAG index starts empty (`"chunks": 0` in `check.txt`) on a fresh database; sync
 each feature's source from its integrations page before using RAG questions.
+
+A second run on Windows/WSL (Guhan Sundar), with one terminal per service and a full
+Plant Health walkthrough — AI-Mode assessments, an MCP tool, a RAG answer, and the
+Planner → Worker → Reviewer → Human Review workflow through the health backend from the
+terminal and from the records page — is in
+[`health-guhan/`](health-guhan/README.md).

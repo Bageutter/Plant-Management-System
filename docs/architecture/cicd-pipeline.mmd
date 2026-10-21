@@ -1,0 +1,43 @@
+%% DevOps / CI-CD flow: source control → pre-commit security scans → GitHub Actions → post-commit endpoint tests → Docker build/validation → cloud-deployment.yml → Azure.
+%% Render: npx mmdc -i cicd-pipeline.mmd -o cicd-pipeline.svg
+flowchart LR
+    DEV["Developer laptop<br/>feature branch"]
+
+    subgraph PRE["Local pre-commit (git commit) · .pre-commit-config.yaml"]
+        S1["Ruff security rules<br/>(ruff --select S)"]
+        S2["detect-secrets<br/>(.secrets.baseline)"]
+        S3["pip-audit<br/>(service requirements)"]
+        S4["Assigned feature tests<br/>(pytest, AI services off)"]
+        EV1[".security-reports/*.json<br/>→ docs/evidence/release2/pre-commit/"]
+    end
+
+    PUSH["git push → pull request → review → merge to main"]
+
+    subgraph GHA["GitHub Actions (post-commit)"]
+        subgraph STUDENT["Per-student workflows (student-x.yml)"]
+            WA["plant_almanac.yml (Amy)<br/>catalogue_api.search · catalogue_api.plant"]
+            WY["vgarden.yml (Yunus)<br/>routes.create_garden · routes.garden_snapshot"]
+            WG["health.yml (Guhan)<br/>routes.create_assessment · routes.list_assessments"]
+        end
+        ART["JUnit + logs + run.json<br/>30-day artifacts"]
+        SHARED["ruff.yml · integration-ci.yml<br/>lint every service · compose smoke"]
+        subgraph CD["cloud-deployment.yml (push to main)"]
+            G1["Gate · Ruff + compile"] --> G2["Gate · endpoint tests ×4 services"] --> G3["Gate · Docker build + compose smoke<br/>(MCP/RAG/Multi-Agent off)"] --> GATE{{"azure-production environment<br/>required reviewers = human release decision"}}
+        end
+    end
+
+    subgraph DEPLOY["Deploy (scripts/deploy/azure-*.sh + infra/*.bicep)"]
+        D1["azure-platform.sh<br/>main.bicep: VNet, PostgreSQL, Key Vault, ACR, Files, Log Analytics, environment"] --> D2["azure-build-push.sh<br/>6 images :sha → ACR"] --> D3["azure-apps.sh<br/>apps.bicep: 6 container apps"] --> D4["azure-smoke.sh<br/>HTTPS checks · /integrations report AI off"] --> D5["azure-report.sh<br/>docs/evidence/release2/cloud-deployment/*.md,json"]
+    end
+
+    REV["Shared agentic loop<br/>Testing Report Review · Cloud Deployment Report Review<br/>→ review/validation logs"]
+
+    DEV --> S1 & S2 & S3 & S4
+    S1 & S2 & S3 & S4 --> EV1
+    S1 & S2 & S3 & S4 -- "all pass" --> PUSH
+    PUSH --> WA & WY & WG & SHARED
+    WA & WY & WG --> ART
+    PUSH -- "merge to main" --> G1
+    GATE -- "approved" --> D1
+    D5 --> AZ[("Azure Container Apps<br/>integrated application, AI disabled by default")]
+    ART & EV1 & D5 --> REV

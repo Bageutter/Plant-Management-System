@@ -1,0 +1,17 @@
+{
+  "mcp": {
+    "enabled": true,
+    "reachable": true,
+    "url": "http://host.docker.internal:5105/mcp"
+  },
+  "multi_agent": {
+    "enabled": true,
+    "reachable": true,
+    "url": "http://host.docker.internal:8003"
+  },
+  "rag": {
+    "enabled": true,
+    "reachable": true,
+    "url": "http://host.docker.internal:5106"
+  }
+}
