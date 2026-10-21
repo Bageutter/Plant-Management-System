@@ -58,6 +58,10 @@ class AlmanacAIModeTests(unittest.TestCase):
                 "SQLALCHEMY_DATABASE_URI": f"sqlite:///{os.path.join(self.temp_dir.name, 'a.db')}",
                 "AI_LOOP_LOG_DIR": os.path.join(self.temp_dir.name, "ai-loop-logs"),
                 "AI_LOOP_MAX_ITERATIONS": 2,
+                # These tests drive the RAG/MCP chat modes with a mocked reference call;
+                # CI exports MCP_ENABLED/RAG_ENABLED=false, so switch them on here.
+                "MCP_ENABLED": True,
+                "RAG_ENABLED": True,
             }
         )
         self.auth = FakeAuthClient({"id": 1, "email": "amy@example.com"})
