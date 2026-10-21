@@ -900,5 +900,27 @@
         "service": "Multi-Agent Server"
       }
     ]
+  },
+  "follow_up_evidence": {
+    "check": "TS-40",
+    "status": "pass",
+    "verified_at": "2026-10-21T14:28:12+00:00",
+    "source_commit": "a3982a4",
+    "command": "python3 scripts/test/collect-test-evidence.py vgarden",
+    "test_results": {
+      "tests": 139,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "line_coverage_percent": 95.7,
+    "endpoints": 36,
+    "endpoints_tested": 36,
+    "resolved_routes": [
+      "GET /healthz",
+      "GET /gardens"
+    ],
+    "live_model_or_cloud_dependencies": false,
+    "evidence": "docs/evidence/release2/testing/vgarden/routes.json"
   }
 }
