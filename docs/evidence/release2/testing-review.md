@@ -50,8 +50,8 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 | TS-40 | Every vgarden endpoint is exercised by a test | ⚠️ warn | 34/36 endpoints run by the tests; not exercised: GET /healthz, GET /gardens. Line coverage 95.5%. |
 | TS-41 | auth tests pass | ✅ pass | 32 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
 | TS-42 | Every auth endpoint is exercised by a test | ✅ pass | 8/8 endpoints run by the tests. Line coverage 95.5%. |
-| TS-43 | almanac tests pass | ✅ pass | 104 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
-| TS-44 | Every almanac endpoint is exercised by a test | ⚠️ warn | 30/33 endpoints run by the tests; not exercised: GET /ailments, GET /ailments/<int:ailment_id>/photo, GET /health. Line coverage 91.6%. |
+| TS-43 | almanac tests pass | ✅ pass | 103 tests + 4 subtests: 0 failures, 0 errors, 0 skipped (fresh local evidence, commit 1f9b892). |
+| TS-44 | Every almanac endpoint is exercised by a test | ✅ pass | 33/33 endpoints run by the tests. Line coverage 92.2% (fresh local evidence, commit 1f9b892). |
 | TS-45 | health tests pass | ✅ pass | 97 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
 | TS-46 | Every health endpoint is exercised by a test | ⚠️ warn | 31/32 endpoints run by the tests; not exercised: POST /assessments/<int:assessment_id>/regenerate/stream. Line coverage 91.5%. |
 | TS-47 | shared/frontend tests pass | ✅ pass | 3 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
@@ -69,7 +69,7 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 | --- | --- | --- | --- | --- | --- | --- |
 | `vgarden` | 137 | 0 | 0 | 0 | 95.5% | 34/36 |
 | `auth` | 32 | 0 | 0 | 0 | 95.5% | 8/8 |
-| `almanac` | 104 | 0 | 0 | 0 | 91.6% | 30/33 |
+| `almanac` | 103 + 4 subtests | 0 | 0 | 0 | 92.2% | 33/33 |
 | `health` | 97 | 0 | 0 | 0 | 91.5% | 31/32 |
 | `shared/frontend` | 3 | 0 | 0 | 0 | 98.0% | 1/1 |
 | `ai-services/mcp-server` | 42 | 0 | 0 | 0 | 94.9% | 12/13 |
@@ -79,7 +79,6 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 ### Endpoints no test exercises
 
 - **`vgarden`**: `GET /healthz (vgarden/routes.py:93)`, `GET /gardens (vgarden/routes.py:212)`
-- **`almanac`**: `GET /ailments (almanac/app.py:481)`, `GET /ailments/<int:ailment_id>/photo (almanac/app.py:486)`, `GET /health (almanac/app.py:1027)`
 - **`health`**: `POST /assessments/<int:assessment_id>/regenerate/stream (health/routes.py:389)`
 - **`ai-services/mcp-server`**: `GET /healthz (ai-services/mcp-server/server.py:60)`
 - **`ai-services/rag-server`**: `POST /rag/retrieve (ai-services/rag-server/routes.py:213)`
@@ -88,7 +87,6 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 ## Findings
 
 - **TS-40** (minor): 34 out of 36 endpoints in vgarden are exercised by tests; endpoints GET /healthz and GET /gardens are not tested. Line coverage is 95.5% (warn).
-- **TS-44** (minor): 30 out of 33 endpoints in almanac are exercised by tests; endpoints GET /ailments, GET /ailments/<int:ailment_id>/photo, and GET /health are not tested. Line coverage is 91.6% (warn).
 - **TS-46** (minor): 31 out of 32 endpoints in health are exercised by tests; endpoint POST /assessments/<int:assessment_id>/regenerate/stream is not tested. Line coverage is 91.5% (warn).
 - **TS-50** (minor): 12 out of 13 endpoints in ai-services/mcp-server are exercised by tests; endpoint GET /healthz is not tested. Line coverage is 94.9% (warn).
 - **TS-52** (minor): 5 out of 6 endpoints in ai-services/rag-server are exercised by tests; endpoint POST /rag/retrieve is not tested. Line coverage is 82.6% (warn).
@@ -97,7 +95,6 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 ## Recommendations
 
 - Add test coverage for the missing endpoints in vgarden (GET /healthz, GET /gardens) to ensure full endpoint coverage and maintain 100% test coverage for all routes.
-- Implement tests for the untested endpoints in almanac (GET /ailments, GET /ailments/<int:ailment_id>/photo, GET /health) to improve test coverage and reliability.
 - Develop and execute tests for the missing endpoint in health (POST /assessments/<int:assessment_id>/regenerate/stream) to ensure all functionality is validated.
 - Add test cases for the untested endpoint in ai-services/mcp-server (GET /healthz) to ensure complete coverage of the service.
 - Create test cases for the missing endpoint in ai-services/rag-server (POST /rag/retrieve) to address low line coverage and improve service reliability.
@@ -160,7 +157,7 @@ _Reviews saved evidence; a passing review is not proof that every feature works.
 
 ## Acceptance and follow-ups
 
-Amy explicitly accepted these results on 22 October 2026 (Sydney): required tests pass; retain the six coverage gaps as follow-ups. Testing Review is **passed/accepted with follow-ups**; the model verdict remains `ready_with_fixes` and the six warnings remain unchanged. This is not cloud or final group release approval.
+Amy explicitly accepted the original results on 22 October 2026 (Sydney): required tests pass; retain the six coverage gaps as follow-ups. Fresh local evidence for #96 now exercises all 33 Almanac endpoints and resolves TS-44; five other service endpoint-coverage warnings remain. The original model verdict remains `ready_with_fixes`, and this is not cloud or final group release approval.
 
 Parent: #94
 - #95: Virtual Garden (TS-40)
