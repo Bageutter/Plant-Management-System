@@ -3,7 +3,7 @@
 Run `review-testing-20261021-134337-18a37a` · verdict **ready_with_fixes** (from model) · human decision **accept** by `amy`
 
 The TS-46 endpoint-coverage warning below is updated from the refreshed health test evidence
-(`docs/evidence/release2/testing/health/routes.json`, generated 2026-10-21T14:40:32+00:00).
+(`docs/evidence/release2/testing/health/routes.json`, generated 2026-10-21T14:45:27+00:00).
 The original review transcript records the earlier 31/32 result; the current evidence is 32/32.
 
 All pre-commit security and code quality checks passed, with no vulnerabilities or secrets detected. However, multiple services have untested endpoints, resulting in incomplete test coverage. These gaps represent a minor risk to long-term maintainability and reliability.
@@ -56,8 +56,8 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 | TS-42 | Every auth endpoint is exercised by a test | ✅ pass | 8/8 endpoints run by the tests. Line coverage 95.5%. |
 | TS-43 | almanac tests pass | ✅ pass | 104 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
 | TS-44 | Every almanac endpoint is exercised by a test | ⚠️ warn | 30/33 endpoints run by the tests; not exercised: GET /ailments, GET /ailments/<int:ailment_id>/photo, GET /health. Line coverage 91.6%. |
-| TS-45 | health tests pass | ✅ pass | 99 tests: 0 failures, 0 errors, 0 skipped (commit 1505d8b). |
-| TS-46 | Every health endpoint is exercised by a test | ✅ pass | 32/32 endpoints run by the tests. Line coverage 91.9%. |
+| TS-45 | health tests pass | ✅ pass | 99 tests: 0 failures, 0 errors, 0 skipped (commit 6fe67f1). |
+| TS-46 | Every health endpoint is exercised by a test | ✅ pass | 32/32 endpoints run by the tests. Line coverage 92.0%. |
 | TS-47 | shared/frontend tests pass | ✅ pass | 3 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
 | TS-48 | Every shared/frontend endpoint is exercised by a test | ✅ pass | 1/1 endpoints run by the tests. Line coverage 98.0%. |
 | TS-49 | ai-services/mcp-server tests pass | ✅ pass | 42 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
@@ -74,7 +74,7 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 | `vgarden` | 137 | 0 | 0 | 0 | 95.5% | 34/36 |
 | `auth` | 32 | 0 | 0 | 0 | 95.5% | 8/8 |
 | `almanac` | 104 | 0 | 0 | 0 | 91.6% | 30/33 |
-| `health` | 99 | 0 | 0 | 0 | 91.9% | 32/32 |
+| `health` | 99 | 0 | 0 | 0 | 92.0% | 32/32 |
 | `shared/frontend` | 3 | 0 | 0 | 0 | 98.0% | 1/1 |
 | `ai-services/mcp-server` | 42 | 0 | 0 | 0 | 94.9% | 12/13 |
 | `ai-services/rag-server` | 70 | 0 | 1 | 0 | 82.6% | 5/6 |
