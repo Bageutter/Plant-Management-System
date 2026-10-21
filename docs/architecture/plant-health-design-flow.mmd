@@ -1,0 +1,52 @@
+%% Plant Health (Guhan Sundar) — Release 2 design flow. Render: npx mmdc -i plant-health-design-flow.mmd -o plant-health-design-flow.svg
+flowchart LR
+    U["Gardener<br/>(browser)"]
+
+    subgraph UI["Frontend UI · /health/plant-health-records/"]
+        F1["Assessment form<br/>photo and/or description"]
+        F2["Tools (MCP) panel"]
+        F3["Ask about your records (RAG) panel"]
+        F4["Agent workflow panel<br/>Planner → Worker → Reviewer → you"]
+    end
+
+    subgraph BE["health backend (Flask, behind nginx /health)"]
+        R1["routes.py<br/>POST /assessments (+ /stream)<br/>GET /assessments · PATCH · DELETE · /regenerate"]
+        R2["routes.py<br/>GET /tools · POST /tools/run<br/>POST /ask · POST /ask/sync"]
+        R3["workflows.py<br/>POST /workflows · GET /workflows/&lt;id&gt;<br/>POST …/run · POST …/review"]
+        AG["agentic.py<br/>Perceive → Reason → Act → Observe → Repeat"]
+    end
+
+    DB[("health.db<br/>assessments · assessment_loop_runs<br/>plants · health_workflows<br/>(Alembic 0001–0006)")]
+    OLL[("Ollama (AI-Mode)<br/>qwen2.5vl:3b vision<br/>qwen3:4b-instruct reviewer")]
+
+    subgraph Shared["Shared non-containerised local servers"]
+        MCP["MCP Server :5105<br/>list/get/summarise/assess health tools"]
+        RAG["RAG Server :5106<br/>health source (assessments)"]
+        subgraph MAS["Multi-Agent Server :8003"]
+            direction LR
+            P["Planner"] --> W["Worker"] --> RV["Reviewer"]
+        end
+    end
+
+    U --> F1 & F2 & F3 & F4
+    F1 -- "HTMX / SSE" --> R1
+    F2 --> R2
+    F3 --> R2
+    F4 -- "task + plant" --> R3
+
+    R1 --> AG --> OLL
+    R1 --> DB
+    R2 -- "whitelisted tool + args" --> MCP
+    R2 -- "question (source=health)" --> RAG
+    MCP -- "GET /plant-health-records/assessments…" --> R1
+    RAG -- "ingest via the API" --> R1
+    RAG --> OLL
+
+    R3 -- "evidence: this plant's assessments<br/>(via MCP list/get when on, else DB)" --> MCP
+    R3 --> DB
+    R3 -- "POST /workflow source=health + evidence<br/>POST /workflow/run (background) · GET /workflow/status" --> MAS
+    MAS --> OLL
+    RV --> HR{{"Human review on the records page<br/>accept · partially accept · request changes · reject"}}
+    HR -- "POST /workflows/&lt;id&gt;/review" --> R3
+    HR -- "request changes → revised run" --> P
+    R3 -- "panel polls every 3 s → final answer + decision" --> F4

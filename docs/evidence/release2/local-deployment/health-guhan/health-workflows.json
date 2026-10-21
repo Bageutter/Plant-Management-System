@@ -1,0 +1,26 @@
+[
+  {
+    "created_at": "2026-10-21T10:24:59.229810",
+    "id": 3,
+    "plant_ref": "Tomato, back bed",
+    "status": "accepted",
+    "task": "Which issues were recorded for this plant, and did its health score change between assessments?",
+    "workflow_id": "ae71c81a-e925-4c27-af94-98a445aa6629"
+  },
+  {
+    "created_at": "2026-10-21T10:19:57.256607",
+    "id": 2,
+    "plant_ref": "Tomato, back bed",
+    "status": "partially_accepted",
+    "task": "Summarise how the health of this plant has changed across its assessments and which issues keep recurring.",
+    "workflow_id": "a7f23d6d-9f83-41bd-bb01-02402e50244a"
+  },
+  {
+    "created_at": "2026-10-21T10:13:45.154396",
+    "id": 1,
+    "plant_ref": "Tomato, back bed",
+    "status": "failed",
+    "task": "Summarise how the health of this plant has changed across its assessments and which issues keep recurring.",
+    "workflow_id": "d2416760-b710-41b9-b837-82047a5b1347"
+  }
+]
