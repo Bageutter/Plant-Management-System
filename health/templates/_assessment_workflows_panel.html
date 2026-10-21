@@ -1,0 +1,55 @@
+{# Release 2: frontend access to the shared local Multi-Agent Server, always routed
+   through this service's own backend (workflows.py). Planner -> Worker -> Reviewer
+   run on the server against this assessment and the plant's earlier ones only;
+   a person then accepts, partially accepts, requests changes or rejects here. #}
+<section class="mt-12 border border-border rounded-lg p-6" id="workflows">
+    <header class="flex items-center justify-between gap-4 flex-wrap mb-2">
+        <h2 class="text-lg m-0">Agent workflow (Planner → Worker → Reviewer → you)</h2>
+        <span class="badge {{ 'status-on' if multi_agent_enabled else 'status-off' }}">Multi-Agent {{ 'on' if multi_agent_enabled else 'off' }}</span>
+    </header>
+    <p class="text-sm text-muted-foreground mb-4">
+        Hands a task to the shared local Multi-Agent Server with <strong>this assessment and this plant's
+        earlier assessments only</strong>. A Planner sets the steps, a Worker answers from those records with
+        citations, and a Reviewer checks the answer against them. The assessment is an earlier AI opinion,
+        not a diagnosis, and nothing here is final until you review it.
+    </p>
+
+    {% if multi_agent_enabled %}
+    <form class="flex flex-col gap-3"
+          hx-post="{{ url_for('health_workflows.start_assessment_workflow', assessment_id=assessment.id) }}"
+          hx-target="#workflow-detail" hx-swap="innerHTML" hx-indicator="#workflow-busy">
+        <label class="uk-form-label" for="workflow-task">Task</label>
+        <input class="uk-input" type="text" id="workflow-task" name="task" required maxlength="500"
+               placeholder="e.g. Which issues need attention first, and has this plant got better or worse?">
+        <div class="flex items-center gap-3 flex-wrap">
+            <button class="uk-btn uk-btn-primary" type="submit">Start workflow</button>
+            <span id="workflow-busy" class="htmx-indicator text-sm text-muted-foreground">
+                <span class="spinner" aria-hidden="true"></span> Sending this assessment's records…
+            </span>
+        </div>
+    </form>
+
+    <div id="workflow-detail" class="mt-4" aria-live="polite"></div>
+
+    {% set recent_workflows = assessment.workflows | sort(attribute='created_at', reverse=True) %}
+    {% if recent_workflows %}
+    <h3 class="text-sm font-semibold mt-6 mb-2">Recent workflows</h3>
+    <ul class="uk-list text-sm">
+        {% for w in recent_workflows[:8] %}
+        <li class="py-1 flex items-center gap-3 flex-wrap">
+            <span class="badge status-off" data-workflow-status="{{ w.status }}">{{ w.status | replace('_', ' ') }}</span>
+            <a href="#workflow-detail"
+               hx-get="{{ url_for('health_workflows.assessment_workflow_detail', assessment_id=assessment.id, local_id=w.id) }}"
+               hx-target="#workflow-detail" hx-swap="innerHTML">{{ w.task | truncate(90) }}</a>
+            <span class="text-xs text-muted-foreground">{{ w.created_at.strftime('%d %b %H:%M') }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% else %}
+    <p class="text-sm text-muted-foreground m-0" data-integration="multi-agent-disabled">
+        The Multi-Agent Server is disabled for this deployment (<code>MULTI_AGENT_ENABLED=false</code>),
+        as it is during CI and in the cloud baseline.
+    </p>
+    {% endif %}
+</section>

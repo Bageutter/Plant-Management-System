@@ -1,17 +1,22 @@
-{# One Multi-Agent Server workflow for this assessment (workflows.py::_render).
+{# One Multi-Agent Server workflow started from this service (workflows.py::_render).
    Polls itself while the agents are running; shows the human-review form once
    the Reviewer has finished. #}
 {% set stages = [("planning", "Planner"), ("working", "Worker"), ("reviewing", "Reviewer"), ("awaiting_human_review", "Human review")] %}
 {% set reached = state.history | default([]) | map(attribute='status') | list %}
 {% set result = state.result or {} %}
 {% set review = state.review or {} %}
-{% set detail_url = url_for('health_workflows.workflow_detail', assessment_id=assessment.id, local_id=workflow.id) %}
+{% set detail_url = url_for('health_workflows.workflow_detail', local_id=workflow.id) %}
 <article class="border border-border rounded-lg p-5 bg-muted"
          data-workflow-status="{{ status }}"
          {% if polling %}hx-get="{{ detail_url }}" hx-trigger="every 3s" hx-target="#workflow-detail" hx-swap="innerHTML"{% endif %}>
     <header class="flex items-center justify-between gap-3 flex-wrap mb-3">
-        <h3 class="text-lg m-0">{{ workflow.task }}</h3>
-        <span class="badge {{ 'status-on' if final else 'status-off' }}">{{ status | replace('_', ' ') }}</span>
+        <div>
+            <h3 class="text-lg m-0">{{ workflow.task }}</h3>
+            <p class="text-xs text-muted-foreground m-0">
+                Evidence: {{ workflow.plant_ref or "latest assessments of any plant" }}
+            </p>
+        </div>
+        <span class="badge {{ 'status-healthy' if final else 'status-unknown' }}">{{ status | replace('_', ' ') }}</span>
     </header>
 
     {% if error %}
@@ -22,7 +27,7 @@
 
     <ol class="flex gap-2 flex-wrap text-xs m-0 p-0" style="list-style:none" aria-label="Workflow stages">
         {% for key, label in stages %}
-        <li class="badge {{ 'status-on' if key in reached or (key == 'awaiting_human_review' and final) else 'status-off' }}">
+        <li class="badge {{ 'status-healthy' if key in reached or (key == 'awaiting_human_review' and final) else 'status-unknown' }}">
             {% if status == key and polling %}<span class="spinner" aria-hidden="true"></span>{% endif %}{{ label }}
         </li>
         {% endfor %}
@@ -45,7 +50,7 @@
     {% if result.answer %}
     <h4 class="text-sm font-semibold mt-4 mb-1">Worker</h4>
     {% if result.insufficient_context %}
-    <p class="text-sm m-0"><strong>The health records do not fully support an answer.</strong></p>
+    <p class="text-sm m-0"><strong>The stored assessments do not fully support an answer.</strong></p>
     {% endif %}
     <p class="m-0" style="white-space:pre-line">{{ result.answer }}</p>
     {% if result.cited_chunk_ids %}
@@ -56,7 +61,7 @@
     {% if review.recommendation %}
     <h4 class="text-sm font-semibold mt-4 mb-1">Reviewer</h4>
     <p class="m-0 text-sm">
-        Recommendation: <span class="badge {{ 'status-on' if review.recommendation == 'accept' else 'status-off' }}" data-review="{{ review.recommendation }}">{{ review.recommendation }}</span>
+        Recommendation: <span class="badge {{ 'status-healthy' if review.recommendation == 'accept' else 'status-at_risk' }}" data-review="{{ review.recommendation }}">{{ review.recommendation }}</span>
     </p>
     {% if review.issues %}
     <ul class="uk-list uk-list-bullet text-sm mt-1">
@@ -67,7 +72,7 @@
 
     {% if state.evidence and state.evidence.passages %}
     <details class="mt-4 text-sm">
-        <summary class="cursor-pointer">Evidence sent ({{ state.evidence.passages | length }} records via {{ state.evidence.mode }})</summary>
+        <summary class="cursor-pointer">Evidence sent ({{ state.evidence.passages | length }} passages via {{ state.evidence.mode }})</summary>
         {% for p in state.evidence.passages %}
         <div class="mt-2">
             <strong>{{ p.title }}</strong> <span class="text-xs text-muted-foreground">· {{ p.chunk_id }}</span>
@@ -79,13 +84,13 @@
 
     {% if status == "awaiting_human_review" %}
     <form class="mt-5 flex flex-col gap-3" x-data="{ decision: 'accept' }"
-          hx-post="{{ url_for('health_workflows.review_workflow', assessment_id=assessment.id, local_id=workflow.id) }}"
+          hx-post="{{ url_for('health_workflows.review_workflow', local_id=workflow.id) }}"
           hx-target="#workflow-detail" hx-swap="innerHTML" hx-indicator="#review-busy">
         <fieldset class="flex gap-4 flex-wrap text-sm border-0 p-0 m-0">
             <legend class="uk-form-label mb-1">Your review</legend>
             {% for value, label in [("accept", "Accept"), ("partially_accept", "Partially accept"), ("request_changes", "Request changes"), ("reject", "Reject")] %}
             <label class="flex items-center gap-1">
-                <input class="uk-radio" type="radio" name="decision" value="{{ value }}" x-model="decision"> {{ label }}
+                <input class="uk-radio" type="radio" name="decision" value="{{ value }}" x-model="decision"{% if loop.first %} checked{% endif %}> {{ label }}
             </label>
             {% endfor %}
         </fieldset>
@@ -93,6 +98,8 @@
         <textarea class="uk-textarea" id="review-feedback" name="feedback" rows="2" maxlength="2000"
                   :required="decision === 'partially_accept' || decision === 'request_changes'{% if review.recommendation == 'revise' %} || decision === 'accept'{% endif %}"
                   placeholder="Required for partial acceptance and requested changes{% if review.recommendation == 'revise' %}, and to accept despite the Reviewer's issues{% endif %}"></textarea>
+        <label class="uk-form-label" for="review-reviewer">Your name (recorded with the decision, optional)</label>
+        <input class="uk-input" type="text" id="review-reviewer" name="reviewer" maxlength="80" placeholder="health-ui">
         <div class="flex items-center gap-3 flex-wrap">
             <button class="uk-btn uk-btn-primary" type="submit">Submit review</button>
             <span id="review-busy" class="htmx-indicator text-sm text-muted-foreground">Recording…</span>
@@ -100,7 +107,7 @@
     </form>
     {% elif status in ("failed", "received", "changes_requested") and not polling %}
     <form class="mt-4"
-          hx-post="{{ url_for('health_workflows.rerun_workflow', assessment_id=assessment.id, local_id=workflow.id) }}"
+          hx-post="{{ url_for('health_workflows.rerun_workflow', local_id=workflow.id) }}"
           hx-target="#workflow-detail" hx-swap="innerHTML">
         {% if status == "failed" and state.error %}<p class="text-sm m-0 mb-2">Last run: {{ state.error }}.</p>{% endif %}
         <button class="uk-btn uk-btn-default uk-btn-sm" type="submit">{{ 'Retry' if status == 'failed' else 'Run' }} workflow</button>

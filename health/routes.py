@@ -649,8 +649,9 @@ def _integration_error(exc: Exception, wants_html: bool, *, fragment: str = "_er
 
 @bp.route("/integrations")
 def integrations_status():
-    """Wiring status of both integrations. Probes only when a mode is enabled, so
-    the CI smoke test (both disabled) proves configuration without any network."""
+    """Wiring status of the MCP, RAG and Multi-Agent integrations. Probes only when a
+    mode is enabled, so the CI smoke test (all disabled) proves configuration
+    without any network."""
 
     def probe(client, fn):
         if not client.enabled:
@@ -667,6 +668,7 @@ def integrations_status():
         {
             "mcp": {"enabled": mcp.enabled, "url": mcp.url, "reachable": probe(mcp, mcp.list_tools)},
             "rag": {"enabled": rag.enabled, "url": rag.base_url, "reachable": probe(rag, rag.status)},
+            # Release 2: the shared Multi-Agent Server, reached through workflows.py.
             "multi_agent": {
                 "enabled": agents.enabled,
                 "url": agents.base_url,

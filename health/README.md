@@ -379,6 +379,42 @@ Status codes: `400` bad input, `503` when the mode is disabled (`MCP_ENABLED=fal
 The list endpoint gained `status=`, `since=` (ISO-8601) and `offset=` so the shared
 servers can filter and page through records.
 
+## Release 2: the Multi-Agent Server through this backend
+
+The records page has a third panel, *Agent workflow (Planner → Worker → Reviewer →
+you)*. It hands a task to the shared local Multi-Agent Server (`ai-services/multi-agent-server`,
+a host process like MCP/RAG, never a compose service) together with **this plant's
+stored assessments** as the only evidence. The browser never talks to the server; every
+step goes through routes in `workflows.py`:
+
+| Route | Purpose |
+| --- | --- |
+| `POST /plant-health-records/workflows` | `task` (≤ 500 chars) and optional `plant_ref`. The backend builds the evidence (a history summary passage plus up to 8 assessments, newest first — read through the shared MCP server's `list_health_assessments` / `get_health_assessment` tools when MCP is on, else from its own database), creates the workflow with `source="health"`, starts the run on a background thread and returns the panel (`201`) or JSON with `polling: true`. |
+| `GET /plant-health-records/workflows/<id>` | Current plan, Worker answer with citations, Reviewer recommendation and issues, the evidence sent, human decision and history. The panel polls this every 3 s while the agents run. |
+| `POST /plant-health-records/workflows/<id>/run` | Run again after a failure or after requested changes (`202`). |
+| `POST /plant-health-records/workflows/<id>/review` | `decision` ∈ accept / partially_accept / request_changes / reject, `feedback` (required for partial acceptance and requested changes, and to accept despite Reviewer issues), optional `reviewer` name (default `health-ui`). Requested changes start a revised run whose Planner and Worker receive the feedback. |
+| `GET /plant-health-records/workflows` | Recent workflows started from this service (JSON). |
+| `GET /plant-health-records/integrations` | now also reports `multi_agent: {enabled, url, reachable}`. |
+
+`<id>` is always this service's own row (`health_workflows`, migration `0006`); the
+server's workflow id is looked up from it and never taken from the browser. Every
+passage says the assessment is the advisory output of a past local model run, and the
+Worker is told to report what was recorded rather than diagnose. Status codes follow the
+Release 1 routes: `400` bad input, `503` disabled (`MULTI_AGENT_ENABLED=false`, as in CI
+and the cloud baseline), `502` server unreachable, `409` the workflow is not in a state
+that allows the step.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MULTI_AGENT_ENABLED` | `true` | Switch for the panel/routes |
+| `MULTI_AGENT_URL` | `http://127.0.0.1:8003` (`http://host.docker.internal:8003` in compose) | Shared Multi-Agent Server |
+| `MULTI_AGENT_TIMEOUT` | `900` | Seconds allowed for one Planner → Worker → Reviewer run |
+
+Terminal run of the same flow, through this backend: `bash scripts/test/multi-agent-health.sh "Tomato, back bed"`
+(with the stack on :3000 and the server running). The server's own helper,
+`ai-services/multi-agent-server/application_integration.py`, submits a task and evidence
+to the server directly.
+
 ### Tests and CI
 
 ```bash
@@ -389,9 +425,21 @@ python -m pytest -q
 
 Tests use a fake model. The MCP tests run the real shared server in-process and route
 its HTTP calls back into the Flask app under test, so a tool run exercises the whole
-frontend → backend → MCP server → health API loop. `.github/workflows/health.yml` runs
-lint, these tests, the image build, and a compose smoke test
-(`scripts/test/smoke-health.sh`) with `MCP_ENABLED=false RAG_ENABLED=false`.
+frontend → backend → MCP server → health API loop.
+
+`.github/workflows/health.yml` (Release 2) runs lint, then the **two assigned endpoint
+functions** by name from `tests/test_endpoints.py` — `routes.create_assessment`
+(`POST /plant-health-records/assessments`) and `routes.list_assessments`
+(`GET /plant-health-records/assessments`) — then the rest of the suite as regressions,
+the image build, and a compose smoke test (`scripts/test/smoke-health.sh`) with
+`MCP_ENABLED=false RAG_ENABLED=false`. The Tests job keeps `endpoints.xml`,
+`endpoints.log`, `regressions.xml`, `regressions.log` and `run.json` (source SHA, run
+URL, the two function names) as a 30-day Actions artifact, including when a test
+fails. The Docker build and smoke test only run after lint and tests pass.
+
+Before committing, the shared pre-commit checks (Ruff security rules, detect-secrets,
+pip-audit and this service's tests) run via `python scripts/security/install.py health`
+from the repository root; see `.github/README.md`.
 
 ## Release 2: Multi-Agent workflow on an assessment
 
@@ -422,7 +470,8 @@ flowchart LR
 - **Scoping:** the browser names only a local `HealthWorkflow` row under the
   assessment; the server's workflow id is never taken from client input. A
   workflow under another assessment is a 404. Deleting an assessment deletes its
-  workflows (migration `0006_health_workflows`).
+  workflows. Migration `0007_assessment_workflows` adds this optional link while
+  retaining the published `0006` schema and existing records-page workflows.
 - **Off switch:** `MULTI_AGENT_ENABLED=false` (CI, the cloud baseline). The panel
   then says so, `/integrations` reports `multi_agent.enabled: false`, and starting a
   workflow answers 503 without contacting a server.
@@ -434,9 +483,11 @@ flowchart LR
 | `POST /assessments/<id>/workflows/<n>/run` | run again after a failure |
 | `POST /assessments/<id>/workflows/<n>/review` | `decision`, `feedback`; JSON callers may add a `reviewer_id` label |
 
-Terminal: `bash scripts/test/multi-agent-health.sh [health base URL]` runs the same
+Terminal: `bash scripts/test/multi-agent-health-assessment.sh [health base URL]` runs the same
 flow through this backend's JSON API and asks for your decision. Tests:
-`tests/test_workflows.py` (fake server), and the server's `tests/test_sources.py`.
+`tests/test_assessment_workflows.py` (fake server), and the server's `tests/test_sources.py`.
+The existing records-page routes, panel, MCP evidence retrieval and
+`scripts/test/multi-agent-health.sh` remain available separately.
 
 ## Database schema changes (Flask-Migrate / Alembic)
 

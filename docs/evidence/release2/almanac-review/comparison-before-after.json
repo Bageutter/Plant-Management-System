@@ -1,0 +1,63 @@
+{
+  "case": "Basil/Zucchini comparison from existing chat",
+  "question": "Compare basil and zucchini",
+  "answer": {
+    "answer": "Sunlight: Both basil and zucchini need full sun. Water needs: Basil has moderate water needs; zucchini is not recorded. Growth period: Not recorded for either. Soil pH: Both have a minimum pH of 6.0 and maximum of 7.0. Maintenance: Basil requires pinching tips and weekly inspection; zucchini has no specific maintenance noted. Care: Basil is a light feeder; zucchini is not recorded.",
+    "cited_chunk_ids": [
+      "almanac:plant:basil-genovese:record",
+      "almanac:plant:zucchini:record"
+    ],
+    "insufficient_context": false
+  },
+  "evidence": {
+    "mode": "chroma",
+    "passages": [
+      {
+        "chunk_id": "almanac:plant:zucchini:record",
+        "score": 0.6013,
+        "source": "almanac",
+        "text": "Plant Almanac plant: Zucchini.\nScientific name: Cucurbita pepo.\nFamily: Cucurbitaceae.\nSummary: A vigorous warm-season crop that produces generously..\nRecorded planting months: January, August, September, October, November, December.\nMissing fields are not recorded. Plant-pest and plant-disease links are catalogue associations, not confirmed diagnoses.\nGeneral catalogue guidance, not a diagnosis. Missing fields are unknown; growing conditions vary.",
+        "title": "Zucchini \u2014 plant reference",
+        "url": "http://localhost:3000/almanac/plants/zucchini"
+      },
+      {
+        "chunk_id": "almanac:plant:basil-genovese:record",
+        "score": 0.5165,
+        "source": "almanac",
+        "text": "Plant Almanac plant: Basil - Genovese.\nScientific name: Ocimum basilicum.\nSummary: Sweet basil with aromatic leaves for the kitchen and flowers for visiting insects..\nWater needs: moderate.\nSun needs: full sun.\nCare: Pinch growing tips to encourage branching and harvest before cold weather..\nSowing notes: Sep\u2013Feb.\nMinimum soil pH: 6.0.\nMaximum soil pH: 7.0.\nIn-row spacing (cm): 25.0.\nRow spacing (cm): 30.0.\nSuccession interval (days): 28.\nHarvest window (weeks): 8.0.\nYield per plant: 0.2.\nYield unit: kg.\nYield notes: 0.2 kg per established plant over a 8-week harvest window. Total across repeated pickings, not the yield at every picking..\nFeeder type: light feeder.\nForest layer: herbaceous.\nPart used: leaf.\nUses: culinary.\nUses notes: Culinary herb for the herbaceous layer; allow a few stems to flower for visiting insects.\nFresh leaves for pesto, pasta, salads and sauces..\nManagement notes: Inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment..\nAssociated pests: Aphids, Slugs and snails.\nRotation group: Anywhere; feeder weight: light; rotation exempt: True.\nRecorded companion: Alyssum; function: pollinator attractor; notes: A low flowering edge provides nectar for visiting insects. Keep it outside the crop's spacing so it does not crowd young plants..\nRecorded companion: Marigold - French Marigold; function: pollinator attractor; notes: Add a sunny flowering border for insect habitat. Leave enough space between the flowers and the crop for light and airflow..\nMissing fields are not recorded. Plant-pest and plant-disease links are catalogue associations, not confirmed diagnoses.\nGeneral catalogue guidance, not a diagnosis. Missing fields are unknown; growing conditions vary.",
+        "title": "Basil - Genovese \u2014 plant reference",
+        "url": "http://localhost:3000/almanac/plants/basil-genovese"
+      },
+      {
+        "chunk_id": "almanac:plant:basil:record",
+        "score": 0.502,
+        "source": "almanac",
+        "text": "Plant Almanac plant: Basil.\nScientific name: Ocimum basilicum.\nFamily: Lamiaceae.\nSummary: A tender aromatic herb suited to warm-season growing..\nRecorded planting months: January, February, September, October, November, December.\nRecorded companion: Alyssum; function: pollinator attractor; notes: A low flowering edge provides nectar for visiting insects. Keep it outside the crop's spacing so it does not crowd young plants..\nRecorded companion: Marigold - French Marigold; function: pollinator attractor; notes: Add a sunny flowering border for insect habitat. Leave enough space between the flowers and the crop for light and airflow..\nMissing fields are not recorded. Plant-pest and plant-disease links are catalogue associations, not confirmed diagnoses.\nGeneral catalogue guidance, not a diagnosis. Missing fields are unknown; growing conditions vary.",
+        "title": "Basil \u2014 plant reference",
+        "url": "http://localhost:3000/almanac/plants/basil"
+      },
+      {
+        "chunk_id": "almanac:plant:broccoli-purple-sprouting:record",
+        "score": 0.1848,
+        "source": "almanac",
+        "text": "Plant Almanac plant: Broccoli - Purple Sprouting.\nScientific name: Brassica oleracea.\nSummary: Purple sprouting broccoli with green stalks and small to medium purple heads; continues producing side shoots after picking..\nWater needs: high.\nSun needs: full sun.\nCare: Sow direct or raise seedlings. Cut heads before flowers open. Protect from aphids and caterpillars..\nSowing notes: Late summer to autumn.\nMinimum soil pH: 6.0.\nMaximum soil pH: 7.0.\nIn-row spacing (cm): 50.0.\nRow spacing (cm): 60.0.\nSuccession interval (days): 28.\nHarvest window (weeks): 6.0.\nYield per plant: 0.6.\nYield unit: kg.\nYield notes: 0.6 kg per established plant over a 6-week harvest window. Total across repeated pickings, not the yield at every picking..\nFeeder type: heavy feeder.\nForest layer: herbaceous.\nPart used: flower.\nUses: culinary.\nUses notes: Long-season cool-weather food crop.\nGood for stir-frying or steaming; purple colour reduces when cooked..\nManagement notes: Inspect weekly, remove affected plant material, use clean tools and encourage beneficial insects. Confirm the pest or disease before choosing treatment..\nAssociated pests: Aphids, Slugs and snails.\nRecorded reference source: https://www.theseedcollection.com.au/Broccoli-Purple-Sprouting.\nRotation group: Brassicas; feeder weight: heavy; rotation exempt: False.\nRecorded companion: Alyssum; function: pollinator attractor; notes: A low flowering edge provides nectar for visiting insects. Keep it outside the crop's spacing so it does not crowd young plants..\nRecorded companion: Marigold - French Marigold; function: pollinator attractor; notes: Add a sunny flowering border for insect habitat. Leave enough space between the flowers and the crop for light and airflow..\nMissing fields are not recorded. Plant-pest and plant-disease links are catalogue associations, not confirmed diagnoses.\nGeneral catalogue guidance, not a diagnosis. Missing fields are unknown; growing conditions vary.",
+        "title": "Broccoli - Purple Sprouting \u2014 plant reference",
+        "url": "http://localhost:3000/almanac/plants/broccoli-purple-sprouting"
+      }
+    ]
+  },
+  "before_review": {
+    "issues": [
+      "Remove unused citation: almanac:plant:basil-genovese:record",
+      "Remove unused citation: almanac:plant:zucchini:record"
+    ],
+    "recommendation": "revise"
+  },
+  "after_review": {
+    "recommendation": "revise",
+    "issues": [
+      "'Sunlight: Both basil and zucchini need full sun.': Zucchini has no recorded sunlight; do not apply another plant's value to it.",
+      "'Soil pH: Both have a minimum pH of 6.0 and maximum of 7.0.': Zucchini has no recorded soil pH; do not apply another plant's value to it."
+    ]
+  }
+}

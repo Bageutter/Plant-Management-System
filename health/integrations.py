@@ -1,5 +1,4 @@
-"""Clients for the shared local MCP and RAG servers (Release 1) and the
-Multi-Agent Server (Release 2).
+"""Clients for the shared local MCP and RAG servers (Release 1).
 
 The browser never talks to either server: the health *backend* owns these
 clients and exposes a small, whitelisted surface over them (see routes.py). Both
@@ -235,17 +234,17 @@ class RagClient:
 
 
 class WorkflowConflict(RuntimeError):
-    """The workflow is not in a state that allows this action (HTTP 409)."""
+    """The workflow is not in a state that allows this step (HTTP 409)."""
 
 
 class MultiAgentClient:
     """Client for the shared local Multi-Agent Server (Planner -> Worker ->
     Reviewer -> Human Review).
 
-    Workflows are always created with ``source="health"`` and one assessment's
-    records (plus that plant's earlier assessments) as ``evidence``; the shared
-    server never reads health data itself. Callers look a workflow up by its
-    assessment first (workflows.py); the server's id is never client input.
+    Workflows are always created with ``source="health"`` and this service's own
+    stored assessments as ``evidence`` (see workflows.py) — the shared server never
+    reads health data itself. Callers look a workflow up by its local row first; the
+    id here is never client input.
     """
 
     def __init__(self, base_url: str, *, enabled: bool = True, timeout: float = 900.0):
@@ -293,8 +292,8 @@ class MultiAgentClient:
         )
 
     def run(self, workflow_id: str) -> dict:
-        """Run Planner -> Worker -> Reviewer. Blocks for the whole run, so
-        workflows.py calls it off the request thread."""
+        """Run Planner -> Worker -> Reviewer. Blocks for the whole run (three local
+        model calls), so workflows.py calls it off the request thread."""
 
         return self._request(
             "POST", "/workflow/run", json={"workflow_id": workflow_id}, timeout=self.timeout

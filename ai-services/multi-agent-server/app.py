@@ -1,3 +1,4 @@
+import os
 from uuid import uuid4
 
 from flask import Flask, Response, jsonify, request, render_template
@@ -9,8 +10,9 @@ from store import WorkflowConflict, get_workflow, save_workflow, read_snapshot, 
 from workflow import run_workflow
 
 SOURCES = ("almanac", "vgarden", "health")
-# Sources whose backend must send its own records: the server never reads them itself.
-SUPPLIED_EVIDENCE = ("vgarden", "health")
+# Features whose data this server never reads itself: their backend sends the
+# records it has already selected as `evidence` with the task.
+EVIDENCE_REQUIRED = ("vgarden", "health")
 
 app = Flask(__name__)
 recover_interrupted()
@@ -54,17 +56,17 @@ def _request_details(data):
     """Validate the optional feature source and caller-supplied evidence.
 
     Almanac data is public, so its Worker retrieves evidence itself through MCP.
-    Virtual Garden data is private per owner, and a Plant Health task is about one
-    assessment: this server never fetches either, so the feature backend must send
-    the records it already authorised (one garden, or one assessment and its plant's
-    history).
+    Virtual Garden data is private per owner, and Plant Health assessments are the
+    health service's own records: this server never fetches either, so those
+    backends must send the records they already selected (one garden's snapshot;
+    one plant's stored assessments).
     """
     source = data.get("source", "almanac")
     if source not in SOURCES:
         raise ValueError(f"source must be one of: {', '.join(SOURCES)}")
     evidence = data.get("evidence")
     if evidence is None:
-        if source in SUPPLIED_EVIDENCE:
+        if source in EVIDENCE_REQUIRED:
             raise ValueError(f"{source} workflows must include the feature's evidence")
         return {"source": source}
     passages = evidence.get("passages") if isinstance(evidence, dict) else None
@@ -163,4 +165,9 @@ def workflow_audit(filename):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8003)
+    # Loopback by default. Containers on a Linux/WSL Docker engine reach the host at
+    # 172.17.0.1 (host.docker.internal via extra_hosts), not at loopback, so there
+    # the server is started with MULTI_AGENT_HOST=0.0.0.0 — like MCP_HOST / RAG_HOST
+    # for the other two shared servers.
+    app.run(host=os.environ.get("MULTI_AGENT_HOST", "127.0.0.1"),
+            port=int(os.environ.get("MULTI_AGENT_PORT", "8003")))

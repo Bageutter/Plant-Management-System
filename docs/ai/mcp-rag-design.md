@@ -197,7 +197,7 @@ health UI shows all three, labelling the model's rating as self-reported.
 `HEALTH_SERVICE_URL`, `ALMANAC_SERVICE_URL`, `VGARDEN_SERVICE_URL`,
 `VGARDEN_SERVICE_TOKEN` (bearer for vgarden's private export endpoint; must match
 vgarden's `INTER_SERVICE_SECRET`), `OLLAMA_URL`, `OLLAMA_MODEL` (answering),
-`RAG_EMBED_MODEL` (`nomic-embed-text`; empty → lexical only), `RAG_TOP_K` (5),
+`RAG_EMBED_MODEL` (`deterministic-256-v1`; empty → lexical only), `RAG_TOP_K` (5),
 `RAG_MIN_COVERAGE` (0.34), `RAG_MIN_SIMILARITY` (0.45).
 
 ---

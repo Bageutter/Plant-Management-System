@@ -149,6 +149,9 @@ class TestConfig:
     RAG_ENABLED = True
     RAG_SERVER_URL = "http://127.0.0.1:1"  # replaced per test
     INTEGRATION_TIMEOUT = 5
+    MULTI_AGENT_ENABLED = True
+    MULTI_AGENT_URL = "http://127.0.0.1:1"  # replaced per test (tests/test_workflows.py)
+    MULTI_AGENT_TIMEOUT = 5
 
 
 @pytest.fixture

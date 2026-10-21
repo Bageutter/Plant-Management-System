@@ -1,8 +1,8 @@
-"""Multi-Agent workflows started from an assessment (Release 2).
+"""Health workflows: the link between this service and a Multi-Agent Server workflow (Release 2).
 
-One row per workflow, deleted with its assessment: the Multi-Agent Server's
-workflow id, the task and the last seen status. Everything else stays on the
-server.
+One row per workflow started from the records page or the API, holding the shared
+server's workflow id, the plant the task was about, the task text and the last
+status seen. The workflow's plan, answer, review and history live on the server.
 
 Revision ID: 0006
 Revises: 0005
@@ -23,20 +23,15 @@ depends_on = None
 def upgrade():
     op.create_table('health_workflows',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('assessment_id', sa.Integer(), nullable=False),
     sa.Column('workflow_id', sa.String(length=64), nullable=False),
+    sa.Column('plant_ref', sa.String(length=200), nullable=True),
     sa.Column('task', sa.Text(), nullable=False),
-    sa.Column('status', sa.String(length=32), nullable=False),
+    sa.Column('status', sa.String(length=40), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['assessment_id'], ['assessments.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('workflow_id')
+    sa.UniqueConstraint('workflow_id', name='uq_health_workflows_workflow_id')
     )
-    with op.batch_alter_table('health_workflows', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_health_workflows_assessment_id'), ['assessment_id'], unique=False)
 
 
 def downgrade():
-    with op.batch_alter_table('health_workflows', schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f('ix_health_workflows_assessment_id'))
     op.drop_table('health_workflows')

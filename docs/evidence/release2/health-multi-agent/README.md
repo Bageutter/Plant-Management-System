@@ -24,10 +24,10 @@ flowchart LR
 
 | Step | Where |
 | --- | --- |
-| Panel on each record page; polls every 3 s while agents run | `health/templates/_workflows_panel.html`, `_workflow.html` |
+| Panel on each record page; polls every 3 s while agents run | `health/templates/_assessment_workflows_panel.html`, `_assessment_workflow.html` |
 | Routes: start, status, run again, review | `health/workflows.py` |
 | HTTP client (`create` / `run` / `status` / `review`) | `health/integrations.py` → `MultiAgentClient` |
-| Workflow ↔ assessment link, deleted with the assessment | `HealthWorkflow`, migration `0006_health_workflows` |
+| Workflow ↔ assessment link, deleted with the assessment | `HealthWorkflow`, migration `0007_assessment_workflows` |
 | `source="health"`, supplied evidence required; health prompts | `ai-services/multi-agent-server/app.py`, `planner.py`, `worker.py` |
 | Off switch (CI, cloud baseline) | `MULTI_AGENT_ENABLED=false` (`docker-compose.yml`, `health.yml`, `infra/apps.bicep`) |
 
@@ -41,6 +41,8 @@ treatments that aren't in it. Another plant's records are never sent.
 ## Terminal run
 
 [`terminal-run.txt`](terminal-run.txt), from `bash scripts/test/multi-agent-health.sh`.
+The assessment script is now `scripts/test/multi-agent-health-assessment.sh`;
+the original script name continues to exercise the existing records-page API.
 This goes through the health backend's JSON API, so the evidence is built by the
 same code the UI uses.
 
@@ -74,7 +76,7 @@ reviewer `health-user-web`.
 ## Tests
 
 ```sh
-cd health && python -m pytest -q tests/test_workflows.py                       # 19 tests
+cd health && python -m pytest -q tests/test_assessment_workflows.py            # assessment routes
 cd ai-services/multi-agent-server && python -m pytest -q tests/test_sources.py  # incl. health source
 ```
 

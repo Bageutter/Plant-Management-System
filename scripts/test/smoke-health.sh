@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Smoke-check the Plant Health service through the nginx proxy.
 #
-# Used by .github/workflows/health.yml (with MCP_ENABLED=false RAG_ENABLED=false,
-# as Release 1 requires during CI) and runnable locally against a running stack:
+# Used by .github/workflows/health.yml (with MCP_ENABLED=false RAG_ENABLED=false
+# MULTI_AGENT_ENABLED=false, as CI requires) and runnable locally against a running stack:
 #
-#   MCP_ENABLED=false RAG_ENABLED=false docker compose up -d --build
+#   MCP_ENABLED=false RAG_ENABLED=false MULTI_AGENT_ENABLED=false docker compose up -d --build
 #   bash scripts/test/smoke-health.sh http://127.0.0.1:3000
 #
 # It proves: the UI and API answer, /healthz reports the local model state, the
-# MCP/RAG integration is *wired* and reports exactly the configured state, and the
-# CRUD API behaves without any model call.
+# MCP/RAG/Multi-Agent integration is *wired* and reports exactly the configured
+# state, and the CRUD API behaves without any model call.
 set -euo pipefail
 
 base="${1:-http://127.0.0.1:3000}"
@@ -42,12 +42,20 @@ import json, os
 d = json.load(open("/tmp/integrations.json"))
 want_mcp = os.environ["WANT_MCP"] == "true"
 want_rag = os.environ["WANT_RAG"] == "true"
+want_agents = os.environ["WANT_AGENTS"] == "true"
 assert d["mcp"]["enabled"] is want_mcp, d
 assert d["rag"]["enabled"] is want_rag, d
-assert d["multi_agent"]["enabled"] is (os.environ["WANT_AGENTS"] == "true"), d
+assert d["multi_agent"]["enabled"] is want_agents, d
 assert d["mcp"]["url"].endswith("/mcp"), d
 print("    ", json.dumps(d))
 EOF
+if [[ "$want_agents" == "false" ]]; then
+  echo "==> Multi-Agent disabled: starting a workflow must answer 503 without contacting a server"
+  code=$(curl --silent -o /tmp/workflow.json -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+       -d '{"task":"Summarise the tomato assessments","plant_ref":"Tomato"}' "$records/workflows")
+  [[ "$code" == "503" ]] || { echo "expected 503, got $code"; cat /tmp/workflow.json; exit 1; }
+  grep -q disabled /tmp/workflow.json
+fi
 
 if [[ "$want_mcp" == "false" ]]; then
   echo "==> MCP disabled: tool runs must answer 503 without contacting a server"

@@ -257,21 +257,25 @@ class AssessmentLoopRun(db.Model):
 
 
 class HealthWorkflow(db.Model):
-    """A Multi-Agent Server workflow started from one assessment's page (Release 2).
+    """One Multi-Agent Server workflow started from this service (Release 2).
 
-    Only the server's workflow id, the task and the last seen status live here;
-    the plan, answer, review and history stay on the Multi-Agent Server.
+    The workflow itself (plan, worker answer, AI review, human decision, history)
+    lives on the shared Multi-Agent Server; this row ties its id to the plant the
+    task was about, so the browser only ever names a local row, and caches the last
+    status seen. Added by the 0006 migration (health/migrations/versions).
     """
 
     __tablename__ = "health_workflows"
+    __table_args__ = (db.UniqueConstraint("workflow_id", name="uq_health_workflows_workflow_id"),)
 
     id = db.Column(db.Integer, primary_key=True)
     assessment_id = db.Column(
-        db.Integer, db.ForeignKey("assessments.id", ondelete="CASCADE"), nullable=False, index=True
+        db.Integer, db.ForeignKey("assessments.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    workflow_id = db.Column(db.String(64), nullable=False, unique=True)
+    workflow_id = db.Column(db.String(64), nullable=False)
+    plant_ref = db.Column(db.String(200), nullable=True)
     task = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(32), nullable=False, default="received")
+    status = db.Column(db.String(40), nullable=False, default="received")
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     assessment = db.relationship(
@@ -279,3 +283,12 @@ class HealthWorkflow(db.Model):
         backref=db.backref("workflows", cascade="all, delete-orphan", order_by="HealthWorkflow.created_at"),
     )
 
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "workflow_id": self.workflow_id,
+            "plant_ref": self.plant_ref,
+            "task": self.task,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

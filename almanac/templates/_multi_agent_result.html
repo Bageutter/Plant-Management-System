@@ -1,0 +1,61 @@
+{% set view = result|workflow_review %}
+<div class="agent-review" data-workflow-status="{{ result.status }}">
+<p class="agent-status" role="status">{{ view.status }}</p>
+{% if result.result %}
+<h3>Draft answer</h3>
+<p class="agent-answer">{{ result.result.answer }}</p>
+{% if result.result.insufficient_context %}<p class="agent-review-note">Some requested facts are missing from the saved sources. Check the gaps below.</p>{% endif %}
+{% endif %}
+{% if result.review %}
+<section class="agent-review-summary {{ 'needs-changes' if view.needs_changes else 'ready' }}" aria-label="Review summary">
+<h3>{{ 'Changes recommended' if view.needs_changes else 'Ready for your check' }}</h3>
+{% if view.concerns %}
+<p>Check {{ view.concerns|length }} concern{{ '' if view.concerns|length == 1 else 's' }} against the saved facts:</p>
+<ul>{% for concern in view.concerns %}<li>{{ concern }}</li>{% endfor %}</ul>
+{% else %}<p>The AI reviewer reported no concerns. Compare the draft with the saved facts before deciding.</p>{% endif %}
+</section>
+{% endif %}
+{% if view.sources %}
+<details class="agent-sources" {% if view.needs_changes %}open{% endif %}>
+<summary>Check the saved facts · {{ view.sources|length }} source{{ '' if view.sources|length == 1 else 's' }}</summary>
+{% for source in view.sources %}
+<section class="agent-source"><h4>{% if source.url %}<a href="{{ source.url }}">{{ source.title }}</a>{% else %}{{ source.title }}{% endif %}</h4>
+<dl>{% for fact in source.facts %}<div><dt>{{ fact.label }}</dt><dd class="{{ 'missing' if fact.value == 'Not recorded' else '' }}">{{ fact.value }}</dd></div>{% endfor %}</dl>
+<details><summary>Read the full saved passage</summary><p class="agent-passage">{{ source.text }}</p></details>
+</section>{% endfor %}
+</details>
+{% elif result.result %}<p class="agent-review-note">No cited source passage is available here. Request supporting evidence before accepting.</p>{% endif %}
+{% if result.plan %}<details class="agent-plan"><summary>How the agents approached this</summary><ol>{% for step in result.plan.steps %}<li>{{ step }}</li>{% endfor %}</ol></details>{% endif %}
+{% if result.status in ['received', 'failed', 'changes_requested'] %}
+<form method="post" action="{{ workflow_url }}" hx-post="{{ workflow_url }}" hx-target="#ai-messages" hx-disabled-elt="find button" hx-indicator="#agents-wait-{{ message.id }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="run">
+<button class="uk-btn uk-btn-primary">Run agents{% if result.status != 'received' %} again{% endif %}</button>
+<span id="agents-wait-{{ message.id }}" class="htmx-indicator" role="status">Checking the saved sources. This may take a few minutes…</span>
+</form>
+{% endif %}
+{% if result.status == 'awaiting_human_review' %}
+<form class="agent-decision-form" method="post" action="{{ workflow_url }}" hx-post="{{ workflow_url }}" hx-target="#ai-messages" hx-disabled-elt="find button"
+      x-data="{ decision: {{ view.default_decision|tojson|forceescape }}, suggested: {{ view.feedback|tojson|forceescape }} }">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="review">
+<label for="agent-decision-{{ message.id }}">What should happen to this draft?</label>
+<select class="uk-select" id="agent-decision-{{ message.id }}" name="decision" x-model="decision">
+<option value="request_changes" {% if view.default_decision == 'request_changes' %}selected{% endif %}>Request changes</option>
+<option value="accept" {% if view.default_decision == 'accept' %}selected{% endif %}>Accept answer</option>
+<option value="partially_accept">Accept only part</option><option value="reject">Reject answer</option></select>
+<p class="agent-decision-help" x-show="decision === 'request_changes'">Describe what to correct. Saving this decision unlocks another run.</p>
+<p class="agent-decision-help" x-show="decision === 'accept'">Accept only after checking the answer against the sources.{% if view.needs_changes %} Explain why you are accepting despite the concerns.{% endif %}</p>
+<p class="agent-decision-help" x-show="decision === 'partially_accept'">Say which part you approve and what remains unresolved.</p>
+<p class="agent-decision-help" x-show="decision === 'reject'">Reject this draft if it should not be used.</p>
+<label for="agent-feedback-{{ message.id }}">Your feedback</label>
+<textarea class="uk-textarea" id="agent-feedback-{{ message.id }}" name="feedback" maxlength="2000" rows="3"
+          :required="decision === 'request_changes' || decision === 'partially_accept' || (decision === 'accept' && {{ 'true' if view.needs_changes else 'false' }})"
+          placeholder="What needs changing, or why do you approve?" aria-describedby="agent-feedback-help-{{ message.id }}"></textarea>
+{% if view.needs_changes %}<button type="button" class="agent-text-button" @click="$el.form.querySelector('textarea').value = suggested">Use the review concerns as feedback</button>{% endif %}
+<p id="agent-feedback-help-{{ message.id }}" class="agent-decision-help">Feedback is required for requested changes, partial acceptance, or accepting despite concerns.</p>
+<button class="uk-btn uk-btn-primary">Save my review</button>
+</form>
+{% endif %}
+{% if result.human_review %}<p class="agent-saved-decision">Your saved decision: {{ result.human_review.decision|replace('_', ' ') }}</p><p class="agent-answer">{{ result.human_review.feedback }}</p>{% endif %}
+<div class="agent-review-tools"><button type="button" class="agent-text-button" hx-get="{{ workflow_url }}" hx-target="#ai-messages">Refresh agent status</button>
+<details class="agent-technical"><summary>Technical details</summary><pre>{{ result|tojson(indent=2) }}</pre></details></div>
+</div>

@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import store
 from app import app
@@ -129,40 +129,95 @@ if __name__ == "__main__":
 
 
 HEALTH = {"mode": "health-api", "passages": [
-    {"chunk_id": "health-7-assessment", "title": "Tomato assessment 7 — Plant Health record",
-     "text": "Health score 62 (at risk); confidence medium. Issue: yellowing lower leaves."},
+    {"chunk_id": "health-history", "title": "Tomato history — Plant Health record",
+     "text": "Plant: Tomato\nAssessments recorded: 1 (newest first: Assessment 7 at risk 45)"},
+    {"chunk_id": "health-7", "title": "Assessment 7 Tomato — Plant Health record",
+     "text": "Status: at risk; health score 45/100\nIssues: Overwatering (medium) - Soil stays wet"},
 ]}
 
 
-class HealthSourceTests(SourceTests):
-    def test_health_needs_supplied_evidence(self):
-        response = self.create(source="health")
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("health workflows must include", response.json["error"])
+class HealthSourceTests(unittest.TestCase):
+    """Plant Health sends one plant's stored assessments with the task, the same way
+    Virtual Garden sends its garden: this server never reads health records itself."""
 
-    def test_health_workflow_stores_its_evidence(self):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.database = patch.object(store, "DATABASE", Path(self.directory.name) / "workflows.db")
+        self.database.start()
+        self.client = app.test_client()
+
+    def tearDown(self):
+        self.database.stop()
+        self.directory.cleanup()
+
+    def create(self, **body):
+        return self.client.post("/workflow", json={"task": "How is the tomato?", **body})
+
+    def test_health_requires_valid_supplied_evidence(self):
+        for body in ({"source": "health"}, {"source": "health", "evidence": {"passages": []}}):
+            response = self.create(**body)
+            self.assertEqual(response.status_code, 400, body)
+        self.assertIn("health workflows must include the feature's evidence",
+                      self.create(source="health").json["error"])
+        self.assertEqual(store.read_snapshot()["workflows"], [])
+
+    def test_health_evidence_is_stored_and_reaches_the_agents(self):
         response = self.create(source="health", evidence=HEALTH)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json["source"], "health")
-        saved = store.get_workflow(response.json["workflow_id"])
-        self.assertEqual(saved["history"][0]["details"], {"source": "health", "evidence": HEALTH})
+        workflow_id = response.json["workflow_id"]
+        self.assertEqual(store.get_workflow(workflow_id)["history"][0]["details"],
+                         {"source": "health", "evidence": HEALTH})
+        result = {"answer": "Assessment 7 Tomato: at risk, 45/100, overwatering.",
+                  "insufficient_context": False, "cited_chunk_ids": ["health-7"]}
+        with patch("workflow.create_plan", return_value={"steps": ["Read the assessments"]}) as plan, \
+                patch("worker.execute_plan", return_value=result) as act, \
+                patch("worker._retrieve_context") as retrieve, \
+                patch("workflow.review_result", return_value={"recommendation": "accept", "issues": []}):
+            ran = self.client.post("/workflow/run", json={"workflow_id": workflow_id})
+        self.assertEqual(ran.status_code, 200)
+        self.assertEqual(ran.json["status"], "awaiting_human_review")
+        self.assertEqual(plan.call_args.kwargs["source"], "health")
+        self.assertEqual(act.call_args.args[1], HEALTH)
+        self.assertEqual(act.call_args.args[3], "health")
+        retrieve.assert_not_called()
+        self.assertEqual(ran.json["source"], "health")
 
-    def test_health_has_its_own_prompts_and_never_retrieves(self):
-        reply = Mock()
-        reply.__enter__ = Mock(return_value=reply)
-        reply.__exit__ = Mock(return_value=False)
-        reply.read.return_value = json.dumps(
-            {"message": {"content": json.dumps({"steps": ["Read the assessment"]})}}).encode()
-        with patch("planner.urlopen", return_value=reply) as call:
-            create_plan("Why is the tomato at risk?", source="health")
-        sent = json.loads(call.call_args.args[0].data)
-        self.assertIn("Plant Health backend supplies one plant health assessment",
-                      sent["messages"][0]["content"])
+    def test_worker_refuses_health_without_evidence_and_answers_empty_evidence_honestly(self):
         with self.assertRaises(ValueError):
-            run_worker("Why?", {"steps": ["Read"]}, source="health")  # no evidence, no MCP fallback
+            run_worker("How is the tomato?", {"steps": ["Read"]}, source="health")
+        empty = execute_plan({"steps": ["Read"]}, {"passages": []}, "How is the tomato?", "health")
+        self.assertEqual(empty, {"answer": "No supporting health assessments were found.",
+                                 "insufficient_context": True, "cited_chunk_ids": []})
 
-    def test_empty_health_evidence_says_so(self):
-        result = execute_plan({"steps": ["Read"]}, {"passages": []}, "Why?", "health")
-        self.assertEqual(result["answer"], "No supporting plant health records were found.")
-        self.assertTrue(result["insufficient_context"])
+    def test_health_prompts_are_framed_for_assessments(self):
+        captured = {}
 
+        def fake_post(url, json, timeout):
+            captured["system"] = json["messages"][0]["content"]
+            reply = Mock()
+            reply.json.return_value = {"message": {"content": '{"answer": "Recorded.", '
+                                       '"insufficient_context": false, "cited_chunk_ids": ["health-7"]}'}}
+            return reply
+
+        with patch("worker.httpx.post", side_effect=fake_post):
+            execute_plan({"steps": ["Read"]}, HEALTH, "How is the tomato?", "health")
+        self.assertIn("Plant Health assessments", captured["system"])
+        self.assertIn("never diagnose the plant yourself", captured["system"])
+        self.assertNotIn("REQUESTED_CHANGES", captured["system"])
+
+        planned = {}
+
+        def fake_urlopen(request, timeout):
+            planned["body"] = json.loads(request.data)
+            reply = MagicMock()
+            reply.__enter__.return_value = reply
+            reply.read.return_value = json.dumps(
+                {"message": {"content": json.dumps({"steps": ["Read the assessments"]})}}
+            ).encode()
+            return reply
+
+        with patch("planner.urlopen", side_effect=fake_urlopen):
+            plan = create_plan("How is the tomato?", source="health")
+        self.assertEqual(plan, {"steps": ["Read the assessments"]})
+        self.assertIn("stored health assessments", planned["body"]["messages"][0]["content"])
+        self.assertIn("not to diagnose the plant", planned["body"]["messages"][0]["content"])

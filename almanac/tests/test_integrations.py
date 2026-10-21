@@ -29,8 +29,9 @@ def test_mcp_allows_only_bounded_read_only_tools_and_renders_links(app, monkeypa
 
     monkeypatch.setattr(integrations, "_call_tool", call)
     client = app.test_client()
-    page = client.get("/integrations")
+    page = client.get("/integrations", headers={"Accept": "text/html"})
     assert page.status_code == 200 and b"Ask with sources" in page.data
+    assert page.mimetype == "text/html" and "Accept" in page.vary
     result = client.post("/integrations/mcp", data={"query": "mildew", "kind": "disease"}, headers={"X-Forwarded-Prefix": "/almanac"})
     assert result.status_code == 200
     assert b'/almanac/diseases/7' in result.data and b'&lt;script&gt;' in result.data
@@ -77,3 +78,21 @@ def test_index_refresh_requires_csrf_and_login(app):
     assert client.post("/integrations/rag/sync").status_code == 400
     app.config["WTF_CSRF_ENABLED"] = False
     assert client.post("/integrations/rag/sync").status_code == 401
+
+
+@pytest.mark.parametrize("accept", [None, "*/*", "application/json", "application/json;q=1,text/html;q=0.5"])
+@pytest.mark.parametrize("enabled", [False, True])
+def test_integration_status_reports_configured_modes_for_review_clients(app, accept, enabled):
+    app.config.update(
+        MCP_ENABLED=enabled, MCP_SERVER_URL="http://127.0.0.1:5105/mcp",
+        RAG_ENABLED=enabled, RAG_SERVER_URL="http://127.0.0.1:5106",
+        MULTI_AGENT_ENABLED=enabled, MULTI_AGENT_SERVER_URL="http://127.0.0.1:8013",
+    )
+    response = app.test_client().get("/integrations", headers={"Accept": accept} if accept else {})
+    assert response.status_code == 200 and response.mimetype == "application/json"
+    assert response.json == {
+        "mcp": {"enabled": enabled, "url": "http://127.0.0.1:5105/mcp"},
+        "rag": {"enabled": enabled, "url": "http://127.0.0.1:5106"},
+        "multi_agent": {"enabled": enabled, "url": "http://127.0.0.1:8013"},
+    }
+    assert "Accept" in response.vary

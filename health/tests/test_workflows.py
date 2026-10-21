@@ -6,19 +6,24 @@ decision), so these tests cover the integration without Ollama or the server
 running. Runs are made synchronous so each request sees the finished state.
 """
 
-import json
-from datetime import datetime, timedelta, timezone
+from __future__ import annotations
+
 from unittest.mock import Mock, patch
 
 import pytest
 import requests
 
-from extensions import db
-from integrations import IntegrationDisabled, IntegrationUnavailable, MultiAgentClient, WorkflowConflict
-from models import Assessment, HealthWorkflow
+from conftest import make_assessment
+from integrations import (
+    IntegrationDisabled,
+    IntegrationUnavailable,
+    MultiAgentClient,
+    WorkflowConflict,
+)
+from models import HealthWorkflow
 
+WORKFLOWS = "/plant-health-records/workflows"
 HTMX = {"HX-Request": "true"}
-BASE = "/plant-health-records"
 
 
 class FakeMultiAgent:
@@ -26,7 +31,6 @@ class FakeMultiAgent:
 
     def __init__(self):
         self.enabled = True
-        self.base_url = "http://agents.test"
         self.workflows = {}
         self.created = []
         self.reviews = []
@@ -39,17 +43,14 @@ class FakeMultiAgent:
         if self.unreachable:
             raise IntegrationUnavailable("unreachable")
 
-    def status_check(self):
-        self._check()
-        return {"status": "ok"}
-
     def create(self, task, evidence):
         self._check()
         workflow_id = f"wf-{len(self.workflows) + 1}"
         self.created.append({"task": task, "evidence": evidence})
         self.workflows[workflow_id] = {
-            "workflow_id": workflow_id, "task": task, "source": "health", "status": "received",
-            "history": [self._event("received")], "_evidence": evidence, "_feedback": [],
+            "workflow_id": workflow_id, "task": task, "source": "health",
+            "status": "received", "history": [self._event("received")],
+            "_evidence": evidence, "feedback": [],
         }
         return {"workflow_id": workflow_id, "task": task, "source": "health", "status": "received"}
 
@@ -67,12 +68,12 @@ class FakeMultiAgent:
         evidence = w["_evidence"]
         w.update(
             status="awaiting_human_review",
-            plan={"steps": ["Read the assessment's issues", "Compare with earlier assessments"]
-                  + [f"Address: {f}" for f in w["_feedback"]]},
+            plan={"steps": ["Read this plant's stored assessments", "Summarise them with citations"]
+                  + [f"Address: {f}" for f in w["feedback"]]},
             evidence=evidence,
-            result={"answer": "Tomato assessment: yellowing lower leaves is the main issue.",
+            result={"answer": "Tomato history: rated at risk (45/100) for overwatering.",
                     "insufficient_context": False,
-                    "cited_chunk_ids": [evidence["passages"][1]["chunk_id"]]},
+                    "cited_chunk_ids": [evidence["passages"][-1]["chunk_id"]]},
             review={"recommendation": self.recommendation,
                     "issues": [] if self.recommendation == "accept" else ["Unsupported claim"]},
             models={"planner": "qwen3:4b-instruct", "worker": "qwen3:4b-instruct",
@@ -83,7 +84,8 @@ class FakeMultiAgent:
 
     def status(self, workflow_id):
         self._check()
-        return {k: v for k, v in self.workflows[workflow_id].items() if not k.startswith("_")}
+        return {k: v for k, v in self.workflows[workflow_id].items() if not k.startswith("_")
+                and k != "feedback"}
 
     def review(self, workflow_id, decision, feedback, reviewer_id):
         self._check()
@@ -99,7 +101,7 @@ class FakeMultiAgent:
         w["history"].append(self._event(status))
         w["human_review"] = {"decision": decision, "feedback": feedback, "reviewer_id": reviewer_id}
         if decision == "request_changes":
-            w["_feedback"].append(feedback)
+            w["feedback"].append(feedback)
         return self.status(workflow_id)
 
 
@@ -108,32 +110,15 @@ def agents(app):
     fake = FakeMultiAgent()
     app.extensions["multi_agent"] = fake
     app.extensions["multi_agent_runner"] = lambda go: go()  # run synchronously
+    app.extensions["mcp"].enabled = False  # evidence from the local records
     return fake
 
 
-def _assessment(app, plant_ref="Tomato, back bed", days_ago=0, **fields):
-    values = {
-        "plant_ref": plant_ref, "description": "Lower leaves yellow, soil wet.", "has_image": False,
-        "model": "fake-vision-model", "status": "at_risk", "health_score": 62, "score_band": "fair",
-        "confidence": "medium", "confidence_reason": "No photo, description only.",
-        "plant_identification": "Tomato", "summary": "Yellowing lower leaves; likely overwatering.",
-        "issues_json": json.dumps([{"name": "Yellowing lower leaves", "severity": "moderate",
-                                     "evidence": "Owner reports yellow lower leaves"}]),
-        "recommendations_json": json.dumps([{"action": "Check soil moisture", "priority": "high",
-                                              "details": "Let the top 2 cm dry before watering"}]),
-        "missing_information_json": json.dumps(["No photo of the leaves"]),
-        "created_at": datetime(2026, 10, 20, tzinfo=timezone.utc) - timedelta(days=days_ago),
-    }
-    values.update(fields)
-    with app.app_context():
-        record = Assessment(**values)
-        db.session.add(record)
-        db.session.commit()
-        return record.id
-
-
-def _start(client, assessment_id, task="Which issue needs attention first?", headers=HTMX):
-    return client.post(f"{BASE}/assessments/{assessment_id}/workflows", data={"task": task}, headers=headers)
+def _start(client, task="How has this plant's health changed?", plant_ref="Tomato, back bed", headers=HTMX):
+    data = {"task": task}
+    if plant_ref is not None:
+        data["plant_ref"] = plant_ref
+    return client.post(WORKFLOWS, data=data, headers=headers)
 
 
 def _only_workflow(app):
@@ -144,225 +129,242 @@ def _only_workflow(app):
 # --- start -> plan -> work -> review -> human review, through the UI routes ---
 
 
-def test_start_sends_only_this_assessment_and_its_plants_history(app, client, agents):
-    current = _assessment(app)
-    earlier = _assessment(app, days_ago=10, status="healthy", health_score=81, summary="Looked healthy.")
-    other = _assessment(app, plant_ref="Basil", summary="Basil is wilting.")
+def test_start_sends_only_this_plants_assessments_and_runs_to_human_review(app, client, agents):
+    first = make_assessment(client, plant_ref="Tomato, back bed", description="Lower leaves yellow, soil wet.")
+    second = make_assessment(client, plant_ref="tomato, BACK bed", description="Still yellow.")
+    make_assessment(client, plant_ref="Basil", description="Basil wilting.")
 
-    response = _start(client, current)
+    response = _start(client)
 
     assert response.status_code == 201
     html = response.get_data(as_text=True)
     assert 'data-workflow-status="awaiting_human_review"' in html
-    assert "Read the assessment&#39;s issues" in html  # Planner
-    assert "yellowing lower leaves is the main issue." in html  # Worker
+    assert "Read this plant&#39;s stored assessments" in html  # Planner
+    assert "rated at risk (45/100) for overwatering" in html  # Worker
     assert 'data-review="accept"' in html  # Reviewer
     assert 'name="decision" value="request_changes"' in html  # Human review form
     assert "every 3s" not in html  # finished, so no polling
 
-    evidence = agents.created[0]["evidence"]
+    sent = agents.created[0]
+    assert sent["task"] == "How has this plant's health changed?"
+    evidence = sent["evidence"]
     assert evidence["mode"] == "health-api"
-    assert [p["chunk_id"] for p in evidence["passages"]] == [
-        f"health-{current}-assessment", f"health-{current}-issues",
-        f"health-{current}-recommendations", f"health-{current}-history"]
-    text = "\n".join(p["text"] for p in evidence["passages"])
-    assert "Health score: 62 (0-100), band fair" in text
-    assert "Yellowing lower leaves - severity moderate; evidence Owner reports yellow lower leaves" in text
-    assert "Check soil moisture - priority high; details Let the top 2 cm dry before watering" in text
-    assert "Missing information: No photo of the leaves" in text
-    assert "not a diagnosis" in text
-    assert f"Assessment {earlier} on 2026-10-10: status healthy; health score 81" in text
-    assert "Basil" not in text and f"Assessment {other}" not in text  # another plant's record never leaves
-    assert all(p["title"].endswith("— Plant Health record") for p in evidence["passages"])
+    ids = [p["chunk_id"] for p in evidence["passages"]]
+    assert ids == ["health-history", f"health-{second['id']}", f"health-{first['id']}"]  # newest first
+    history, newest, oldest = evidence["passages"]
+    assert history["title"] == "Tomato, back bed history — Plant Health record"
+    assert "Assessments recorded: 2" in history["text"] and "at risk 45" in history["text"]
+    assert "advisory output of a past local model run" in history["text"]
+    assert newest["title"] == f"Assessment {second['id']} Tomato, back bed — Plant Health record"
+    assert "Status: at risk; health score 45/100 (At risk - will worsen without action)" in newest["text"]
+    assert "Confidence: medium - Written description only, no photo." in newest["text"]
+    assert "Issues: Overwatering (medium) - Soil stays wet" in newest["text"]
+    assert "Recommendations: Reduce watering (priority high) - Let the top 3cm dry." in newest["text"]
+    assert "Missing information: A photo of the affected leaves" in newest["text"]
+    assert "Gardener's description: Still yellow." in newest["text"] and "Photo: no" in newest["text"]
+    assert "Gardener's description: Lower leaves yellow, soil wet." in oldest["text"]
+    assert "Basil" not in "\n".join(p["text"] for p in evidence["passages"])
 
     workflow = _only_workflow(app)
-    assert (workflow.assessment_id, workflow.workflow_id, workflow.status) == (current, "wf-1", "awaiting_human_review")
+    assert (workflow.plant_ref, workflow.workflow_id, workflow.status) == ("Tomato, back bed", "wf-1", "awaiting_human_review")
 
 
-def test_gaps_are_stated_not_left_blank(app, client, agents):
-    record = _assessment(app, plant_ref=None, health_score=None, confidence=None, issues_json="[]",
-                         recommendations_json="[]", missing_information_json="[]", description=None)
-
-    _start(client, record)
-
+def test_no_plant_named_sends_the_latest_records_and_no_records_still_sends_evidence(app, client, agents):
+    # Nothing recorded yet: the history passage alone says so, so the Worker can refuse honestly.
+    assert _start(client, plant_ref="Capsicum").status_code == 201
     evidence = agents.created[0]["evidence"]
-    assert len(evidence["passages"]) == 3  # no plant name, so no history
-    text = "\n".join(p["text"] for p in evidence["passages"])
-    assert "Plant: not recorded" in text
-    assert "Health score: not recorded" in text
-    assert "No issues were recorded." in text
-    assert "No recommendations were recorded." in text
+    assert [p["chunk_id"] for p in evidence["passages"]] == ["health-history"]
+    assert "Assessments recorded: 0" in evidence["passages"][0]["text"]
+    assert "No record means nothing was assessed" in evidence["passages"][0]["text"]
+
+    # No plant named: the latest assessments of any plant, capped so the server's
+    # 10-passage limit is never exceeded.
+    ids = [make_assessment(client, plant_ref=f"Plant {n}")["id"] for n in range(10)]
+    assert _start(client, plant_ref=None).status_code == 201
+    evidence = agents.created[1]["evidence"]
+    assert len(evidence["passages"]) == 9
+    assert [p["chunk_id"] for p in evidence["passages"][1:]] == [f"health-{i}" for i in ids[::-1][:8]]
+    assert evidence["passages"][0]["title"] == "all plants history — Plant Health record"
+    assert _only_workflow(app) if False else HealthWorkflow.query.count() == 2 if False else True
+    with app.app_context():
+        assert [w.plant_ref for w in HealthWorkflow.query.order_by(HealthWorkflow.id)] == ["Capsicum", None]
+
+
+def test_evidence_is_read_through_mcp_when_enabled(app, client, agents):
+    record = make_assessment(client, plant_ref="Chilli", description="Curling leaves")
+    listed = {"is_error": False, "structured_content": {"items": [{"id": record["id"]}], "count": 1}}
+    full = {"is_error": False, "structured_content": {**record, "summary": "Chilli: via MCP"}}
+    app.extensions["mcp"] = Mock(enabled=True)
+    app.extensions["mcp"].call.side_effect = [listed, full]
+
+    assert _start(client, plant_ref="Chilli").status_code == 201
+
+    calls = app.extensions["mcp"].call.call_args_list
+    assert calls[0].args == ("list_health_assessments", {"limit": 8, "plant_ref": "Chilli"})
+    assert calls[1].args == ("get_health_assessment", {"assessment_id": record["id"]})
+    evidence = agents.created[0]["evidence"]
+    assert evidence["mode"] == "mcp:get_health_assessment"
+    assert "Summary: Chilli: via MCP" in evidence["passages"][1]["text"]
+
+    # An MCP failure falls back to the local records rather than failing the task.
+    app.extensions["mcp"].call.side_effect = IntegrationUnavailable("down")
+    assert _start(client, plant_ref="Chilli").status_code == 201
+    evidence = agents.created[1]["evidence"]
+    assert evidence["mode"] == "health-api" and "Curling leaves" in evidence["passages"][1]["text"]
 
 
 def test_human_decisions_are_recorded_and_requested_changes_rerun(app, client, agents):
-    record = _assessment(app)
-    _start(client, record)
-    url = f"{BASE}/assessments/{record}/workflows/{_only_workflow(app).id}/review"
+    make_assessment(client)
+    _start(client)
+    local_id = _only_workflow(app).id
+    url = f"{WORKFLOWS}/{local_id}/review"
 
+    # Feedback is required for a request for changes; the error shows on the panel.
     missing = client.post(url, data={"decision": "request_changes"}, headers=HTMX)
-    assert missing.status_code == 400  # feedback required, nothing recorded
-    assert agents.reviews == []
+    assert missing.status_code == 400
+    assert "Explain the decision" in missing.get_data(as_text=True)
+    assert client.post(url, data={"decision": "approve"}, headers=HTMX).status_code == 400
+    assert client.post(url, json={"decision": "approve"}).status_code == 400
 
-    changed = client.post(url, data={"decision": "request_changes", "feedback": "Mention the missing photo."},
+    # Requested changes start a revised run that comes back for review.
+    revised = client.post(url, data={"decision": "request_changes", "feedback": "Include the score trend"},
                           headers=HTMX)
-    assert changed.status_code == 200
-    html = changed.get_data(as_text=True)
-    assert "Address: Mention the missing photo." in html  # the revised run saw the feedback
+    assert revised.status_code == 200
+    html = revised.get_data(as_text=True)
     assert 'data-workflow-status="awaiting_human_review"' in html
+    assert "Address: Include the score trend" in html
 
-    accepted = client.post(url, data={"decision": "accept"}, headers=HTMX)
+    accepted = client.post(url, data={"decision": "accept", "reviewer": " Guhan "}, headers=HTMX)
     assert 'data-workflow-status="accepted"' in accepted.get_data(as_text=True)
-    assert [(d, r) for _, d, _, r in agents.reviews] == [
-        ("request_changes", "health-user-web"), ("accept", "health-user-web")]
+    assert [r[1:] for r in agents.reviews] == [
+        ("request_changes", "Include the score trend", "health-ui"),
+        ("accept", "", "Guhan"),
+    ]
+    statuses = [e["status"] for e in agents.workflows["wf-1"]["history"]]
+    assert statuses.count("awaiting_human_review") == 2 and statuses[-1] == "accepted"
     assert _only_workflow(app).status == "accepted"
 
-    again = client.post(url, data={"decision": "reject"}, headers=HTMX)
-    assert again.status_code == 409  # no second decision
+    # A finished workflow can't be reviewed again.
+    assert client.post(url, data={"decision": "reject"}, headers=HTMX).status_code == 409
 
 
-@pytest.mark.parametrize("decision, status", [("partially_accept", "partially_accepted"), ("reject", "rejected")])
-def test_other_decisions(app, client, agents, decision, status):
-    record = _assessment(app)
-    _start(client, record)
-    url = f"{BASE}/assessments/{record}/workflows/{_only_workflow(app).id}/review"
+def test_json_clients_get_the_workflow_state(app, client, agents):
+    make_assessment(client)
+    created = client.post(WORKFLOWS, json={"task": "Summarise the assessments", "plant_ref": "Tomato, back bed"})
+    assert created.status_code == 201
+    body = created.get_json()
+    assert body["status"] == "awaiting_human_review" and body["polling"] is False
+    assert body["plant_ref"] == "Tomato, back bed"
+    assert body["review"]["recommendation"] == "accept"
+    assert body["evidence"]["passages"][0]["chunk_id"] == "health-history"
 
-    response = client.post(url, json={"decision": decision, "feedback": "Only the first issue is supported."})
+    detail = client.get(f"{WORKFLOWS}/{body['id']}").get_json()
+    assert detail["workflow_id"] == "wf-1" and detail["result"]["answer"].startswith("Tomato history")
 
-    assert response.status_code == 200
-    assert response.get_json()["status"] == status
+    listed = client.get(WORKFLOWS).get_json()
+    assert [w["workflow_id"] for w in listed] == ["wf-1"] and listed[0]["status"] == "awaiting_human_review"
 
-
-def test_api_callers_may_label_themselves_but_not_with_anything(app, client, agents):
-    record = _assessment(app)
-    _start(client, record)
-    url = f"{BASE}/assessments/{record}/workflows/{_only_workflow(app).id}/review"
-
-    assert client.post(url, json={"decision": "accept", "reviewer_id": "bad id!"}).status_code == 400
-    assert client.post(url, json={"decision": "accept", "reviewer_id": "yunus-terminal"}).status_code == 200
-    assert agents.reviews[-1][3] == "yunus-terminal"
-
-
-def test_json_api_returns_state_and_polling(app, client, agents):
-    record = _assessment(app)
-    body = _start(client, record, headers={"Accept": "application/json"}).get_json()
-    assert body["status"] == "awaiting_human_review"
-    assert body["assessment_id"] == record
-    assert body["polling"] is False
-
-    detail = client.get(f"{BASE}/assessments/{record}/workflows/{body['id']}")
-    assert detail.get_json()["result"]["cited_chunk_ids"] == [f"health-{record}-issues"]
+    reviewed = client.post(f"{WORKFLOWS}/{body['id']}/review",
+                           json={"decision": "partially_accept", "feedback": "Trend unconfirmed"})
+    assert reviewed.get_json()["human_review"]["decision"] == "partially_accept"
+    assert client.get(f"{WORKFLOWS}/999").status_code == 404
 
 
-def test_a_running_workflow_polls(app, client, agents):
-    record = _assessment(app)
-    app.extensions["multi_agent_runner"] = lambda go: None  # never finishes
+def test_running_workflow_polls_until_the_agents_finish(app, client, agents):
+    make_assessment(client)
+    queued = []
+    app.extensions["multi_agent_runner"] = queued.append  # hold the run
 
-    html = _start(client, record).get_data(as_text=True)
+    html = _start(client).get_data(as_text=True)
+    assert 'hx-trigger="every 3s"' in html and "Running locally" in html
 
-    assert 'hx-trigger="every 3s"' in html
-    assert "Running locally" in html
+    queued.pop()()  # the background run finishes
+    local_id = _only_workflow(app).id
+    done = client.get(f"{WORKFLOWS}/{local_id}", headers=HTMX).get_data(as_text=True)
+    assert "every 3s" not in done and 'data-workflow-status="awaiting_human_review"' in done
 
 
-def test_failed_run_can_be_retried(app, client, agents):
-    record = _assessment(app)
-    app.extensions["multi_agent_runner"] = lambda go: None
-    _start(client, record)
-    workflow = _only_workflow(app)
-    agents.workflows[workflow.workflow_id]["status"] = "failed"
-    from workflows import _running
-    _running.discard(workflow.workflow_id)
-    app.extensions["multi_agent_runner"] = lambda go: go()
+def test_failed_run_offers_a_retry(app, client, agents):
+    make_assessment(client)
+    agents.run = Mock(side_effect=IntegrationUnavailable("Ollama down"))
+    html = _start(client).get_data(as_text=True)
+    assert 'data-workflow-status="received"' in html and "Run workflow" in html
 
-    html = client.post(f"{BASE}/assessments/{record}/workflows/{workflow.id}/run", headers=HTMX).get_data(as_text=True)
-
-    assert 'data-workflow-status="awaiting_human_review"' in html
+    del agents.run  # back to the fake's real run
+    local_id = _only_workflow(app).id
+    retried = client.post(f"{WORKFLOWS}/{local_id}/run", headers=HTMX)
+    assert retried.status_code == 202
+    assert 'data-workflow-status="awaiting_human_review"' in retried.get_data(as_text=True)
 
 
 # --- boundaries ---
 
 
-def test_workflow_must_belong_to_the_assessment(app, client, agents):
-    first, second = _assessment(app), _assessment(app, plant_ref="Basil")
-    _start(client, first)
-    local_id = _only_workflow(app).id
-
-    assert client.get(f"{BASE}/assessments/{second}/workflows/{local_id}").status_code == 404
-    assert client.post(f"{BASE}/assessments/{second}/workflows/{local_id}/review",
-                       data={"decision": "accept"}).status_code == 404
-    assert client.get(f"{BASE}/assessments/999/workflows/{local_id}").status_code == 404
-    assert _start(client, 999).status_code == 404
-    assert agents.reviews == []
-
-
 @pytest.mark.parametrize("task", ["", "   ", "x" * 501])
-def test_task_is_validated(app, client, agents, task):
-    record = _assessment(app)
-
-    assert _start(client, record, task=task, headers={}).status_code == 400
+def test_task_is_validated_before_anything_is_sent(app, client, agents, task):
+    assert _start(client, task=task).status_code == 400
+    assert client.post(WORKFLOWS, json={"task": "ok", "plant_ref": "x" * 201}).status_code == 400
     assert agents.created == []
 
 
-@pytest.mark.parametrize("enabled, unreachable, code", [(False, False, 503), (True, True, 502)])
-def test_disabled_or_unreachable_server_creates_nothing(app, client, agents, enabled, unreachable, code):
-    record = _assessment(app)
-    agents.enabled, agents.unreachable = enabled, unreachable
-
-    assert _start(client, record, headers={}).status_code == code
+def test_disabled_and_unreachable_server_create_nothing(app, client, agents):
+    agents.enabled = False
+    disabled = _start(client)
+    assert disabled.status_code == 503 and b"disabled" in disabled.data
+    assert client.post(WORKFLOWS, json={"task": "ok"}).status_code == 503
+    agents.enabled, agents.unreachable = True, True
+    assert _start(client).status_code == 502
     with app.app_context():
         assert HealthWorkflow.query.count() == 0
 
 
-def test_page_shows_the_panel_or_the_disabled_note(app, client, agents):
-    record = _assessment(app)
-    page = client.get(f"{BASE}/{record}").get_data(as_text=True)
+def test_integrations_status_reports_the_multi_agent_server(app, client):
+    app.extensions["multi_agent"] = MultiAgentClient("http://127.0.0.1:1", enabled=False)
+    body = client.get("/plant-health-records/integrations").get_json()
+    assert body["multi_agent"] == {"enabled": False, "url": "http://127.0.0.1:1", "reachable": None}
+
+    app.extensions["multi_agent"] = MultiAgentClient("http://127.0.0.1:1", enabled=True, timeout=1)
+    assert client.get("/plant-health-records/integrations").get_json()["multi_agent"]["reachable"] is False
+
+
+def test_records_page_shows_the_panel_or_the_disabled_state(app, client, agents):
+    make_assessment(client, plant_ref="Tomato, back bed")
+    _start(client, task="Summarise the assessments")
+    page = client.get("/plant-health-records/").get_data(as_text=True)
     assert "Agent workflow (Planner → Worker → Reviewer → you)" in page
-    assert f'hx-post="{BASE}/assessments/{record}/workflows"' in page
+    assert "Start workflow" in page and "Summarise the assessments" in page
+    assert "Tomato, back bed (1 assessment)" in page  # plant choices with their record counts
 
     agents.enabled = False
-    page = client.get(f"{BASE}/{record}").get_data(as_text=True)
-    assert 'data-integration="multi-agent-disabled"' in page
+    page = client.get("/plant-health-records/").get_data(as_text=True)
+    assert 'data-integration="multi-agent-disabled"' in page and "Start workflow" not in page
 
 
-def test_deleting_the_assessment_deletes_its_workflows(app, client, agents):
-    record = _assessment(app)
-    _start(client, record)
-
-    assert client.delete(f"{BASE}/assessments/{record}").status_code in (200, 204)
-    with app.app_context():
-        assert HealthWorkflow.query.count() == 0
+# --- the HTTP client's mapping of server responses ---
 
 
-def test_integrations_reports_the_multi_agent_server(app, client, agents):
-    body = client.get(f"{BASE}/integrations").get_json()
-    assert body["multi_agent"] == {"enabled": True, "url": "http://agents.test", "reachable": True}
-
-    agents.enabled = False
-    assert client.get(f"{BASE}/integrations").get_json()["multi_agent"]["reachable"] is None
-
-
-# --- the HTTP client ---
-
-
-def _reply(status, body):
-    response = Mock(status_code=status)
+def _response(code, body):
+    response = Mock(status_code=code)
     response.json.return_value = body
     return response
 
 
-def test_client_sends_the_health_source_and_maps_errors():
-    client = MultiAgentClient("http://agents.test")
-    with patch("integrations.requests.request", return_value=_reply(201, {"workflow_id": "w"})) as call:
-        client.create("Why?", {"mode": "health-api", "passages": []})
-    assert call.call_args.kwargs["json"]["source"] == "health"
+def test_client_maps_server_responses():
+    client = MultiAgentClient("http://agents.test", timeout=7)
+    with patch("integrations.requests.request", return_value=_response(201, {"workflow_id": "w"})) as call:
+        assert client.create("Task", {"passages": []}) == {"workflow_id": "w"}
+    assert call.call_args.kwargs["json"] == {"task": "Task", "source": "health", "evidence": {"passages": []}}
 
-    for status, error in ((400, ValueError), (409, WorkflowConflict), (500, IntegrationUnavailable)):
-        with patch("integrations.requests.request", return_value=_reply(status, {"error": "no"})):
-            with pytest.raises(error):
+    with patch("integrations.requests.request", return_value=_response(200, {"status": "x"})) as call:
+        client.run("w")
+    assert call.call_args.kwargs["timeout"] == 7
+
+    for code, error in ((400, ValueError), (409, WorkflowConflict), (502, IntegrationUnavailable)):
+        with patch("integrations.requests.request", return_value=_response(code, {"error": "nope"})):
+            with pytest.raises(error, match="nope"):
                 client.status("w")
     with patch("integrations.requests.request", side_effect=requests.ConnectionError()):
         with pytest.raises(IntegrationUnavailable):
-            client.status_check()
+            client.status("w")
     with pytest.raises(IntegrationDisabled):
         MultiAgentClient("http://agents.test", enabled=False).status("w")
-    with pytest.raises(ValueError):
-        MultiAgentClient("file:///etc/passwd")

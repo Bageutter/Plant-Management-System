@@ -104,12 +104,12 @@ def create_app(config_class: type | None = None) -> Flask:
         enabled=app.config["RAG_ENABLED"],
         timeout=app.config["INTEGRATION_TIMEOUT"],
     )
-
-    # Release 2: the shared local Multi-Agent Server (workflows.py).
+    # Release 2: the shared local Multi-Agent Server, also reached only via this
+    # backend (see workflows.py).
     app.extensions["multi_agent"] = MultiAgentClient(
-        app.config.get("MULTI_AGENT_URL", "http://127.0.0.1:8003"),
-        enabled=app.config.get("MULTI_AGENT_ENABLED", True),
-        timeout=app.config.get("MULTI_AGENT_TIMEOUT", 900.0),
+        app.config["MULTI_AGENT_URL"],
+        enabled=app.config["MULTI_AGENT_ENABLED"],
+        timeout=app.config["MULTI_AGENT_TIMEOUT"],
     )
 
     from routes import bp as health_bp
@@ -139,11 +139,15 @@ def create_app(config_class: type | None = None) -> Flask:
     def inject_template_globals():
         from ai import CONFIDENCE_EXPLANATION, SCORE_EXPLANATION
         from integrations import TOOL_LABELS
+        from workflows import recent_workflows
 
         return {
             "mcp_enabled": app.extensions["mcp"].enabled,
             "rag_enabled": app.extensions["rag"].enabled,
             "multi_agent_enabled": app.extensions["multi_agent"].enabled,
+            # Called from the records page panel (Release 2), so the index route
+            # does not have to know about workflows.
+            "recent_workflows": recent_workflows,
             "mcp_tools": TOOL_LABELS,
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
             "health_public_url": app.config.get(

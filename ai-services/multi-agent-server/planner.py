@@ -40,14 +40,15 @@ RETRIEVAL = {
         "have retrieved facts, inspected the garden or completed work. "
     ),
     "health": (
-        "The Plant Health backend supplies one plant health assessment (score, "
-        "status, issues, recommendations, missing information) and that plant's "
-        "earlier assessments as the only evidence. First plan to read the records "
-        "relevant to the task. Then identify details the records do not contain, "
-        "compare the available evidence, and prepare an evidence-backed response "
-        "for review. The assessment is an AI opinion recorded earlier, not a "
-        "diagnosis. The Worker has NOT read the records yet: do not claim to have "
-        "retrieved facts, inspected the plant or completed work. "
+        "The Plant Health backend supplies one plant's stored health assessments "
+        "(status, health score, confidence, summary, issues, recommendations and "
+        "missing information, each from a past local model run) as the only "
+        "evidence. First plan to read the assessments relevant to the task. Then "
+        "identify details the assessments do not contain, compare them across time, "
+        "and prepare an evidence-backed response for review. The assessments are "
+        "advisory records, not diagnoses: plan to report what they say, not to "
+        "diagnose the plant. The Worker has NOT read the records yet: do not claim "
+        "to have retrieved facts, inspected the plant or completed work. "
     ),
 }
 

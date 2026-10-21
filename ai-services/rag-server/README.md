@@ -69,7 +69,7 @@ python ai-services/rag-server/app.py
 | `VGARDEN_SERVICE_URL` / `VGARDEN_PUBLIC_URL` | `http://127.0.0.1:3000/vgarden` / `http://localhost:3000/vgarden` | snapshot export API / browser citation links |
 | `VGARDEN_SERVICE_TOKEN` | `dev-inter-service-secret-change-me` | bearer token for vgarden's private `GET /gardens/export` — must match vgarden's own `INTER_SERVICE_SECRET` |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen3:4b-instruct` | local answering model |
-| `RAG_EMBED_MODEL` | `nomic-embed-text` | local embedding model; empty → lexical retrieval only |
+| `RAG_EMBED_MODEL` | `deterministic-256-v1` | local deterministic 256D vectors; any other name uses Ollama; empty → lexical retrieval only |
 | `RAG_TOP_K` | `5` | passages handed to the model (max 10) |
 | `RAG_MIN_COVERAGE` / `RAG_MIN_SIMILARITY` | `0.34` / `0.45` | relevance gate → "insufficient context" |
 
