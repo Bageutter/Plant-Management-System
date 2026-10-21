@@ -23,49 +23,55 @@ flowchart LR
         U[User]
     end
 
-    subgraph "compose network"
+    subgraph "compose network (containers)"
         P[nginx proxy :3000]
         A[almanac :5000]
         V[vgarden :5000]
         H[health :5000]
         AU[auth :5000]
         F[frontend :5000]
-        O[("ollama :11434\n(compose service)")]
+    end
+
+    subgraph "host (non-containerised, local only)"
+        O[("AI-Mode: Ollama :11434")]
+        MCP["MCP server :5105"]
+        RAG["RAG server :5106"]
+        MAS["Multi-Agent Server :8003<br/>Planner / Worker / Reviewer"]
     end
 
     OM[["Open-Meteo\n(public, no key)"]]
 
     U --> P
     P --> F & AU & A & V & H
-    A -- "qwen3:4b-instruct\nchat draft + review" --> O
-    V -- "qwen3:4b-instruct\nchat draft + review" --> O
-    H -- "qwen2.5vl:3b\nvision assessment" --> O
+    A & V & H -- "host.docker.internal" --> O
+    A & V & H -. "MCP tools" .-> MCP
+    A & V & H -. "grounded Q&A" .-> RAG
+    V -. "garden workflows" .-> MAS
+    MCP & RAG & MAS --> O
     V -- "coords + forecast" --> OM
     A -. "cookie -> /me" .-> AU
 ```
 
-`docker-compose.yml` defines one `ollama` service on the internal network.
-`almanac`, `vgarden`, and `health` all reach it at `http://ollama:11434`
-(`OLLAMA_URL`). Models are pulled on first use (`OLLAMA_AUTO_PULL=true`) and
-cached in the `ollama-models` volume. `OLLAMA_KEEP_ALIVE=30m` and
-`OLLAMA_MAX_LOADED_MODELS=1` keep one model resident so repeat calls skip the
-multi-second load.
+AI-Mode, MCP, RAG and the Multi-Agent Server run on the host, outside Docker, as
+the brief requires; none of them is a compose service. The containers reach them
+through `host.docker.internal` (`extra_hosts: host-gateway` makes that work on
+Linux engines too). Each URL is an env var with a host default:
 
-> **Historic note:** the `almanac/` README table and a comment in
-> `docker-compose.yml` still mention `host.docker.internal:11434` (an earlier
-> setup where almanac/vgarden used the host's own Ollama). The actual service
-> definitions in the committed `docker-compose.yml` set
-> `OLLAMA_URL=http://ollama:11434` for all three services — treat that as the
-> source of truth.
+| Service | Env var in compose | Default |
+|---|---|---|
+| Ollama (almanac / vgarden / health) | `ALMANAC_OLLAMA_URL` / `VGARDEN_OLLAMA_URL` / `HEALTH_OLLAMA_URL` → `OLLAMA_URL` | `http://host.docker.internal:11434` |
+| MCP | `MCP_SERVER_URL` | `http://host.docker.internal:5105/mcp` |
+| RAG | `RAG_SERVER_URL` | `http://host.docker.internal:5106` |
+| Multi-Agent (vgarden) | `MULTI_AGENT_URL` | `http://host.docker.internal:8003` |
+
+Each integration has an on/off switch (`AI_MODE_ENABLED`, `MCP_ENABLED`,
+`RAG_ENABLED`, `MULTI_AGENT_ENABLED`). CI and the cloud baseline turn all of them
+off, so the app runs without any model.
 
 ### GPU
 
-CPU inference is ~10× slower. `docker-compose.gpu.yml` is an opt-in override that
-reserves an NVIDIA GPU for the `ollama` service:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
-```
+The host's Ollama uses the GPU by itself (Metal on Apple silicon, CUDA on NVIDIA),
+so no compose override is needed.
 
 ## Model matrix
 
@@ -80,7 +86,7 @@ Configuration knobs (per service, via env — see each service README and
 
 | Env var | Meaning |
 |---|---|
-| `OLLAMA_URL` | Ollama endpoint (`http://ollama:11434` in compose) |
+| `OLLAMA_URL` | Ollama endpoint (`http://host.docker.internal:11434` in compose) |
 | `OLLAMA_MODEL` | Proposer / assessment model |
 | `OLLAMA_REVIEW_MODEL` | Reviewer model (almanac, vgarden); empty ⇒ single-shot |
 | `OLLAMA_AUTO_PULL` | Pull the model on first use if missing |

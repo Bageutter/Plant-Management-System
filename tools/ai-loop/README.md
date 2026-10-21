@@ -116,3 +116,56 @@ relevant pull requests/pushes with `MCP_ENABLED=false` and `RAG_ENABLED=false` s
 the normal lint, tests and image build do not require live AI services. Live
 validation evidence is collected separately with the commands above; CI success
 is not a live model result.
+
+## Release 2: review modes
+
+Three more `--mode` values review saved evidence rather than calling a feature.
+The code is in [`review.py`](review.py); the Release 1 `mcp` and `rag` modes are
+unchanged.
+
+| Mode | Reviews | Checks |
+|---|---|---|
+| `multi-agent` | `workflow_history.jsonl`, `coordination_audit.jsonl` and `multi-agent-metrics.json` exported by the Multi-Agent Server (`--evidence-dir`, default `docs/evidence/release2`) | every run went Planner → Worker → Reviewer → human review in order; every workflow closed by a human; accepting against the Reviewer's advice has a reason; every change request started a new run; every handoff names its model; human reviews from both the UI and the terminal; metrics match the history. `--source vgarden` reviews one feature's workflows. |
+| `testing` | the newest pre-commit result of each check per service in `.security-reports/` (`--services`), the newest finished run of each GitHub Actions workflow on `main` (`--workflows`), and optional downloaded CI JUnit files (`--ci-evidence`) | each pre-commit check passed; each workflow's latest run succeeded; `--endpoint-workflows` ran their endpoint test step; JUnit has no failures |
+| `cloud-deployment` | `docs/evidence/release2/cloud-deployment/latest.json` from `scripts/deploy/azure-report.sh` (`--grounding`), the live site (`--url`, default the report's `app_url`) and the `cloud-deployment.yml` runs | AI-Mode, MCP, RAG and Multi-Agent disabled in the cloud baseline; the deploy's smoke test passed; container apps running with one public entry; database not public; the deployed commit passed CI; HTTPS; the same paths as `azure-smoke.sh` respond |
+
+Each run is one bounded loop:
+
+1. **Plan:** collect the evidence and run the checks above. No model is involved;
+   a check is `pass`, `fail` or `missing` (missing evidence is never a pass, and
+   neither is GitHub being unreachable).
+2. **Act:** the local Ollama model (`--model`, default `qwen3:4b-instruct`) drafts
+   a review from those facts only, at temperature 0 with a pinned JSON schema:
+   summary, findings tied to check IDs, recommendations, and a verdict
+   (`ready`, `ready_with_fixes`, `not_ready`).
+3. **Observe:** fixed rules first. The draft may cite only real check IDs, must
+   raise every failing or missing check as major or blocker, and can't say
+   `ready` while any check isn't passing. Then a second model
+   (`--review-model`, through `shared/ai_loop.Reviewer`) checks that every
+   statement is supported by the facts.
+4. **Adapt:** feed the problems back and redraft, up to `--max-iterations` (2).
+   If the last draft still breaks the rules, the review is written from the
+   checks alone, so the verdict never goes beyond the evidence. The same happens
+   with `--no-model` or when Ollama is down, and the log says so.
+5. **Human review:** you record the decision: `accept` / `partially_accept` /
+   `reject`, or `release` / `hold` / `rollback` for `cloud-deployment`. It's
+   asked in the terminal, or passed with `--decision` and `--reason`; without
+   either and without a terminal it's recorded as `pending`.
+
+```bash
+python3 tools/ai-loop/validate.py --mode multi-agent --output docs/evidence/release2/review-multi-agent.json
+python3 tools/ai-loop/validate.py --mode testing --output docs/evidence/release2/review-testing.json
+python3 tools/ai-loop/validate.py --mode cloud-deployment --output docs/evidence/release2/review-cloud-deployment.json
+```
+
+The review/validation log for each run is in the usual places:
+`logs/review-<mode>.jsonl` and `logs/reports/review-<mode>/<run_id>.md`. The
+`--output` JSON holds the checks, the facts the model saw, the review, which
+step the verdict came from, and the human decision. Exit code `0` means every
+check passed.
+
+Tests (fake model and evidence, no Ollama or GitHub; also run in `vgarden.yml`):
+
+```bash
+python3 -m unittest discover -s tools/ai-loop/tests
+```

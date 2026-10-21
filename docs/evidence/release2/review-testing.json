@@ -1,0 +1,187 @@
+{
+  "run_id": "review-testing-20261021-095138-c9f281",
+  "mode": "testing",
+  "passed": false,
+  "checks": [
+    {
+      "id": "TS-1",
+      "title": "Pre-commit ruff check passes for vgarden",
+      "status": "pass",
+      "detail": "0 Ruff security findings (2026-10-21T09:42, trigger report)."
+    },
+    {
+      "id": "TS-2",
+      "title": "Pre-commit secrets check passes for vgarden",
+      "status": "pass",
+      "detail": "no new secrets (2026-10-21T09:42, trigger report)."
+    },
+    {
+      "id": "TS-3",
+      "title": "Pre-commit audit check passes for vgarden",
+      "status": "pass",
+      "detail": "53 packages, 0 with known vulnerabilities (2026-10-21T09:42, trigger report)."
+    },
+    {
+      "id": "TS-4",
+      "title": "Pre-commit tests check passes for vgarden",
+      "status": "pass",
+      "detail": "137 passed in 11.05s (2026-10-21T09:42, trigger report)."
+    },
+    {
+      "id": "TS-5",
+      "title": "Pre-commit ruff check passes for auth",
+      "status": "pass",
+      "detail": "0 Ruff security findings (2026-10-21T09:43, trigger report)."
+    },
+    {
+      "id": "TS-6",
+      "title": "Pre-commit secrets check passes for auth",
+      "status": "pass",
+      "detail": "no new secrets (2026-10-21T09:43, trigger report)."
+    },
+    {
+      "id": "TS-7",
+      "title": "Pre-commit audit check passes for auth",
+      "status": "pass",
+      "detail": "29 packages, 0 with known vulnerabilities (2026-10-21T09:43, trigger report)."
+    },
+    {
+      "id": "TS-8",
+      "title": "Pre-commit tests check passes for auth",
+      "status": "pass",
+      "detail": "10 passed in 1.26s (2026-10-21T09:43, trigger report)."
+    },
+    {
+      "id": "TS-9",
+      "title": "Latest vgarden.yml run on main succeeded",
+      "status": "pass",
+      "detail": "run 39495422400 on 0a31150 (push): success; jobs: Lint=success, Tests=success, Docker image builds=success, Compose smoke test (MCP + RAG + Multi-Agent disabled)=success"
+    },
+    {
+      "id": "TS-10",
+      "title": "vgarden.yml ran the assigned endpoint tests",
+      "status": "pass",
+      "detail": "'Test the two assigned endpoint functions'=success; 'Save endpoint and regression test evidence'=success"
+    },
+    {
+      "id": "TS-11",
+      "title": "Latest auth.yml run on main succeeded",
+      "status": "missing",
+      "detail": "No finished auth.yml run on main."
+    }
+  ],
+  "facts": {
+    "pre_commit": [
+      {
+        "service": "vgarden",
+        "check": "ruff",
+        "result": "pass",
+        "summary": "0 Ruff security findings",
+        "at": "2026-10-21T09:42"
+      },
+      {
+        "service": "vgarden",
+        "check": "secrets",
+        "result": "pass",
+        "summary": "no new secrets",
+        "at": "2026-10-21T09:42"
+      },
+      {
+        "service": "vgarden",
+        "check": "audit",
+        "result": "pass",
+        "summary": "53 packages, 0 with known vulnerabilities",
+        "at": "2026-10-21T09:42"
+      },
+      {
+        "service": "vgarden",
+        "check": "tests",
+        "result": "pass",
+        "summary": "137 passed in 11.05s",
+        "at": "2026-10-21T09:42"
+      },
+      {
+        "service": "auth",
+        "check": "ruff",
+        "result": "pass",
+        "summary": "0 Ruff security findings",
+        "at": "2026-10-21T09:43"
+      },
+      {
+        "service": "auth",
+        "check": "secrets",
+        "result": "pass",
+        "summary": "no new secrets",
+        "at": "2026-10-21T09:43"
+      },
+      {
+        "service": "auth",
+        "check": "audit",
+        "result": "pass",
+        "summary": "29 packages, 0 with known vulnerabilities",
+        "at": "2026-10-21T09:43"
+      },
+      {
+        "service": "auth",
+        "check": "tests",
+        "result": "pass",
+        "summary": "10 passed in 1.26s",
+        "at": "2026-10-21T09:43"
+      }
+    ],
+    "ci": [
+      {
+        "workflow": "vgarden.yml",
+        "run_id": 39495422400,
+        "commit": "0a31150",
+        "conclusion": "success",
+        "url": "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422400",
+        "jobs": {
+          "Lint": "success",
+          "Tests": "success",
+          "Docker image builds": "success",
+          "Compose smoke test (MCP + RAG + Multi-Agent disabled)": "success"
+        },
+        "endpoint_steps": {
+          "Test the two assigned endpoint functions": "success",
+          "Save endpoint and regression test evidence": "success"
+        }
+      }
+    ],
+    "junit": null
+  },
+  "review": {
+    "summary": "10 of 11 checks passed. Not passing: TS-11.",
+    "findings": [
+      {
+        "check_id": "TS-11",
+        "severity": "blocker",
+        "finding": "Latest auth.yml run on main succeeded: No finished auth.yml run on main."
+      }
+    ],
+    "recommendations": [
+      "Resolve TS-11: latest auth.yml run on main succeeded."
+    ],
+    "verdict": "not_ready"
+  },
+  "verdict_source": "checks_only",
+  "iterations": 2,
+  "human_review": {
+    "decision": "pending",
+    "reason": "No --decision given and no terminal to ask.",
+    "reviewer_id": "yunus"
+  },
+  "evidence_sources": [
+    ".security-reports/20261021T094243Z-ruff-f1770939.json",
+    ".security-reports/20261021T094243Z-secrets-94257500.json",
+    ".security-reports/20261021T094244Z-audit-01a63301.json",
+    ".security-reports/20261021T094249Z-tests-0dd60043.json",
+    ".security-reports/20261021T094301Z-ruff-e509b916.json",
+    ".security-reports/20261021T094301Z-secrets-bbf9cb4f.json",
+    ".security-reports/20261021T094302Z-audit-8413474b.json",
+    ".security-reports/20261021T094307Z-tests-95ddff38.json",
+    "https://github.com/Bageutter/Plant-Management-System/actions/runs/39495422400"
+  ],
+  "transcript": "/Users/yunz/Documents/nerd/Plant-Management-System/tools/ai-loop/logs/reports/review-testing/review-testing-20261021-095138-c9f281.md",
+  "scope": "Reviews saved evidence; a passing review is not proof that every feature works."
+}
