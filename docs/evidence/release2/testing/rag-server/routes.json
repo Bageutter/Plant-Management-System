@@ -1,7 +1,7 @@
 {
   "service": "ai-services/rag-server",
-  "generated_at": "2026-10-21T14:26:04+00:00",
-  "commit": "fe59115",
+  "generated_at": "2026-10-21T14:26:54+00:00",
+  "commit": "d2fface",
   "test_command": "coverage run -m pytest -q tests",
   "exit_code": 0,
   "line_coverage_percent": 83.4,
