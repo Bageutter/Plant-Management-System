@@ -83,7 +83,9 @@ Tests (from this folder):
 Models: Planner and Worker use `qwen3:4b-instruct`; Reviewer uses `qwen3:4b-instruct`.
 
 The Worker receives the original task and prioritises an explicitly named variety.
-The Reviewer combines source-field checks with AI review and validates issue quotes.
+The Reviewer combines source-field checks with AI review and validates issue quotes
+(case and whitespace are ignored; a quote the model mangled becomes a "check this record
+by hand" issue rather than a failed stage, so the workflow still reaches human review).
 Live regression check: `../../almanac/.venv/bin/python tests/check_reviewer.py`.
 
 Audit and metrics:

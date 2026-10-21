@@ -17,6 +17,32 @@ REVIEW_SCHEMA = {
 }
 
 
+class QuoteOutsideAnswer(ValueError):
+    """The reviewer model's issue quotes text that is not in the answer it reviewed."""
+
+    def __init__(self, quote: str, reason: str):
+        super().__init__("Reviewer quoted text outside the answer")
+        self.quote, self.reason = quote, reason
+
+
+def _normalise(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def _quoted(quote: str, answer: str) -> bool:
+    """Whether ``quote`` is in ``answer``, ignoring case and whitespace differences."""
+    return _normalise(quote) in _normalise(answer)
+
+
+def _unverifiable(citation: str | None, error: QuoteOutsideAnswer) -> str:
+    """An issue for a quote the model mangled (e.g. "30/-100" for "30/100"), so a
+    reviewer slip becomes something for the human to check instead of a failed stage."""
+    quote = error.quote if len(error.quote) <= 80 else error.quote[:79] + "…"
+    prefix = f"{citation}: " if citation else ""
+    return (f"{prefix}the reviewer flagged text that is not verbatim in the answer "
+            f"('{quote}': {error.reason}); check this record by hand")
+
+
 def _review_record(plan: dict, result: dict, evidence: dict) -> dict:
     if not isinstance(plan, dict) or not isinstance(plan.get("steps"), list) or not plan["steps"]:
         raise ValueError("Plan steps are required")
@@ -111,8 +137,8 @@ def _review_record(plan: dict, result: dict, evidence: dict) -> dict:
                 or any(not isinstance(issue[k], str) or not issue[k].strip()
                        for k in ("quote", "reason"))):
             raise ValueError("Invalid reviewer issue")
-        if issue["quote"] not in result["answer"]:
-            raise ValueError("Reviewer quoted text outside the answer")
+        if not _quoted(issue["quote"], result["answer"]):
+            raise QuoteOutsideAnswer(issue["quote"], issue["reason"])
         issues.append(f"'{issue['quote']}': {issue['reason']}")
     return {"recommendation": "revise" if issues else "accept", "issues": issues}
 
@@ -138,7 +164,10 @@ def review_result(plan: dict, result: dict, evidence: dict) -> dict:
     issues = [f"Unknown citation: {c}" for c in citations if c not in by_id]
     if not citations:
         # A refusal still needs an AI check against the available evidence.
-        return _review_record(plan, result, evidence)
+        try:
+            return _review_record(plan, result, evidence)
+        except QuoteOutsideAnswer as error:
+            return {"recommendation": "revise", "issues": [_unverifiable(None, error)]}
     for citation in dict.fromkeys(citations):
         if citation not in by_id:
             continue
@@ -164,7 +193,13 @@ def review_result(plan: dict, result: dict, evidence: dict) -> dict:
         if "unverified cultivar traits" in record_result["answer"].lower() and "cultivar" not in source_text:
             issues.append(f"{citation}: remove 'unverified cultivar traits'; this source does not state that status.")
         record_plan = {"steps": ["Check this record's claims against its source."]}
-        record_review = _review_record(record_plan, record_result, {"passages": [passage]})
+        try:
+            record_review = _review_record(record_plan, record_result, {"passages": [passage]})
+        except QuoteOutsideAnswer as error:
+            # One mangled quote must not fail the whole review: the other citations are
+            # still checked and the human sees exactly what could not be verified.
+            issues.append(_unverifiable(citation, error))
+            continue
         issues.extend(f"{citation}: {issue}" for issue in record_review["issues"])
     return {
         "recommendation": "revise" if issues else "accept",
