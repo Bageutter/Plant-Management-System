@@ -17,6 +17,11 @@
         </p>
         {% if message.evidence and message.evidence.mode == 'rag' %}{{ confidence_pill(message.evidence.result.confidence, message.evidence.result.insufficient_context, message.evidence.result.confidence_reason) }}{% endif %}
         </header>
+        {% if message.evidence and message.evidence.mode == 'multi_agent' %}
+        {% set result = message.evidence.result %}
+        {% set workflow_url = url_for('chat_multi_agent', message_id=message.id) %}
+        {% include '_multi_agent_result.html' %}
+        {% else %}
         {% if not message.evidence or message.evidence.mode != 'mcp' %}<p style="margin:0; line-height:1.6; white-space:pre-wrap;">{% if message.role == 'assistant' and message.evidence and message.evidence.result.insufficient_context %}I couldn’t find enough information. Try a plant or problem name.{% elif message.role == 'assistant' %}{{ message.content|plant_mentions(sources, message.evidence and message.evidence.result.retrieval and message.evidence.result.retrieval.mode == 'record_comparison') }}{% else %}{{ message.content }}{% endif %}</p>{% endif %}
         {% if message.evidence %}
         {% set result = message.evidence.result %}
@@ -57,6 +62,7 @@
 
         {% endif %}
 
+        {% endif %}
         {% if message.role == 'assistant' and message.loop_run %}
         {% set run = message.loop_run %}
         <a class="ai-validation-link" href="{{ url_for('ai_loop_trace', run_id=run.id) }}" data-validation-report>
