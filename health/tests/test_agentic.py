@@ -270,8 +270,8 @@ def test_regenerate_stream_emits_done_and_keeps_the_original(client, fake_ai):
 def test_regenerate_stream_reports_missing_assessment_and_source_as_sse_errors(client):
     missing = client.post("/plant-health-records/assessments/999/regenerate/stream")
     assert missing.status_code == 200 and missing.mimetype == "text/event-stream"
-    assert '"type": "error"' in missing.get_data(as_text=True)
-    assert "assessment not found" in missing.get_data(as_text=True)
+    missing_event = json.loads(missing.get_data(as_text=True)[6:])
+    assert missing_event == {"type": "error", "message": "assessment not found"}
 
     original = make_assessment(client)
     cleared = client.put(f"/plant-health-records/assessments/{original['id']}", json={})
@@ -280,8 +280,9 @@ def test_regenerate_stream_reports_missing_assessment_and_source_as_sse_errors(c
         f"/plant-health-records/assessments/{original['id']}/regenerate/stream"
     )
     assert invalid_source.status_code == 200 and invalid_source.mimetype == "text/event-stream"
-    assert '"type": "error"' in invalid_source.get_data(as_text=True)
-    assert "neither a description nor a stored photo" in invalid_source.get_data(as_text=True)
+    source_error = json.loads(invalid_source.get_data(as_text=True)[6:])
+    assert source_error["type"] == "error"
+    assert "neither a description nor a stored photo" in source_error["message"]
 
 
 def test_deleting_an_assessment_removes_its_loop_run(app, client):

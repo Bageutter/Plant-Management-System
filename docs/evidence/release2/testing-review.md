@@ -2,6 +2,10 @@
 
 Run `review-testing-20261021-134337-18a37a` · verdict **ready_with_fixes** (from model) · human decision **accept** by `amy`
 
+The TS-46 endpoint-coverage warning below is updated from the refreshed health test evidence
+(`docs/evidence/release2/testing/health/routes.json`, generated 2026-10-21T14:40:32+00:00).
+The original review transcript records the earlier 31/32 result; the current evidence is 32/32.
+
 All pre-commit security and code quality checks passed, with no vulnerabilities or secrets detected. However, multiple services have untested endpoints, resulting in incomplete test coverage. These gaps represent a minor risk to long-term maintainability and reliability.
 
 ## Checks
@@ -52,8 +56,8 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 | TS-42 | Every auth endpoint is exercised by a test | ✅ pass | 8/8 endpoints run by the tests. Line coverage 95.5%. |
 | TS-43 | almanac tests pass | ✅ pass | 104 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
 | TS-44 | Every almanac endpoint is exercised by a test | ⚠️ warn | 30/33 endpoints run by the tests; not exercised: GET /ailments, GET /ailments/<int:ailment_id>/photo, GET /health. Line coverage 91.6%. |
-| TS-45 | health tests pass | ✅ pass | 97 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
-| TS-46 | Every health endpoint is exercised by a test | ⚠️ warn | 31/32 endpoints run by the tests; not exercised: POST /assessments/<int:assessment_id>/regenerate/stream. Line coverage 91.5%. |
+| TS-45 | health tests pass | ✅ pass | 99 tests: 0 failures, 0 errors, 0 skipped (commit 1505d8b). |
+| TS-46 | Every health endpoint is exercised by a test | ✅ pass | 32/32 endpoints run by the tests. Line coverage 91.9%. |
 | TS-47 | shared/frontend tests pass | ✅ pass | 3 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
 | TS-48 | Every shared/frontend endpoint is exercised by a test | ✅ pass | 1/1 endpoints run by the tests. Line coverage 98.0%. |
 | TS-49 | ai-services/mcp-server tests pass | ✅ pass | 42 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
@@ -70,7 +74,7 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 | `vgarden` | 137 | 0 | 0 | 0 | 95.5% | 34/36 |
 | `auth` | 32 | 0 | 0 | 0 | 95.5% | 8/8 |
 | `almanac` | 104 | 0 | 0 | 0 | 91.6% | 30/33 |
-| `health` | 97 | 0 | 0 | 0 | 91.5% | 31/32 |
+| `health` | 99 | 0 | 0 | 0 | 91.9% | 32/32 |
 | `shared/frontend` | 3 | 0 | 0 | 0 | 98.0% | 1/1 |
 | `ai-services/mcp-server` | 42 | 0 | 0 | 0 | 94.9% | 12/13 |
 | `ai-services/rag-server` | 70 | 0 | 1 | 0 | 82.6% | 5/6 |
@@ -80,7 +84,6 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 
 - **`vgarden`**: `GET /healthz (vgarden/routes.py:93)`, `GET /gardens (vgarden/routes.py:212)`
 - **`almanac`**: `GET /ailments (almanac/app.py:481)`, `GET /ailments/<int:ailment_id>/photo (almanac/app.py:486)`, `GET /health (almanac/app.py:1027)`
-- **`health`**: `POST /assessments/<int:assessment_id>/regenerate/stream (health/routes.py:389)`
 - **`ai-services/mcp-server`**: `GET /healthz (ai-services/mcp-server/server.py:60)`
 - **`ai-services/rag-server`**: `POST /rag/retrieve (ai-services/rag-server/routes.py:213)`
 - **`ai-services/multi-agent-server`**: `GET /healthz (ai-services/multi-agent-server/app.py:22)`, `GET /dashboard (ai-services/multi-agent-server/app.py:136)`, `GET /workflow/metrics (ai-services/multi-agent-server/app.py:153)`
@@ -89,7 +92,6 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 
 - **TS-40** (minor): 34 out of 36 endpoints in vgarden are exercised by tests; endpoints GET /healthz and GET /gardens are not tested. Line coverage is 95.5% (warn).
 - **TS-44** (minor): 30 out of 33 endpoints in almanac are exercised by tests; endpoints GET /ailments, GET /ailments/<int:ailment_id>/photo, and GET /health are not tested. Line coverage is 91.6% (warn).
-- **TS-46** (minor): 31 out of 32 endpoints in health are exercised by tests; endpoint POST /assessments/<int:assessment_id>/regenerate/stream is not tested. Line coverage is 91.5% (warn).
 - **TS-50** (minor): 12 out of 13 endpoints in ai-services/mcp-server are exercised by tests; endpoint GET /healthz is not tested. Line coverage is 94.9% (warn).
 - **TS-52** (minor): 5 out of 6 endpoints in ai-services/rag-server are exercised by tests; endpoint POST /rag/retrieve is not tested. Line coverage is 82.6% (warn).
 - **TS-54** (minor): 5 out of 8 endpoints in ai-services/multi-agent-server are exercised by tests; endpoints GET /healthz, GET /dashboard, and GET /workflow/metrics are not tested. Line coverage is 92.9% (warn).
@@ -98,7 +100,6 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 
 - Add test coverage for the missing endpoints in vgarden (GET /healthz, GET /gardens) to ensure full endpoint coverage and maintain 100% test coverage for all routes.
 - Implement tests for the untested endpoints in almanac (GET /ailments, GET /ailments/<int:ailment_id>/photo, GET /health) to improve test coverage and reliability.
-- Develop and execute tests for the missing endpoint in health (POST /assessments/<int:assessment_id>/regenerate/stream) to ensure all functionality is validated.
 - Add test cases for the untested endpoint in ai-services/mcp-server (GET /healthz) to ensure complete coverage of the service.
 - Create test cases for the missing endpoint in ai-services/rag-server (POST /rag/retrieve) to address low line coverage and improve service reliability.
 - Implement tests for the untested endpoints in ai-services/multi-agent-server (GET /healthz, GET /dashboard, GET /workflow/metrics) to ensure full coverage of all endpoints and improve system stability.
@@ -107,7 +108,7 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 ## Human decision
 
 - Decision: **accept** (choices: accept, partially_accept, reject)
-- Reason: The required tests pass; keep the six coverage gaps as follow-up improvements.
+- Reason: At the time of the original decision, the required tests passed and six coverage gaps were retained as follow-up improvements. The TS-46 health gap has since been resolved by the refreshed evidence.
 
 ## Evidence and log
 

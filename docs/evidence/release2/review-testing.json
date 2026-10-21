@@ -271,13 +271,13 @@
       "id": "TS-45",
       "title": "health tests pass",
       "status": "pass",
-      "detail": "97 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3)."
+      "detail": "99 tests: 0 failures, 0 errors, 0 skipped (commit 1505d8b)."
     },
     {
       "id": "TS-46",
       "title": "Every health endpoint is exercised by a test",
-      "status": "warn",
-      "detail": "31/32 endpoints run by the tests; not exercised: POST /assessments/<int:assessment_id>/regenerate/stream. Line coverage 91.5%."
+      "status": "pass",
+      "detail": "32/32 endpoints run by the tests. Line coverage 91.9%."
     },
     {
       "id": "TS-47",
@@ -674,18 +674,16 @@
       },
       {
         "service": "health",
-        "commit": "228fec3",
-        "tests": 97,
+        "commit": "1505d8b",
+        "tests": 99,
         "failures": 0,
         "errors": 0,
         "skipped": 0,
         "warnings": 0,
-        "line_coverage_percent": 91.5,
+        "line_coverage_percent": 91.9,
         "endpoints": 32,
-        "endpoints_tested": 31,
-        "untested_endpoints": [
-          "POST /assessments/<int:assessment_id>/regenerate/stream (health/routes.py:389)"
-        ]
+        "endpoints_tested": 32,
+        "untested_endpoints": []
       },
       {
         "service": "shared/frontend",
@@ -762,11 +760,6 @@
         "severity": "minor"
       },
       {
-        "check_id": "TS-46",
-        "finding": "31 out of 32 endpoints in health are exercised by tests; endpoint POST /assessments/<int:assessment_id>/regenerate/stream is not tested. Line coverage is 91.5% (warn).",
-        "severity": "minor"
-      },
-      {
         "check_id": "TS-50",
         "finding": "12 out of 13 endpoints in ai-services/mcp-server are exercised by tests; endpoint GET /healthz is not tested. Line coverage is 94.9% (warn).",
         "severity": "minor"
@@ -785,7 +778,6 @@
     "recommendations": [
       "Add test coverage for the missing endpoints in vgarden (GET /healthz, GET /gardens) to ensure full endpoint coverage and maintain 100% test coverage for all routes.",
       "Implement tests for the untested endpoints in almanac (GET /ailments, GET /ailments/<int:ailment_id>/photo, GET /health) to improve test coverage and reliability.",
-      "Develop and execute tests for the missing endpoint in health (POST /assessments/<int:assessment_id>/regenerate/stream) to ensure all functionality is validated.",
       "Add test cases for the untested endpoint in ai-services/mcp-server (GET /healthz) to ensure complete coverage of the service.",
       "Create test cases for the missing endpoint in ai-services/rag-server (POST /rag/retrieve) to address low line coverage and improve service reliability.",
       "Implement tests for the untested endpoints in ai-services/multi-agent-server (GET /healthz, GET /dashboard, GET /workflow/metrics) to ensure full coverage of all endpoints and improve system stability.",
