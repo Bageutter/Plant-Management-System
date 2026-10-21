@@ -1,7 +1,7 @@
 # ChromaDB: how this version works
 
 The plant, health and garden databases remain the originals. ChromaDB is an extra,
-rebuildable search copy: passage text, source links and Ollama embedding vectors.
+rebuildable search copy: passage text, source links and deterministic 256-dimensional vectors.
 It runs inside the local Python RAG process and persists in `instance/chroma`.
 No external AI provider receives the records.
 
@@ -9,12 +9,18 @@ No external AI provider receives the records.
 
 Install `ai-services/rag-server/requirements-chroma.txt` in the existing Python environment
 (the default `requirements.txt` leaves Chroma out; see the advisory note in that file).
-The tested embedding model is `bge-m3:latest`, already installed in local Ollama.
+The default `deterministic-256-v1` embedding function runs locally without a model download.
+It hashes NFKC/casefolded word counts with SHA-256 into 256 buckets and L2-normalizes
+the result. Both chunks and queries use this same versioned function. It measures
+word overlap with possible hash collisions; it does not provide learned semantic
+similarity. Ollama still generates answers. To opt into learned embeddings, set
+`RAG_EMBED_MODEL` to an installed Ollama embedding model.
 
 ```sh
 export PYTHONDONTWRITEBYTECODE=1
 export RAG_BACKEND=chroma
-export RAG_EMBED_MODEL=bge-m3:latest
+export RAG_EMBED_MODEL=deterministic-256-v1
+export RAG_CHROMA_PATH=ai-services/rag-server/instance/chroma-deterministic-256-v1
 export OLLAMA_AUTO_PULL=false
 python ai-services/rag-server/app.py
 ```
@@ -61,20 +67,25 @@ Run only one RAG writer process per Chroma directory.
 
 Back up `instance/chroma/active.json` before a refresh. Stop the service and restore
 that manifest to reactivate the retained collections. Changing embedding model
-requires a new `RAG_CHROMA_PATH` and a full refresh. Keep model versions stable.
+requires a new `RAG_CHROMA_PATH` and a full refresh. For issue #69, use the fresh
+`chroma-deterministic-256-v1` path shown above and ingest all three sources.
+Startup rejects manifests belonging to the previous Ollama model; existing indexes
+are retained. Keep model versions stable. If using SQLite hybrid retrieval, also
+refresh all sources so stored chunks use the same vectors as new queries.
 For the old lexical baseline, run `RAG_BACKEND=sqlite RAG_EMBED_MODEL=''`;
 its original `rag.db` has not been migrated or deleted.
 
 ## Measure it
 
 ```sh
-RAG_EMBED_MODEL=bge-m3:latest python ai-services/rag-server/evaluate.py --output /tmp/rag-results.json
+RAG_EMBED_MODEL=deterministic-256-v1 python ai-services/rag-server/evaluate.py --output /tmp/rag-results.json
 ```
 
 This compares lexical and vector top-five results on exactly the same passages.
 The output includes corpus, evaluator and label hashes, index timestamps, the Git
 commit and dirty state. The expanded benchmark has 30 positive questions across
-all three features and 6 off-topic controls. Both methods achieved Recall@5 1.00
+all three features and 6 off-topic controls. The historical Ollama bge-m3 benchmark
+(pre-deterministic embeddings) reported that both methods achieved Recall@5 1.00
 and Precision@5 0.22; Chroma did not outperform lexical search. Labels still need
 human review. See [dated results and limitations](evidence/benchmark-2026-10-04.md).
 
