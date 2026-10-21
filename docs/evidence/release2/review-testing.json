@@ -271,7 +271,7 @@
       "id": "TS-45",
       "title": "health tests pass",
       "status": "pass",
-      "detail": "99 tests: 0 failures, 0 errors, 0 skipped (commit 6fe67f1)."
+      "detail": "99 tests: 0 failures, 0 errors, 0 skipped (commit 2014ef1)."
     },
     {
       "id": "TS-46",
@@ -674,7 +674,7 @@
       },
       {
         "service": "health",
-        "commit": "6fe67f1",
+        "commit": "2014ef1",
         "tests": 99,
         "failures": 0,
         "errors": 0,
