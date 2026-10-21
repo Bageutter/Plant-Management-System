@@ -124,6 +124,51 @@ def test_source_id_scopes_retrieval_to_one_record(client, monkeypatch):
     assert "Someone else" not in body["answer"]
 
 
+def test_retrieve_returns_scoped_passages_without_generating_an_answer(client, monkeypatch):
+    monkeypatch.setattr("pipeline.answer", lambda *args, **kwargs: pytest.fail("answer model called"))
+    store = client.application.extensions["chunk_store"]
+    store.replace_source(
+        "almanac",
+        [
+            Chunk("almanac", "tomato", "record", "Tomato", "Aphids affect tomato leaves.", url="/tomato"),
+            Chunk("almanac", "basil", "record", "Basil", "Aphids affect basil leaves.", url="/basil"),
+        ],
+        documents=2,
+    )
+
+    response = client.post(
+        "/rag/retrieve",
+        json={"question": "Tomato aphids", "sources": ["almanac"], "source_id": "tomato", "top_k": 1},
+    )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["mode"] == "lexical"
+    assert len(body["passages"]) == 1
+    assert body["passages"][0] == {
+        "chunk_id": "almanac:tomato:record",
+        "text": "Aphids affect tomato leaves.",
+        "title": "Tomato",
+        "url": "/tomato",
+        "source": "almanac",
+        "score": 1.0,
+    }
+
+
+@pytest.mark.parametrize(
+    "payload,fragment",
+    [
+        ({}, "non-empty 'question'"),
+        ({"question": "Tomato", "sources": ["users"]}, "Unknown sources"),
+    ],
+)
+def test_retrieve_rejects_invalid_requests(client, payload, fragment):
+    response = client.post("/rag/retrieve", json=payload)
+
+    assert response.status_code == 400
+    assert fragment in response.get_json()["error"]
+
+
 def test_valid_query_on_an_empty_index_is_an_insufficient_context_answer(client):
     response = client.post("/rag/query", json={"question": "Why are the tomato leaves yellow?"})
     assert response.status_code == 200
@@ -165,6 +210,7 @@ def test_disabled_server_only_serves_liveness_and_landing(tmp_path, monkeypatch)
         (client.get, "/rag/sources"),
         (client.post, "/rag/ingest/health"),
         (client.post, "/rag/query"),
+        (client.post, "/rag/retrieve"),
     ]:
         response = method(path)
         assert response.status_code == 503, path

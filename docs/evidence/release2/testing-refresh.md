@@ -19,6 +19,11 @@ checks successful and failed grouped scans replacing older individual results.
 - Ruff normal/security checks on changed Python files passed.
 - All eight service test suites passed. JUnit includes 527 cases (Almanac's
   100 tests plus four subtests are represented as 104 JUnit cases).
+- The subsequent Almanac endpoint-coverage follow-up passed 103 tests plus four
+  subtests. Fresh routes evidence records all 33/33 endpoints exercised and
+  92.2% line coverage (commit `1f9b892`). These endpoint tests use temporary
+  SQLite data, fake auth, and a local image fixture; they make no live model or
+  cloud calls.
 - Full tracked-file Ruff security and detect-secrets checks passed for all eight
   services. Dependency audits passed for all eight; all four feature hook-style
   test commands passed. See `pre-commit-all-services.md`.
@@ -35,7 +40,7 @@ secret baseline was regenerated. Raw security reports stay local/ignored.
 ## Remaining decisions
 
 Read `testing-review.md` and its validation log. Review recommendations are not
-Amy's approval: the human decision was initially left pending; Amy subsequently accepted it. Remaining endpoint-coverage
+Amy's approval: the human decision was initially left pending; Amy subsequently accepted it. Five remaining endpoint-coverage
 warnings are retained as quality improvements; they do not mean each student
 failed the assignment's two-endpoint requirement. Cloud deployment work is out
 of scope for this branch.
@@ -43,8 +48,7 @@ of scope for this branch.
 ## Review outcome
 
 Local Ollama completed ACT and independent OBSERVE in one iteration (no fallback).
-Result: **ready_with_fixes**; 48 checks pass, six endpoint-coverage warnings,
-zero failed/missing checks. Amy explicitly **accepted** it with reason: required tests pass; keep the six coverage gaps as follow-ups (#94, sub-issues #95–#100).
+Original result: **ready_with_fixes**; 48 checks passed with six endpoint-coverage warnings and zero failed/missing checks. The fresh Almanac evidence resolves TS-44, leaving five other service warnings (49 checks pass, five warnings). Amy explicitly **accepted** the original result with reason: required tests pass; keep the six coverage gaps as follow-ups (#94, sub-issues #95–#100).
 
 Execution occurred at `/private/tmp/pms-testing-fix`; the worktree was then moved
 to `/Users/amyzhou/Documents/Plant-Management-System-testing-fix` for retention.
