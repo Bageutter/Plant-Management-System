@@ -104,6 +104,19 @@ class AlmanacAIModeTests(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(AIChatMessage.query.count(), 0)
 
+    def test_switched_off_reference_modes_say_so_and_call_nothing(self):
+        for mode, flag, label in (("rag", "RAG_ENABLED", b"Grounded answers (RAG) is turned off"),
+                                  ("mcp", "MCP_ENABLED", b"Reference search (MCP) is turned off")):
+            self.app.config[flag] = False
+            with patch("app.chat_reference_result") as reference:
+                response = self.client.post("/ai/ask", data={"question": "basil", "mode": mode})
+            self.assertEqual(response.status_code, 503)
+            self.assertIn(label, response.data)
+            reference.assert_not_called()
+            self.app.config[flag] = True
+        with self.app.app_context():
+            self.assertEqual(AIChatMessage.query.count(), 0)
+
     def test_ai_mode_renders_on_almanac_page(self):
         response = self.client.get("/")
 

@@ -851,6 +851,11 @@ def create_app(test_config: dict | None = None) -> Flask:
             return _render_chat(owner_key)
 
         if mode in ("rag", "mcp"):
+            # Same as Multi-Agent above: say the integration is switched off (the cloud
+            # baseline and CI) instead of "unavailable, try again", which suggests a fault.
+            if not app.config["MCP_ENABLED" if mode == "mcp" else "RAG_ENABLED"]:
+                label = "Reference search (MCP)" if mode == "mcp" else "Grounded answers (RAG)"
+                return _render_chat(owner_key, f"{label} is turned off in this deployment. Your question has not been saved."), 503
             if mode == "mcp" and len(question) > 120:
                 return _render_chat(owner_key, "For reference search, enter a name under 120 characters."), 400
             try:
