@@ -1,6 +1,7 @@
 """Feature sources: the Almanac Worker retrieves public references through MCP,
 while Virtual Garden must supply its one garden's private records with the task."""
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -125,3 +126,43 @@ class SourceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+HEALTH = {"mode": "health-api", "passages": [
+    {"chunk_id": "health-7-assessment", "title": "Tomato assessment 7 — Plant Health record",
+     "text": "Health score 62 (at risk); confidence medium. Issue: yellowing lower leaves."},
+]}
+
+
+class HealthSourceTests(SourceTests):
+    def test_health_needs_supplied_evidence(self):
+        response = self.create(source="health")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("health workflows must include", response.json["error"])
+
+    def test_health_workflow_stores_its_evidence(self):
+        response = self.create(source="health", evidence=HEALTH)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json["source"], "health")
+        saved = store.get_workflow(response.json["workflow_id"])
+        self.assertEqual(saved["history"][0]["details"], {"source": "health", "evidence": HEALTH})
+
+    def test_health_has_its_own_prompts_and_never_retrieves(self):
+        reply = Mock()
+        reply.__enter__ = Mock(return_value=reply)
+        reply.__exit__ = Mock(return_value=False)
+        reply.read.return_value = json.dumps(
+            {"message": {"content": json.dumps({"steps": ["Read the assessment"]})}}).encode()
+        with patch("planner.urlopen", return_value=reply) as call:
+            create_plan("Why is the tomato at risk?", source="health")
+        sent = json.loads(call.call_args.args[0].data)
+        self.assertIn("Plant Health backend supplies one plant health assessment",
+                      sent["messages"][0]["content"])
+        with self.assertRaises(ValueError):
+            run_worker("Why?", {"steps": ["Read"]}, source="health")  # no evidence, no MCP fallback
+
+    def test_empty_health_evidence_says_so(self):
+        result = execute_plan({"steps": ["Read"]}, {"passages": []}, "Why?", "health")
+        self.assertEqual(result["answer"], "No supporting plant health records were found.")
+        self.assertTrue(result["insufficient_context"])
+

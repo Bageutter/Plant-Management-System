@@ -662,10 +662,16 @@ def integrations_status():
             return False
 
     mcp, rag = _mcp(), _rag()
+    agents = current_app.extensions["multi_agent"]
     return jsonify(
         {
             "mcp": {"enabled": mcp.enabled, "url": mcp.url, "reachable": probe(mcp, mcp.list_tools)},
             "rag": {"enabled": rag.enabled, "url": rag.base_url, "reachable": probe(rag, rag.status)},
+            "multi_agent": {
+                "enabled": agents.enabled,
+                "url": agents.base_url,
+                "reachable": probe(agents, agents.status_check),
+            },
         }
     )
 

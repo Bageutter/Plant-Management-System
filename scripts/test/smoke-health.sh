@@ -20,6 +20,7 @@ retry=(--retry 20 --retry-delay 3 --retry-all-errors --silent --show-error)
 as_bool() { case "${1,,}" in 1|true|yes|on) echo true ;; *) echo false ;; esac; }
 want_mcp=$(as_bool "${MCP_ENABLED:-true}")
 want_rag=$(as_bool "${RAG_ENABLED:-true}")
+want_agents=$(as_bool "${MULTI_AGENT_ENABLED:-true}")
 
 echo "==> UI: $records/"
 # Download first, then grep. Piping curl into `grep -q` is a race: grep exits on the
@@ -34,15 +35,16 @@ code=$(curl "${retry[@]}" -o /tmp/healthz.json -w '%{http_code}' "$health/health
 python3 -c 'import json,sys; d=json.load(open("/tmp/healthz.json")); assert d["service"]=="health-monitoring-service", d'
 echo "    healthz -> $code"
 
-echo "==> integrations wired with mcp=$want_mcp rag=$want_rag"
+echo "==> integrations wired with mcp=$want_mcp rag=$want_rag multi_agent=$want_agents"
 curl "${retry[@]}" --fail "$records/integrations" > /tmp/integrations.json
-WANT_MCP="$want_mcp" WANT_RAG="$want_rag" python3 - <<'EOF'
+WANT_MCP="$want_mcp" WANT_RAG="$want_rag" WANT_AGENTS="$want_agents" python3 - <<'EOF'
 import json, os
 d = json.load(open("/tmp/integrations.json"))
 want_mcp = os.environ["WANT_MCP"] == "true"
 want_rag = os.environ["WANT_RAG"] == "true"
 assert d["mcp"]["enabled"] is want_mcp, d
 assert d["rag"]["enabled"] is want_rag, d
+assert d["multi_agent"]["enabled"] is (os.environ["WANT_AGENTS"] == "true"), d
 assert d["mcp"]["url"].endswith("/mcp"), d
 print("    ", json.dumps(d))
 EOF

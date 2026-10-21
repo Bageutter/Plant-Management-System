@@ -19,7 +19,7 @@ from ai import OllamaClient
 from db_upgrade import upgrade_database
 from extensions import db, migrate
 from images import format_bytes, upload_limit_message
-from integrations import McpToolClient, RagClient
+from integrations import McpToolClient, MultiAgentClient, RagClient
 
 
 def _sse_payload(event: dict) -> str:
@@ -105,11 +105,20 @@ def create_app(config_class: type | None = None) -> Flask:
         timeout=app.config["INTEGRATION_TIMEOUT"],
     )
 
+    # Release 2: the shared local Multi-Agent Server (workflows.py).
+    app.extensions["multi_agent"] = MultiAgentClient(
+        app.config.get("MULTI_AGENT_URL", "http://127.0.0.1:8003"),
+        enabled=app.config.get("MULTI_AGENT_ENABLED", True),
+        timeout=app.config.get("MULTI_AGENT_TIMEOUT", 900.0),
+    )
+
     from routes import bp as health_bp
     from routes import root_bp
+    from workflows import bp as workflows_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(root_bp)
+    app.register_blueprint(workflows_bp)
 
     @app.errorhandler(413)
     def payload_too_large(_error):
@@ -134,6 +143,7 @@ def create_app(config_class: type | None = None) -> Flask:
         return {
             "mcp_enabled": app.extensions["mcp"].enabled,
             "rag_enabled": app.extensions["rag"].enabled,
+            "multi_agent_enabled": app.extensions["multi_agent"].enabled,
             "mcp_tools": TOOL_LABELS,
             "auth_public_url": app.config["AUTH_PUBLIC_URL"],
             "health_public_url": app.config.get(

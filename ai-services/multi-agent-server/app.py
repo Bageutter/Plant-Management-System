@@ -8,7 +8,9 @@ from human_review import record_decision
 from store import WorkflowConflict, get_workflow, save_workflow, read_snapshot, recover_interrupted
 from workflow import run_workflow
 
-SOURCES = ("almanac", "vgarden")
+SOURCES = ("almanac", "vgarden", "health")
+# Sources whose backend must send its own records: the server never reads them itself.
+SUPPLIED_EVIDENCE = ("vgarden", "health")
 
 app = Flask(__name__)
 recover_interrupted()
@@ -52,16 +54,18 @@ def _request_details(data):
     """Validate the optional feature source and caller-supplied evidence.
 
     Almanac data is public, so its Worker retrieves evidence itself through MCP.
-    Virtual Garden data is private per owner: this server never fetches it, so the
-    feature backend must send the one garden's records it already authorised.
+    Virtual Garden data is private per owner, and a Plant Health task is about one
+    assessment: this server never fetches either, so the feature backend must send
+    the records it already authorised (one garden, or one assessment and its plant's
+    history).
     """
     source = data.get("source", "almanac")
     if source not in SOURCES:
         raise ValueError(f"source must be one of: {', '.join(SOURCES)}")
     evidence = data.get("evidence")
     if evidence is None:
-        if source == "vgarden":
-            raise ValueError("vgarden workflows must include the garden's evidence")
+        if source in SUPPLIED_EVIDENCE:
+            raise ValueError(f"{source} workflows must include the feature's evidence")
         return {"source": source}
     passages = evidence.get("passages") if isinstance(evidence, dict) else None
     if not isinstance(passages, list) or not 1 <= len(passages) <= 10:

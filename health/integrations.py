@@ -1,4 +1,5 @@
-"""Clients for the shared local MCP and RAG servers (Release 1).
+"""Clients for the shared local MCP and RAG servers (Release 1) and the
+Multi-Agent Server (Release 2).
 
 The browser never talks to either server: the health *backend* owns these
 clients and exposes a small, whitelisted surface over them (see routes.py). Both
@@ -226,3 +227,90 @@ class RagClient:
                 body.get("error", f"The shared RAG server answered HTTP {code}.")
             )
         return body
+
+
+# --------------------------------------------------------------------------- #
+# Multi-Agent Server (Release 2)                                              #
+# --------------------------------------------------------------------------- #
+
+
+class WorkflowConflict(RuntimeError):
+    """The workflow is not in a state that allows this action (HTTP 409)."""
+
+
+class MultiAgentClient:
+    """Client for the shared local Multi-Agent Server (Planner -> Worker ->
+    Reviewer -> Human Review).
+
+    Workflows are always created with ``source="health"`` and one assessment's
+    records (plus that plant's earlier assessments) as ``evidence``; the shared
+    server never reads health data itself. Callers look a workflow up by its
+    assessment first (workflows.py); the server's id is never client input.
+    """
+
+    def __init__(self, base_url: str, *, enabled: bool = True, timeout: float = 900.0):
+        if not base_url.startswith(("http://", "https://")):
+            raise ValueError("MULTI_AGENT_URL must be an http(s) URL")
+        self.base_url = base_url.rstrip("/")
+        self.enabled = enabled
+        self.timeout = timeout
+
+    def _require_enabled(self) -> None:
+        if not self.enabled:
+            raise IntegrationDisabled(
+                "The Multi-Agent Server is disabled for this service "
+                "(MULTI_AGENT_ENABLED=false). No workflow was started."
+            )
+
+    def _request(self, method: str, path: str, *, timeout: float = 15, **kwargs) -> dict:
+        self._require_enabled()
+        try:
+            response = requests.request(method, f"{self.base_url}{path}", timeout=timeout, **kwargs)
+            body = response.json()
+        except (requests.RequestException, ValueError) as exc:
+            logger.warning("Multi-Agent Server unavailable: %s", exc.__class__.__name__)
+            raise IntegrationUnavailable(
+                "The shared Multi-Agent Server could not be reached. Start it with "
+                "`python ai-services/multi-agent-server/app.py` and try again."
+            ) from exc
+        if not isinstance(body, dict):
+            raise IntegrationUnavailable("The Multi-Agent Server returned an unexpected response.")
+        message = body.get("error", f"The Multi-Agent Server answered HTTP {response.status_code}.")
+        if response.status_code == 400:
+            raise ValueError(message)
+        if response.status_code == 409:
+            raise WorkflowConflict(message)
+        if response.status_code >= 300:
+            raise IntegrationUnavailable(message)
+        return body
+
+    def status_check(self) -> dict:
+        return self._request("GET", "/healthz", timeout=5)
+
+    def create(self, task: str, evidence: dict) -> dict:
+        return self._request(
+            "POST", "/workflow", json={"task": task, "source": "health", "evidence": evidence}
+        )
+
+    def run(self, workflow_id: str) -> dict:
+        """Run Planner -> Worker -> Reviewer. Blocks for the whole run, so
+        workflows.py calls it off the request thread."""
+
+        return self._request(
+            "POST", "/workflow/run", json={"workflow_id": workflow_id}, timeout=self.timeout
+        )
+
+    def status(self, workflow_id: str) -> dict:
+        return self._request("GET", "/workflow/status", params={"id": workflow_id})
+
+    def review(self, workflow_id: str, decision: str, feedback: str, reviewer_id: str) -> dict:
+        return self._request(
+            "POST",
+            "/workflow/review",
+            json={
+                "workflow_id": workflow_id,
+                "decision": decision,
+                "feedback": feedback,
+                "reviewer_id": reviewer_id,
+            },
+        )

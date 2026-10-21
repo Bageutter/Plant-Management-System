@@ -1,0 +1,158 @@
+{
+  "run_id": "review-multi-agent-20261021-122955-279df3",
+  "mode": "multi-agent",
+  "passed": true,
+  "checks": [
+    {
+      "id": "MA-1",
+      "title": "Workflow history and coordination audit exports exist",
+      "status": "pass",
+      "detail": "22 history events and 22 audit events; 2 workflows with source=health."
+    },
+    {
+      "id": "MA-2",
+      "title": "Every run went Planner -> Worker -> Reviewer -> human review in order",
+      "status": "pass",
+      "detail": "4 runs checked."
+    },
+    {
+      "id": "MA-3",
+      "title": "Every workflow was closed by a human decision",
+      "status": "pass",
+      "detail": "All closed."
+    },
+    {
+      "id": "MA-4",
+      "title": "Accepting against the Reviewer's advice always has a written reason",
+      "status": "pass",
+      "detail": "0 overrides, all with a reason."
+    },
+    {
+      "id": "MA-5",
+      "title": "Every 'request changes' started a revised run",
+      "status": "pass",
+      "detail": "2 change requests, each followed by a new run."
+    },
+    {
+      "id": "MA-6",
+      "title": "Every agent handoff in the audit names the model that did it",
+      "status": "pass",
+      "detail": "12 handoffs."
+    },
+    {
+      "id": "MA-7",
+      "title": "Human reviews came from both the frontend UI and the terminal",
+      "status": "pass",
+      "detail": "UI reviewer ids: ['health-user-web']; terminal reviewer ids: ['yunus-terminal']."
+    },
+    {
+      "id": "MA-8",
+      "title": "Metrics export matches the history",
+      "status": "pass",
+      "detail": "Not compared: metrics cover every source, this review is filtered."
+    },
+    {
+      "id": "MA-9",
+      "title": "Every Worker run was given evidence passages",
+      "status": "pass",
+      "detail": "4 Worker runs, 16 passages in total."
+    },
+    {
+      "id": "MA-10",
+      "title": "Workers cite only passages they were given, and every answer cites one",
+      "status": "pass",
+      "detail": "All 4 answers cite only their own evidence."
+    },
+    {
+      "id": "MA-11",
+      "title": "The Reviewer gave a verdict on every Worker answer",
+      "status": "pass",
+      "detail": "4 reviews for 4 answers; verdicts: revise=4."
+    },
+    {
+      "id": "MA-12",
+      "title": "The feature is configured to use the Multi-Agent Server",
+      "status": "pass",
+      "detail": "http://127.0.0.1:5060/plant-health-records/integrations multi_agent: {'enabled': True, 'reachable': True, 'url': 'http://127.0.0.1:8003'}"
+    },
+    {
+      "id": "MA-13",
+      "title": "The Multi-Agent Server answers its health check",
+      "status": "pass",
+      "detail": "http://127.0.0.1:8003/healthz: {'service': 'multi-agent-server', 'status': 'ok'}"
+    }
+  ],
+  "facts": {
+    "workflows": [
+      {
+        "id": "b3a742fd",
+        "source": "health",
+        "task": "Which recorded issue needs attention first, and what does the record say to do about it?",
+        "runs": 2,
+        "reviewer_recommendations": [
+          "revise",
+          "revise"
+        ],
+        "human_decisions": [
+          "request_changes",
+          "partially_accept"
+        ],
+        "final_status": "partially_accepted"
+      },
+      {
+        "id": "6066982d",
+        "source": "health",
+        "task": "Which recorded issue needs attention first, and what does the record say to do?",
+        "runs": 2,
+        "reviewer_recommendations": [
+          "revise",
+          "revise"
+        ],
+        "human_decisions": [
+          "request_changes",
+          "partially_accept"
+        ],
+        "final_status": "partially_accepted"
+      }
+    ],
+    "grounding": {
+      "worker_runs": 4,
+      "passages_given": 16,
+      "answers_citing_only_their_evidence": 4
+    },
+    "integration": {
+      "feature": {
+        "enabled": true,
+        "reachable": true,
+        "url": "http://127.0.0.1:8003"
+      },
+      "server": {
+        "service": "multi-agent-server",
+        "status": "ok"
+      }
+    }
+  },
+  "review": {
+    "findings": [],
+    "recommendations": [],
+    "summary": "All multi-agent workflow checks pass, showing complete coordination, human oversight, and evidence grounding. Every run followed the planned workflow sequence, and all decisions were documented with clear reasoning or justifications. The system is fully integrated and operational with the Multi-Agent Server.",
+    "verdict": "ready"
+  },
+  "verdict_source": "model",
+  "iterations": 1,
+  "human_review": {
+    "decision": "pending",
+    "reason": "No --decision given and no terminal to ask.",
+    "reviewer_id": "yunus"
+  },
+  "evidence_sources": [
+    "docs/evidence/release2/health-multi-agent/workflow_history.jsonl",
+    "docs/evidence/release2/health-multi-agent/coordination_audit.jsonl",
+    "docs/evidence/release2/health-multi-agent/multi-agent-metrics.json",
+    "http://127.0.0.1:5060/plant-health-records",
+    "http://127.0.0.1:8003"
+  ],
+  "transcript": "/Users/yunz/Documents/nerd/Plant-Management-System/tools/ai-loop/logs/reports/review-multi-agent/review-multi-agent-20261021-122955-279df3.md",
+  "scope": "Reviews saved evidence; a passing review is not proof that every feature works.",
+  "report": "docs/evidence/release2/health-multi-agent/multi-agent-review-health.md"
+}

@@ -393,6 +393,51 @@ frontend → backend → MCP server → health API loop. `.github/workflows/heal
 lint, these tests, the image build, and a compose smoke test
 (`scripts/test/smoke-health.sh`) with `MCP_ENABLED=false RAG_ENABLED=false`.
 
+## Release 2: Multi-Agent workflow on an assessment
+
+Each record page has an **Agent workflow** panel. It hands a task to the shared,
+non-containerised Multi-Agent Server (`ai-services/multi-agent-server`, port 8003):
+Planner → Worker → Reviewer → **human review on this page** (accept, partially
+accept, request changes, reject). Requested changes start a revised run, and the
+Planner and Worker receive the feedback.
+
+```mermaid
+flowchart LR
+    UI["Record page<br/>(HTMX panel)"] --> BE["health backend<br/>workflows.py"]
+    BE -- "task + this assessment's records" --> MAS["Multi-Agent Server :8003"]
+    MAS --> P[Planner] --> W[Worker] --> R[Reviewer]
+    R --> H["Human review<br/>on the record page"]
+    H -- "request changes" --> P
+    H -- "decision" --> UI
+```
+
+- **Evidence:** this assessment (score, status, confidence, summary, issues,
+  recommendations, missing information) and up to 5 earlier assessments of the
+  **same plant**, as citable passages `health-<id>-assessment|issues|recommendations|history`.
+  Every field is labelled and gaps are stated. The server never reads health data
+  itself and rejects a `health` task without evidence.
+- **Not a diagnosis:** the evidence says the assessment is an earlier AI opinion
+  with a stated confidence, and the Worker is told not to add causes or treatments
+  the records do not contain.
+- **Scoping:** the browser names only a local `HealthWorkflow` row under the
+  assessment; the server's workflow id is never taken from client input. A
+  workflow under another assessment is a 404. Deleting an assessment deletes its
+  workflows (migration `0006_health_workflows`).
+- **Off switch:** `MULTI_AGENT_ENABLED=false` (CI, the cloud baseline). The panel
+  then says so, `/integrations` reports `multi_agent.enabled: false`, and starting a
+  workflow answers 503 without contacting a server.
+
+| Route (under `/plant-health-records`) | Does |
+|---|---|
+| `POST /assessments/<id>/workflows` | start: `task`; sends the evidence, runs the agents off the request thread |
+| `GET /assessments/<id>/workflows/<n>` | plan, Worker answer and citations, Reviewer verdict, decision, history (HTML panel or JSON) |
+| `POST /assessments/<id>/workflows/<n>/run` | run again after a failure |
+| `POST /assessments/<id>/workflows/<n>/review` | `decision`, `feedback`; JSON callers may add a `reviewer_id` label |
+
+Terminal: `bash scripts/test/multi-agent-health.sh [health base URL]` runs the same
+flow through this backend's JSON API and asks for your decision. Tests:
+`tests/test_workflows.py` (fake server), and the server's `tests/test_sources.py`.
+
 ## Database schema changes (Flask-Migrate / Alembic)
 
 The schema is versioned under [`migrations/versions/`](migrations/versions/) and applied

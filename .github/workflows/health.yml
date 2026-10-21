@@ -40,6 +40,7 @@ env:
   # Release 1 rule: integration retained, both modes off during CI/CD.
   MCP_ENABLED: "false"
   RAG_ENABLED: "false"
+  MULTI_AGENT_ENABLED: "false"
 
 jobs:
   lint:

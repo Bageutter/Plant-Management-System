@@ -254,3 +254,28 @@ class AssessmentLoopRun(db.Model):
             "trace": self.trace,
             "created_at": self.created_at.isoformat(),
         }
+
+
+class HealthWorkflow(db.Model):
+    """A Multi-Agent Server workflow started from one assessment's page (Release 2).
+
+    Only the server's workflow id, the task and the last seen status live here;
+    the plan, answer, review and history stay on the Multi-Agent Server.
+    """
+
+    __tablename__ = "health_workflows"
+
+    id = db.Column(db.Integer, primary_key=True)
+    assessment_id = db.Column(
+        db.Integer, db.ForeignKey("assessments.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    workflow_id = db.Column(db.String(64), nullable=False, unique=True)
+    task = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="received")
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    assessment = db.relationship(
+        "Assessment",
+        backref=db.backref("workflows", cascade="all, delete-orphan", order_by="HealthWorkflow.created_at"),
+    )
+

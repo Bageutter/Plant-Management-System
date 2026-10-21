@@ -1,0 +1,23 @@
+UI run over HTTP (HTMX requests the record page sends), 2026-10-21 12:25 UTC
+GET http://127.0.0.1:5060/plant-health-records/1  -> panel present: 1
+POST /assessments/1/workflows -> HTTP 201, status received, polling: 1
+  polled every 3s for 41s -> awaiting_human_review
+  Worker:  Worker The recorded issue needing attention first is excessive watering, with severity medium. The record says to reduce watering frequency to once every 2-3 days to allow the soil to dry out slightly. This action is recommended with priority high. 
+  Reviewer: data-review="revise"
+POST review decision=request_changes -> HTTP 200, status changes_requested
+  polled every 3s for 24s -> awaiting_human_review
+  revised Worker:  Worker The recorded issue needing attention first is excessive watering, with severity medium. The record says to reduce watering frequency to once every 2-3 days. Missing information: plant identification, photo, and environmental conditions are not recorded. The earlier assessment on 2026-10-21 repeats the same recommendation and status. 
+  Reviewer: revise
+POST review decision=partially_accept -> HTTP 200, status partially_accepted
+workflow 6066982d-4517-48d2-9452-3365103514dd partially_accepted reviewer_id health-user-web
+  2026-10-21T12:25:26 received
+  2026-10-21T12:25:26 planning
+  2026-10-21T12:25:37 working
+  2026-10-21T12:25:47 reviewing
+  2026-10-21T12:26:05 awaiting_human_review
+  2026-10-21T12:26:07 changes_requested
+  2026-10-21T12:26:07 planning
+  2026-10-21T12:26:19 working
+  2026-10-21T12:26:29 reviewing
+  2026-10-21T12:26:29 awaiting_human_review
+  2026-10-21T12:26:32 partially_accepted

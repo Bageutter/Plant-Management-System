@@ -39,6 +39,16 @@ RETRIEVAL = {
         "The Worker has NOT read the records yet: do not claim to "
         "have retrieved facts, inspected the garden or completed work. "
     ),
+    "health": (
+        "The Plant Health backend supplies one plant health assessment (score, "
+        "status, issues, recommendations, missing information) and that plant's "
+        "earlier assessments as the only evidence. First plan to read the records "
+        "relevant to the task. Then identify details the records do not contain, "
+        "compare the available evidence, and prepare an evidence-backed response "
+        "for review. The assessment is an AI opinion recorded earlier, not a "
+        "diagnosis. The Worker has NOT read the records yet: do not claim to have "
+        "retrieved facts, inspected the plant or completed work. "
+    ),
 }
 
 
