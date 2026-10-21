@@ -14,14 +14,27 @@ step "Platform deployment '$PLATFORM_DEPLOYMENT' into $AZURE_RESOURCE_GROUP"
 
 existing_vault=$(azq keyvault list -g "$AZURE_RESOURCE_GROUP" \
   --query "[?starts_with(name, 'kv-${AZURE_BASE_NAME}-')].name | [0]" 2>/dev/null || true)
-[[ -n $existing_vault ]] && echo "    reusing secrets from Key Vault $existing_vault"
+stored_names=""
+if [[ -n $existing_vault ]]; then
+  echo "    reusing secrets from Key Vault $existing_vault"
+  # Which secrets exist decides "generate" vs "fail": a secret that exists but cannot
+  # be read must stop the deploy, never be silently replaced by a new value.
+  stored_names=$(azq keyvault secret list --vault-name "$existing_vault" --query "[].name") || {
+    echo "Cannot list the secrets in $existing_vault (needs Key Vault Secrets Officer/User)." >&2
+    exit 1
+  }
+fi
+stored() { grep -qx "$1" <<<"$stored_names"; }
 
 secret_value() { # secret-name  env-override-name  generator
   local name=$1 override=${!2:-} value=""
   if [[ -n $override ]]; then
     value=$override
-  elif [[ -n $existing_vault ]]; then
-    value=$(azq keyvault secret show --vault-name "$existing_vault" -n "$name" --query value 2>/dev/null || true)
+  elif stored "$name"; then
+    value=$(azq keyvault secret show --vault-name "$existing_vault" -n "$name" --query value) || {
+      echo "Cannot read $name from $existing_vault; refusing to replace it with a new value." >&2
+      return 1
+    }
   fi
   if [[ -z $value ]]; then
     value=$($3)
@@ -50,7 +63,6 @@ for value in "$postgres_password" "$auth_secret" "$vgarden_secret" "$almanac_sec
   mask "$value"
 done
 
-# Secure parameters travel in a private temp file, never on the command line.
 # Create the PostgreSQL server only on the first run; afterwards reference it (see
 # deployPostgres in infra/main.bicep). FORCE_POSTGRES=true re-sends its definition.
 deploy_postgres=true
@@ -58,8 +70,23 @@ if [[ ${FORCE_POSTGRES:-false} != true ]] && [[ -n $(azq postgres flexible-serve
     --query "[?starts_with(name, 'psql-${AZURE_BASE_NAME}-${AZURE_STAGE}-')].name | [0]" 2>/dev/null || true) ]]; then
   deploy_postgres=false
   echo "    PostgreSQL server exists: referencing it, not redeploying it"
+  # The template no longer re-sends the server, so a password that differs from the
+  # one in Key Vault (a POSTGRES_ADMIN_PASSWORD rotation, or a first secret) must be
+  # set on the server here, or every DATABASE_URL would stop matching it.
+  current=""
+  stored postgres-admin-password && current=$(azq keyvault secret show --vault-name "$existing_vault" \
+    -n postgres-admin-password --query value)
+  if [[ $postgres_password != "$current" ]]; then
+    server=$(azq postgres flexible-server list -g "$AZURE_RESOURCE_GROUP" \
+      --query "[?starts_with(name, 'psql-${AZURE_BASE_NAME}-${AZURE_STAGE}-')].name | [0]")
+    echo "    setting the new administrator password on $server"
+    az postgres flexible-server update -g "$AZURE_RESOURCE_GROUP" -n "$server" \
+      --admin-password "$postgres_password" --output none
+  fi
+  unset current
 fi
 
+# Secure parameters travel in a private temp file, never on the command line.
 params=$(mktemp)
 chmod 600 "$params"
 trap 'rm -f "$params"' EXIT
