@@ -7,12 +7,12 @@ from flask import Blueprint, jsonify, request, url_for
 from sqlalchemy import func, literal, or_, select, union_all
 
 from extensions import db
-from models import Disease, Pest, PlantReference
+from models import Ailment, Disease, Pest, PlantReference
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 
 
 catalogue_api = Blueprint("catalogue_api", __name__, url_prefix="/api/catalogue")
-KINDS = {"plant": PlantReference, "pest": Pest, "disease": Disease}
+KINDS = {"plant": PlantReference, "pest": Pest, "disease": Disease, "ailment": Ailment}
 
 
 def pagination():
@@ -28,7 +28,7 @@ def pagination():
 
 def reference(kind, record):
     key = record.slug if kind == "plant" else str(record.id)
-    plural = {"plant": "plants", "pest": "pests", "disease": "diseases"}[kind]
+    plural = {"plant": "plants", "pest": "pests", "disease": "diseases", "ailment": "ailments"}[kind]
     endpoint = f"{kind}_detail"
     values = {"slug": key} if kind == "plant" else {f"{kind}_id": record.id}
     return {
@@ -62,6 +62,9 @@ def search():
             continue
         name = model.common_name if item_kind == "plant" else model.name
         statement = select(literal(item_kind).label("kind"), model.id, name.label("name"))
+        if item_kind == "ailment":
+            # Legacy pests/diseases already appear once through their existing API kinds.
+            statement = statement.where(Ailment.category.notin_(["pest", "disease"]))
         if query:
             columns = [name]
             if item_kind == "plant":
@@ -85,6 +88,8 @@ def search():
             if kind not in ("all", item_kind):
                 continue
             for record in db.session.scalars(select(model)):
+                if item_kind == "ailment" and record.category in ("pest", "disease"):
+                    continue
                 name = record.common_name if item_kind == "plant" else record.name
                 name_words = re.findall(r"[a-z0-9]+", name.lower())
                 if words and all(any(word == target or (len(word) >= 5 and SequenceMatcher(None, word, target).ratio() >= .84) for target in name_words) for word in words):
@@ -127,6 +132,13 @@ def plant(slug):
 
 @catalogue_api.get("/<kind>/<int:record_id>")
 def problem(kind, record_id):
+    if kind == "ailment":
+        record = db.session.get(Ailment, record_id)
+        if record is None:
+            return jsonify(error="Ailment not found"), 404
+        return jsonify(**reference(kind, record), description=record.description, guide=record.guide(),
+                       guide_available=True, plants=[], total_plants=0, limit=20, offset=0, next_offset=None,
+                       evidence_note="Symptoms have multiple possible causes; this guide is not a diagnosis.")
     if kind not in ("pest", "disease"):
         return jsonify(error="Problem kind must be pest or disease."), 400
     record = db.session.get(KINDS[kind], record_id)
@@ -139,7 +151,8 @@ def problem(kind, record_id):
         related.order_by(PlantReference.common_name, PlantReference.id).limit(limit).offset(offset)
     )
     guides = PEST_GUIDES if kind == "pest" else DISEASE_GUIDES
-    guide = guides.get(record.name)
+    imported = Ailment.query.filter_by(name=record.name, category=kind).first()
+    guide = guides.get(record.name) or (imported.guide() if imported else None)
     return jsonify(
         **reference(kind, record),
         description=record.description,

@@ -366,3 +366,22 @@ class PlantCompanion(db.Model):
     companion = db.relationship("PlantReference", foreign_keys=[companion_id])
     function = db.relationship("PlantFunctionTag")
     __table_args__ = (db.CheckConstraint("plant_id != companion_id", name="ck_companion_not_self"),)
+
+
+class Ailment(db.Model):
+    """Public garden guides; additive to existing pest/disease associations."""
+    __tablename__ = "ailments"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    name = db.Column(db.String(160), nullable=False)
+    category = db.Column(db.String(32), nullable=False)
+    description = db.Column(db.Text)
+    payload = db.Column(db.JSON, nullable=False)
+
+    def guide(self):
+        data = self.payload or {}
+        return {"intro": data.get("description"), "status": "Check before treating",
+                "signs": [data["signs"]] if data.get("signs") else [],
+                "control_steps": [{"title": "Checks", "body": data.get("checks") or ""},
+                                  {"title": "First actions", "body": data.get("actions") or ""}],
+                "sources": [{"label": x["title"], "url": x["url"]} for x in data.get("sources", [])],
+                "possible_causes": data.get("possible_causes", [])}
