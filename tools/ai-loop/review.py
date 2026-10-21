@@ -329,13 +329,14 @@ def gather_multi_agent(args) -> tuple[dict, list[Check], list[str]]:
     return facts, checks, sources
 
 
-def _report_service(report: dict) -> str | None:
+def _report_services(report: dict) -> set[str]:
+    services = set()
     for name in report.get("files") or []:
         for service in ("vgarden", "auth", "almanac", "health", "shared/frontend", "ai-services/mcp-server",
                         "ai-services/rag-server", "ai-services/multi-agent-server"):
             if name == service or name.startswith(service + "/"):
-                return service
-    return None
+                services.add(service)
+    return services
 
 
 def _scan_summary(report: dict) -> str:
@@ -374,9 +375,10 @@ def gather_testing(args) -> tuple[dict, list[Check], list[str]]:
     latest: dict[tuple[str, str], dict] = {}
     for path in sorted(reports_dir.glob("*.json")) if reports_dir.exists() else []:
         report = json.loads(path.read_text())
-        service = _report_service(report)
-        if service in args.services and report.get("scan") in ("ruff", "secrets", "audit", "tests"):
-            latest[(service, report["scan"])] = {**report, "_path": path}
+        services = _report_services(report)
+        if report.get("scan") in ("ruff", "secrets", "audit", "tests"):
+            for service in services.intersection(args.services):
+                latest[(service, report["scan"])] = {**report, "_path": path}
     number = 0
     for service in args.services:
         # The hook runs pytest only for the four feature services
@@ -392,6 +394,9 @@ def gather_testing(args) -> tuple[dict, list[Check], list[str]]:
                 continue
             sources.append(_rel(report["_path"]))
             summary = _scan_summary(report)
+            covered = sorted(_report_services(report))
+            if len(covered) > 1:
+                summary += f" (combined scan: {', '.join(covered)}; result applies to the whole scan)"
             _check(checks, cid, title, report["exit_code"] == 0,
                    f"{summary} ({report['started_at'][:16]}, trigger {report.get('trigger', 'hook')}).")
             facts["pre_commit"].append({"service": service, "check": scan, "result": checks[-1].status,

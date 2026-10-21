@@ -1,12 +1,12 @@
 {
   "service": "auth",
-  "generated_at": "2026-10-21T10:16:11+00:00",
-  "commit": "48fcee1",
+  "generated_at": "2026-10-21T13:41:35+00:00",
+  "commit": "228fec3",
   "test_command": "coverage run -m pytest -q tests",
   "exit_code": 0,
-  "line_coverage_percent": 77.3,
+  "line_coverage_percent": 95.5,
   "endpoints": 8,
-  "endpoints_tested": 2,
+  "endpoints_tested": 8,
   "routes": [
     {
       "kind": "http",
@@ -22,7 +22,7 @@
         33,
         49
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -53,7 +53,7 @@
         73,
         74
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -68,7 +68,7 @@
         80,
         109
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -83,7 +83,7 @@
         115,
         144
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -98,7 +98,7 @@
         150,
         192
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -128,7 +128,7 @@
         212,
         212
       ],
-      "tested": false
+      "tested": true
     }
   ]
 }

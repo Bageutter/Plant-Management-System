@@ -1,10 +1,10 @@
 {
   "service": "ai-services/multi-agent-server",
-  "generated_at": "2026-10-21T10:18:49+00:00",
-  "commit": "48fcee1",
+  "generated_at": "2026-10-21T13:42:45+00:00",
+  "commit": "228fec3",
   "test_command": "coverage run -m pytest -q tests",
   "exit_code": 0,
-  "line_coverage_percent": 88.7,
+  "line_coverage_percent": 92.9,
   "endpoints": 8,
   "endpoints_tested": 5,
   "routes": [
@@ -16,10 +16,10 @@
       ],
       "function": "app.healthz",
       "file": "ai-services/multi-agent-server/app.py",
-      "line": 18,
+      "line": 22,
       "body_lines": [
-        19,
-        19
+        23,
+        23
       ],
       "tested": false
     },
@@ -31,10 +31,10 @@
       ],
       "function": "app.create_workflow",
       "file": "ai-services/multi-agent-server/app.py",
-      "line": 23,
+      "line": 27,
       "body_lines": [
-        24,
-        48
+        28,
+        52
       ],
       "tested": true
     },
@@ -46,10 +46,10 @@
       ],
       "function": "app.workflow_status",
       "file": "ai-services/multi-agent-server/app.py",
-      "line": 84,
+      "line": 90,
       "body_lines": [
-        85,
-        93
+        91,
+        99
       ],
       "tested": true
     },
@@ -61,10 +61,10 @@
       ],
       "function": "app.workflow_run",
       "file": "ai-services/multi-agent-server/app.py",
-      "line": 97,
+      "line": 103,
       "body_lines": [
-        98,
-        108
+        104,
+        114
       ],
       "tested": true
     },
@@ -76,10 +76,10 @@
       ],
       "function": "app.workflow_review",
       "file": "ai-services/multi-agent-server/app.py",
-      "line": 112,
+      "line": 118,
       "body_lines": [
-        113,
-        126
+        119,
+        132
       ],
       "tested": true
     },
@@ -91,10 +91,10 @@
       ],
       "function": "app.dashboard",
       "file": "ai-services/multi-agent-server/app.py",
-      "line": 130,
+      "line": 136,
       "body_lines": [
-        131,
-        143
+        137,
+        149
       ],
       "tested": false
     },
@@ -106,10 +106,10 @@
       ],
       "function": "app.workflow_metrics",
       "file": "ai-services/multi-agent-server/app.py",
-      "line": 147,
+      "line": 153,
       "body_lines": [
-        148,
-        148
+        154,
+        154
       ],
       "tested": false
     },
@@ -121,10 +121,10 @@
       ],
       "function": "app.workflow_audit",
       "file": "ai-services/multi-agent-server/app.py",
-      "line": 152,
+      "line": 158,
       "body_lines": [
-        153,
-        158
+        159,
+        164
       ],
       "tested": true
     }

@@ -175,6 +175,30 @@ class TestingChecks(unittest.TestCase):
         self.assertIn("137 passed", by_title["Pre-commit tests check passes for vgarden"].detail)
         self.assertEqual(by_title["Pre-commit ruff check passes for vgarden"].status, "missing")
 
+    def test_grouped_scan_updates_every_covered_service_and_preserves_failures(self):
+        for exit_code, expected in ((0, "pass"), (1, "fail")):
+            with self.subTest(exit_code=exit_code), tempfile.TemporaryDirectory() as tmp:
+                old = {"scan": "audit", "exit_code": 1, "files": ["health/requirements.txt"],
+                       "stdout": '{"dependencies": []}', "started_at": "2026-10-20T00:00:00"}
+                grouped = {**old, "exit_code": exit_code,
+                           "files": ["almanac/requirements-dev.txt", "health/requirements-dev.txt",
+                                     "ai-services/rag-server/requirements.txt"],
+                           "started_at": "2026-10-21T00:00:00"}
+                Path(tmp, "20261020-audit-old.json").write_text(json.dumps(old))
+                Path(tmp, "20261021-audit-new.json").write_text(json.dumps(grouped))
+                args = argparse.Namespace(security_reports=tmp,
+                                          services=["almanac", "health", "ai-services/rag-server", "auth"],
+                                          workflows=[], endpoint_workflows=[], ci_evidence=None,
+                                          repo="o/r", branch="main", test_evidence=str(Path(tmp) / "none"))
+                _, checks, _ = review.gather_testing(args)
+                by_title = {c.title: c for c in checks}
+                for service in args.services[:3]:
+                    check = by_title[f"Pre-commit audit check passes for {service}"]
+                    self.assertEqual(check.status, expected)
+                    self.assertIn("combined scan", check.detail)
+                    self.assertIn("2026-10-21", check.detail)
+                self.assertEqual(by_title["Pre-commit audit check passes for auth"].status, "missing")
+
     def test_junit_totals_count_failures(self):
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "endpoint.xml").write_text(
