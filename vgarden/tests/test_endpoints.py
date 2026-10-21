@@ -20,6 +20,45 @@ def _garden_count(app):
         return Garden.query.count()
 
 
+def test_healthz_returns_service_status(client):
+    response = client.get("/healthz")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "ok", "service": "vgarden"}
+
+
+def test_list_gardens_filters_results_by_owner(app, client, service_headers):
+    assert client.get("/gardens").status_code == 401
+    assert client.get("/gardens", headers={"Authorization": "******"}).status_code == 401
+
+    with app.app_context():
+        db.session.add_all(
+            [
+                Garden(owner_id=7, name="Backyard"),
+                Garden(owner_id=8, name="Community plot"),
+            ]
+        )
+        db.session.commit()
+
+    all_gardens = client.get("/gardens", headers=service_headers)
+    assert all_gardens.status_code == 200
+    assert {garden["name"] for garden in all_gardens.get_json()} == {
+        "Backyard",
+        "Community plot",
+    }
+
+    response = client.get("/gardens", query_string={"owner_id": 7}, headers=service_headers)
+
+    assert response.status_code == 200
+    gardens = response.get_json()
+    assert len(gardens) == 1
+    assert gardens[0]["owner_id"] == 7
+    assert gardens[0]["name"] == "Backyard"
+    empty = client.get("/gardens", query_string={"owner_id": 99}, headers=service_headers)
+    assert empty.status_code == 200
+    assert empty.get_json() == []
+
+
 def test_create_garden_validates_input_and_persists(app, client, service_headers, weather):
     payload = {"owner_id": 7, "name": "  Backyard  ", "location": "Melbourne"}
 
