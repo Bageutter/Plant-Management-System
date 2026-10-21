@@ -17,7 +17,7 @@ on:
       - "scripts/test/smoke-vgarden.sh"
       - "tools/ai-loop/**"
       - "docker-compose.yml"
-      - "nginx.conf"
+      - "shared/proxy/**"
       - "pyproject.toml"
       - ".github/workflows/vgarden.yml"
   pull_request:
@@ -30,7 +30,7 @@ on:
       - "scripts/test/smoke-vgarden.sh"
       - "tools/ai-loop/**"
       - "docker-compose.yml"
-      - "nginx.conf"
+      - "shared/proxy/**"
       - "pyproject.toml"
       - ".github/workflows/vgarden.yml"
   workflow_dispatch:

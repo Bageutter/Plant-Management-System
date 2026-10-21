@@ -14,7 +14,7 @@ on:
       - "shared/templates/**"
       - "scripts/test/smoke-health.sh"
       - "docker-compose.yml"
-      - "nginx.conf"
+      - "shared/proxy/**"
       - "pyproject.toml"
       - ".github/workflows/health.yml"
   pull_request:
@@ -24,7 +24,7 @@ on:
       - "shared/templates/**"
       - "scripts/test/smoke-health.sh"
       - "docker-compose.yml"
-      - "nginx.conf"
+      - "shared/proxy/**"
       - "pyproject.toml"
       - ".github/workflows/health.yml"
   workflow_dispatch:

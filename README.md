@@ -19,6 +19,23 @@ shared CI:
 
 before merging: CI is green, at least one review, no unresolved comments.
 
+## cloud deployment (Azure) ☁️
+
+Every merge to `main` deploys the integrated application to **Azure Container Apps**
+through [`cloud-deployment.yml`](.github/workflows/cloud-deployment.yml), after the
+CI gates pass and a teammate approves the `azure-production` environment. The
+infrastructure is Bicep ([`infra/`](infra/)) driven by reusable scripts
+([`scripts/deploy/`](scripts/deploy/)); the same scripts deploy from a laptop:
+
+```bash
+az login
+bash scripts/deploy/azure-deploy.sh
+```
+
+The cloud baseline keeps AI-Mode, MCP, RAG and the Multi-Agent Server **disabled**;
+frontend, backend/API, PostgreSQL and CRUD run as they do locally. Setup, URLs,
+evidence and costs: [docs/deployment/azure.md](docs/deployment/azure.md).
+
 ## for devs 🤓☝️ (amy,guhan,yunz)
 
 all docker commands from the root (important!!)
@@ -47,7 +64,7 @@ docker compose up -d --build proxy auth vgarden
 docker compose up -d --build proxy auth almanac   # AI-Mode is the host's Ollama (`ollama serve`)
 ```
 
-Everything is served through the nginx proxy on **one port, 3000**, and path-routed:
+Everything is served through the nginx proxy ([`shared/proxy/`](shared/proxy/)) on **one port, 3000**, and path-routed:
 
 | service | url |
 | --- | --- |

@@ -102,7 +102,7 @@ python app.py
 | `OLLAMA_PRELOAD` | `true` | Load the model in the background at startup |
 | `OLLAMA_PRELOAD_RETRIES` | `12` | Preload attempts while Ollama is still starting |
 | `OLLAMA_PRELOAD_RETRY_SECONDS` | `5` | Initial delay between attempts (grows ×1.5, capped at 60s) |
-| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `nginx.conf` above it) |
+| `MAX_UPLOAD_BYTES` | `12582912` | Maximum accepted image size (keep `client_max_body_size` in `shared/proxy/default.conf.template` above it) |
 | `IMAGE_MAX_EDGE` | `896` | Photos are downscaled to this longest edge before inference |
 
 ## Agentic loop: Perceive → Reason → Act → Observe → Repeat
@@ -252,7 +252,7 @@ as a single `error` event, so a stream consumer sees it too.
 
 ### Oversized photos
 
-`MAX_UPLOAD_BYTES` (12 MiB) is the app's limit, and `nginx.conf` allows `13m` on the
+`MAX_UPLOAD_BYTES` (12 MiB) is the app's limit, and the proxy (`shared/proxy/default.conf.template`) allows `13m` on the
 `/health/` route so the app — not the proxy — is the one that answers. The upload form
 states the limit under the file picker, shows the chosen photo's size, and when a photo is
 over the limit it re-encodes it in the browser to `IMAGE_MAX_EDGE` pixels (the resolution
