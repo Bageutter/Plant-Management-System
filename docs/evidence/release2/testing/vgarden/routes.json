@@ -1,0 +1,552 @@
+{
+  "service": "vgarden",
+  "generated_at": "2026-10-21T10:15:50+00:00",
+  "commit": "48fcee1",
+  "test_command": "coverage run -m pytest -q tests",
+  "exit_code": 0,
+  "line_coverage_percent": 95.5,
+  "endpoints": 36,
+  "endpoints_tested": 34,
+  "routes": [
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/containers",
+      "methods": [
+        "POST"
+      ],
+      "function": "containers.create_container",
+      "file": "vgarden/containers.py",
+      "line": 44,
+      "body_lines": [
+        45,
+        56
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/containers/<int:container_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "containers.view_container",
+      "file": "vgarden/containers.py",
+      "line": 69,
+      "body_lines": [
+        70,
+        74
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/containers/<int:container_id>/edit",
+      "methods": [
+        "POST"
+      ],
+      "function": "containers.edit_container",
+      "file": "vgarden/containers.py",
+      "line": 79,
+      "body_lines": [
+        80,
+        92
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/containers/<int:container_id>/delete",
+      "methods": [
+        "POST"
+      ],
+      "function": "containers.delete_container",
+      "file": "vgarden/containers.py",
+      "line": 97,
+      "body_lines": [
+        98,
+        113
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/ai/ask",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_ai.ask",
+      "file": "vgarden/garden_ai.py",
+      "line": 149,
+      "body_lines": [
+        150,
+        202
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/ai/loop/<int:run_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "garden_ai.loop_trace",
+      "file": "vgarden/garden_ai.py",
+      "line": 207,
+      "body_lines": [
+        208,
+        212
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/ai/clear",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_ai.clear",
+      "file": "vgarden/garden_ai.py",
+      "line": 217,
+      "body_lines": [
+        218,
+        222
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/areas",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_areas.create_area",
+      "file": "vgarden/garden_areas.py",
+      "line": 56,
+      "body_lines": [
+        57,
+        68
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/areas/<int:area_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "garden_areas.view_area",
+      "file": "vgarden/garden_areas.py",
+      "line": 73,
+      "body_lines": [
+        74,
+        78
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/areas/<int:area_id>/edit",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_areas.edit_area",
+      "file": "vgarden/garden_areas.py",
+      "line": 83,
+      "body_lines": [
+        84,
+        96
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/areas/<int:area_id>/delete",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_areas.delete_area",
+      "file": "vgarden/garden_areas.py",
+      "line": 101,
+      "body_lines": [
+        102,
+        112
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/integrations",
+      "methods": [
+        "GET"
+      ],
+      "function": "garden_integrations.service_integrations_status",
+      "file": "vgarden/garden_integrations.py",
+      "line": 64,
+      "body_lines": [
+        71,
+        79
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/integrations",
+      "methods": [
+        "GET"
+      ],
+      "function": "garden_integrations.integrations_status",
+      "file": "vgarden/garden_integrations.py",
+      "line": 84,
+      "body_lines": [
+        89,
+        106
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/tools",
+      "methods": [
+        "GET"
+      ],
+      "function": "garden_integrations.list_tools",
+      "file": "vgarden/garden_integrations.py",
+      "line": 111,
+      "body_lines": [
+        114,
+        118
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/tools/run",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_integrations.run_tool",
+      "file": "vgarden/garden_integrations.py",
+      "line": 123,
+      "body_lines": [
+        132,
+        145
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/ask",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_integrations.ask_garden",
+      "file": "vgarden/garden_integrations.py",
+      "line": 150,
+      "body_lines": [
+        153,
+        168
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/ask/sync",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_integrations.sync_garden_index",
+      "file": "vgarden/garden_integrations.py",
+      "line": 173,
+      "body_lines": [
+        176,
+        189
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/workflows",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_workflows.start_workflow",
+      "file": "vgarden/garden_workflows.py",
+      "line": 216,
+      "body_lines": [
+        219,
+        237
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/workflows/<int:local_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "garden_workflows.workflow_detail",
+      "file": "vgarden/garden_workflows.py",
+      "line": 242,
+      "body_lines": [
+        245,
+        246
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/workflows/<int:local_id>/run",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_workflows.rerun_workflow",
+      "file": "vgarden/garden_workflows.py",
+      "line": 251,
+      "body_lines": [
+        254,
+        256
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/workflows/<int:local_id>/review",
+      "methods": [
+        "POST"
+      ],
+      "function": "garden_workflows.review_workflow",
+      "file": "vgarden/garden_workflows.py",
+      "line": 261,
+      "body_lines": [
+        264,
+        286
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/plantings",
+      "methods": [
+        "POST"
+      ],
+      "function": "plantings.create_planting",
+      "file": "vgarden/plantings.py",
+      "line": 63,
+      "body_lines": [
+        64,
+        89
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/plantings/<int:planting_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "plantings.view_planting",
+      "file": "vgarden/plantings.py",
+      "line": 94,
+      "body_lines": [
+        95,
+        109
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/plantings/<int:planting_id>/edit",
+      "methods": [
+        "POST"
+      ],
+      "function": "plantings.edit_planting",
+      "file": "vgarden/plantings.py",
+      "line": 114,
+      "body_lines": [
+        115,
+        135
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/plantings/<int:planting_id>/delete",
+      "methods": [
+        "POST"
+      ],
+      "function": "plantings.delete_planting",
+      "file": "vgarden/plantings.py",
+      "line": 140,
+      "body_lines": [
+        141,
+        150
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/healthz",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.healthz",
+      "file": "vgarden/routes.py",
+      "line": 93,
+      "body_lines": [
+        94,
+        94
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/sso",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.sso",
+      "file": "vgarden/routes.py",
+      "line": 101,
+      "body_lines": [
+        103,
+        116
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/view",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.view_garden",
+      "file": "vgarden/routes.py",
+      "line": 121,
+      "body_lines": [
+        122,
+        140
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/edit",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.edit_garden",
+      "file": "vgarden/routes.py",
+      "line": 145,
+      "body_lines": [
+        146,
+        178
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.create_garden",
+      "file": "vgarden/routes.py",
+      "line": 187,
+      "body_lines": [
+        188,
+        207
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.list_gardens",
+      "file": "vgarden/routes.py",
+      "line": 212,
+      "body_lines": [
+        213,
+        218
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.get_garden",
+      "file": "vgarden/routes.py",
+      "line": 223,
+      "body_lines": [
+        224,
+        227
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>",
+      "methods": [
+        "DELETE"
+      ],
+      "function": "routes.delete_garden",
+      "file": "vgarden/routes.py",
+      "line": 233,
+      "body_lines": [
+        234,
+        240
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/snapshot",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.garden_snapshot",
+      "file": "vgarden/routes.py",
+      "line": 252,
+      "body_lines": [
+        255,
+        258
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/<int:garden_id>/plantings",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.garden_plantings",
+      "file": "vgarden/routes.py",
+      "line": 263,
+      "body_lines": [
+        266,
+        275
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/gardens/export",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.export_gardens",
+      "file": "vgarden/routes.py",
+      "line": 280,
+      "body_lines": [
+        289,
+        290
+      ],
+      "tested": true
+    }
+  ]
+}

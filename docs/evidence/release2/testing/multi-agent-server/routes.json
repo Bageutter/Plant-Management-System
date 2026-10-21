@@ -1,0 +1,132 @@
+{
+  "service": "ai-services/multi-agent-server",
+  "generated_at": "2026-10-21T10:18:49+00:00",
+  "commit": "48fcee1",
+  "test_command": "coverage run -m pytest -q tests",
+  "exit_code": 0,
+  "line_coverage_percent": 88.7,
+  "endpoints": 8,
+  "endpoints_tested": 5,
+  "routes": [
+    {
+      "kind": "http",
+      "path": "/healthz",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.healthz",
+      "file": "ai-services/multi-agent-server/app.py",
+      "line": 18,
+      "body_lines": [
+        19,
+        19
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/workflow",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.create_workflow",
+      "file": "ai-services/multi-agent-server/app.py",
+      "line": 23,
+      "body_lines": [
+        24,
+        48
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/workflow/status",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.workflow_status",
+      "file": "ai-services/multi-agent-server/app.py",
+      "line": 84,
+      "body_lines": [
+        85,
+        93
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/workflow/run",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.workflow_run",
+      "file": "ai-services/multi-agent-server/app.py",
+      "line": 97,
+      "body_lines": [
+        98,
+        108
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/workflow/review",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.workflow_review",
+      "file": "ai-services/multi-agent-server/app.py",
+      "line": 112,
+      "body_lines": [
+        113,
+        126
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/dashboard",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.dashboard",
+      "file": "ai-services/multi-agent-server/app.py",
+      "line": 130,
+      "body_lines": [
+        131,
+        143
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/workflow/metrics",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.workflow_metrics",
+      "file": "ai-services/multi-agent-server/app.py",
+      "line": 147,
+      "body_lines": [
+        148,
+        148
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/workflow/audit/<filename>",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.workflow_audit",
+      "file": "ai-services/multi-agent-server/app.py",
+      "line": 152,
+      "body_lines": [
+        153,
+        158
+      ],
+      "tested": true
+    }
+  ]
+}

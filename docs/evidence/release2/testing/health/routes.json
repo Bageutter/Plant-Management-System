@@ -1,0 +1,358 @@
+{
+  "service": "health",
+  "generated_at": "2026-10-21T10:24:11+00:00",
+  "commit": "48fcee1",
+  "test_command": "coverage run -m pytest -q tests",
+  "exit_code": 1,
+  "line_coverage_percent": 19.8,
+  "endpoints": 23,
+  "endpoints_tested": 0,
+  "routes": [
+    {
+      "kind": "http",
+      "path": "/",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.root_redirect",
+      "file": "health/routes.py",
+      "line": 72,
+      "body_lines": [
+        73,
+        73
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/healthz",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.healthz",
+      "file": "health/routes.py",
+      "line": 77,
+      "body_lines": [
+        78,
+        92
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.index",
+      "file": "health/routes.py",
+      "line": 96,
+      "body_lines": [
+        97,
+        97
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/<int:assessment_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.view_assessment",
+      "file": "health/routes.py",
+      "line": 101,
+      "body_lines": [
+        102,
+        110
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/<int:assessment_id>/image",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.assessment_image",
+      "file": "health/routes.py",
+      "line": 114,
+      "body_lines": [
+        115,
+        122
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/assessments",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.create_assessment",
+      "file": "health/routes.py",
+      "line": 137,
+      "body_lines": [
+        138,
+        155
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/assessments/stream",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.stream_assessment",
+      "file": "health/routes.py",
+      "line": 159,
+      "body_lines": [
+        162,
+        167
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/assessments",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.list_assessments",
+      "file": "health/routes.py",
+      "line": 263,
+      "body_lines": [
+        271,
+        301
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/assessments/<int:assessment_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.get_assessment",
+      "file": "health/routes.py",
+      "line": 305,
+      "body_lines": [
+        306,
+        309
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/assessments/<int:assessment_id>",
+      "methods": [
+        "PATCH",
+        "PUT"
+      ],
+      "function": "routes.update_assessment",
+      "file": "health/routes.py",
+      "line": 313,
+      "body_lines": [
+        322,
+        339
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/assessments/<int:assessment_id>",
+      "methods": [
+        "DELETE"
+      ],
+      "function": "routes.delete_assessment",
+      "file": "health/routes.py",
+      "line": 343,
+      "body_lines": [
+        344,
+        354
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/assessments/<int:assessment_id>/regenerate",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.regenerate_assessment",
+      "file": "health/routes.py",
+      "line": 358,
+      "body_lines": [
+        365,
+        385
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/assessments/<int:assessment_id>/regenerate/stream",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.stream_regenerate_assessment",
+      "file": "health/routes.py",
+      "line": 389,
+      "body_lines": [
+        390,
+        399
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/assessments/<int:assessment_id>/loop",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.get_loop_run",
+      "file": "health/routes.py",
+      "line": 403,
+      "body_lines": [
+        406,
+        409
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/<int:assessment_id>/loop",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.view_loop",
+      "file": "health/routes.py",
+      "line": 413,
+      "body_lines": [
+        414,
+        417
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/plants",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.list_plants",
+      "file": "health/routes.py",
+      "line": 573,
+      "body_lines": [
+        576,
+        579
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/plants",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.create_plant",
+      "file": "health/routes.py",
+      "line": 583,
+      "body_lines": [
+        586,
+        601
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/plants/<int:plant_id>",
+      "methods": [
+        "DELETE"
+      ],
+      "function": "routes.delete_plant",
+      "file": "health/routes.py",
+      "line": 605,
+      "body_lines": [
+        608,
+        617
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/integrations",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.integrations_status",
+      "file": "health/routes.py",
+      "line": 651,
+      "body_lines": [
+        655,
+        670
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/tools",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.list_tools",
+      "file": "health/routes.py",
+      "line": 674,
+      "body_lines": [
+        677,
+        680
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/tools/run",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.run_tool",
+      "file": "health/routes.py",
+      "line": 684,
+      "body_lines": [
+        691,
+        704
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/ask",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.ask_records",
+      "file": "health/routes.py",
+      "line": 708,
+      "body_lines": [
+        711,
+        723
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "/ask/sync",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.sync_records",
+      "file": "health/routes.py",
+      "line": 727,
+      "body_lines": [
+        730,
+        742
+      ],
+      "tested": false
+    }
+  ]
+}

@@ -459,6 +459,8 @@ def add_review_arguments(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--no-model", action="store_true", help="write the review from the checks only")
     group.add_argument("--no-review-model", action="store_true", help="skip the second-model OBSERVE review")
     group.add_argument("--max-iterations", type=int, default=2)
+    group.add_argument("--num-ctx", type=int, default=8192, help="model context window for the evidence")
+    group.add_argument("--report", type=Path, help="also write the review report as Markdown to this file")
     group.add_argument("--timeout", type=int, default=240, help="seconds per model call")
     group.add_argument("--decision", help="human decision: accept/partially_accept/reject, "
                        "or release/hold/rollback for cloud-deployment; asked interactively if omitted")
@@ -469,14 +471,20 @@ def add_review_arguments(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--source", help="multi-agent: only review workflows from this feature (e.g. vgarden)")
     group.add_argument("--security-reports", default=str(ROOT / ".security-reports"),
                        help="testing: folder of saved pre-commit check results")
-    group.add_argument("--services", nargs="+", default=["vgarden", "auth"],
-                       help="testing: services whose pre-commit results to review")
+    group.add_argument("--services", nargs="+",
+                       default=["vgarden", "auth", "almanac", "health", "shared/frontend", "ai-services/mcp-server",
+                                "ai-services/rag-server", "ai-services/multi-agent-server"],
+                       help="testing: services whose pre-commit results and test evidence to review")
     group.add_argument("--repo", default="Bageutter/Plant-Management-System")
     group.add_argument("--branch", default="main")
-    group.add_argument("--workflows", nargs="+", default=["vgarden.yml", "auth.yml"],
+    group.add_argument("--workflows", nargs="+",
+                       default=["vgarden.yml", "auth.yml", "plant_almanac.yml", "health.yml", "ai-services.yml",
+                                "integration-ci.yml", "ruff.yml"],
                        help="testing: GitHub Actions workflow files to review")
-    group.add_argument("--endpoint-workflows", nargs="+", default=["vgarden.yml"],
+    group.add_argument("--endpoint-workflows", nargs="+", default=["vgarden.yml", "plant_almanac.yml", "health.yml"],
                        help="testing: workflows that must run the assigned endpoint tests")
+    group.add_argument("--test-evidence", default=str(ROOT / "docs/evidence/release2/testing"),
+                       help="testing: folder written by scripts/test/collect-test-evidence.py")
     group.add_argument("--ci-evidence", help="testing: folder of downloaded CI artifacts (JUnit XML)")
     group.add_argument("--url", help="cloud-deployment: the deployed frontend's base URL")
     group.add_argument("--paths", nargs="+",

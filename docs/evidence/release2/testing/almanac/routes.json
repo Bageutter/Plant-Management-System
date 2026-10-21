@@ -1,0 +1,448 @@
+{
+  "service": "almanac",
+  "generated_at": "2026-10-21T10:16:36+00:00",
+  "commit": "48fcee1",
+  "test_command": "coverage run -m pytest -q tests",
+  "exit_code": 0,
+  "line_coverage_percent": 91.6,
+  "endpoints": 29,
+  "endpoints_tested": 28,
+  "routes": [
+    {
+      "kind": "http",
+      "path": "/",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.index",
+      "file": "almanac/app.py",
+      "line": 443,
+      "body_lines": [
+        444,
+        456
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/plants/<slug>",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.plant_detail",
+      "file": "almanac/app.py",
+      "line": 459,
+      "body_lines": [
+        460,
+        472
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/pests",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.pest_index",
+      "file": "almanac/app.py",
+      "line": 475,
+      "body_lines": [
+        476,
+        480
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/pests/<int:pest_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.pest_detail",
+      "file": "almanac/app.py",
+      "line": 483,
+      "body_lines": [
+        484,
+        504
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/diseases",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.disease_index",
+      "file": "almanac/app.py",
+      "line": 507,
+      "body_lines": [
+        508,
+        512
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/diseases/<int:disease_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.disease_detail",
+      "file": "almanac/app.py",
+      "line": 515,
+      "body_lines": [
+        516,
+        525
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/plants/<slug>/guild",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.save_guild",
+      "file": "almanac/app.py",
+      "line": 528,
+      "body_lines": [
+        529,
+        554
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/plant-images/<path:filename>",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.plant_image_file",
+      "file": "almanac/app.py",
+      "line": 557,
+      "body_lines": [
+        558,
+        558
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/plants/new",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.new_plant",
+      "file": "almanac/app.py",
+      "line": 570,
+      "body_lines": [
+        571,
+        574
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/plants",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.create_plant",
+      "file": "almanac/app.py",
+      "line": 577,
+      "body_lines": [
+        578,
+        608
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/plants/<slug>/edit",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.edit_plant",
+      "file": "almanac/app.py",
+      "line": 611,
+      "body_lines": [
+        612,
+        619
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/plants/<slug>/edit",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.update_plant",
+      "file": "almanac/app.py",
+      "line": 622,
+      "body_lines": [
+        623,
+        664
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/plants/<slug>/delete",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.delete_plant",
+      "file": "almanac/app.py",
+      "line": 667,
+      "body_lines": [
+        668,
+        681
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/api/plants",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.api_plants",
+      "file": "almanac/app.py",
+      "line": 686,
+      "body_lines": [
+        687,
+        688
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/api/plants/<slug>",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.api_plant",
+      "file": "almanac/app.py",
+      "line": 691,
+      "body_lines": [
+        692,
+        695
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/api/plants",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.api_create_plant",
+      "file": "almanac/app.py",
+      "line": 736,
+      "body_lines": [
+        737,
+        746
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/api/plants/<slug>",
+      "methods": [
+        "PUT",
+        "PATCH"
+      ],
+      "function": "app.api_update_plant",
+      "file": "almanac/app.py",
+      "line": 750,
+      "body_lines": [
+        751,
+        761
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/api/plants/<slug>",
+      "methods": [
+        "DELETE"
+      ],
+      "function": "app.api_delete_plant",
+      "file": "almanac/app.py",
+      "line": 765,
+      "body_lines": [
+        766,
+        776
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/ai/ask",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.ask_almanac",
+      "file": "almanac/app.py",
+      "line": 779,
+      "body_lines": [
+        780,
+        900
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/ai/loop/<int:run_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.ai_loop_trace",
+      "file": "almanac/app.py",
+      "line": 903,
+      "body_lines": [
+        904,
+        908
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/ai/clear",
+      "methods": [
+        "POST"
+      ],
+      "function": "app.clear_ai_chat",
+      "file": "almanac/app.py",
+      "line": 911,
+      "body_lines": [
+        912,
+        920
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/health",
+      "methods": [
+        "GET"
+      ],
+      "function": "app.health",
+      "file": "almanac/app.py",
+      "line": 923,
+      "body_lines": [
+        924,
+        925
+      ],
+      "tested": false
+    },
+    {
+      "kind": "http",
+      "path": "",
+      "methods": [
+        "GET"
+      ],
+      "function": "catalogue_api.search",
+      "file": "almanac/catalogue_api.py",
+      "line": 50,
+      "body_lines": [
+        52,
+        109
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/plant/<slug>",
+      "methods": [
+        "GET"
+      ],
+      "function": "catalogue_api.plant",
+      "file": "almanac/catalogue_api.py",
+      "line": 113,
+      "body_lines": [
+        114,
+        125
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/<kind>/<int:record_id>",
+      "methods": [
+        "GET"
+      ],
+      "function": "catalogue_api.problem",
+      "file": "almanac/catalogue_api.py",
+      "line": 129,
+      "body_lines": [
+        130,
+        155
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "",
+      "methods": [
+        "GET"
+      ],
+      "function": "integrations.index",
+      "file": "almanac/integrations.py",
+      "line": 51,
+      "body_lines": [
+        52,
+        52
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/mcp",
+      "methods": [
+        "POST"
+      ],
+      "function": "integrations.mcp",
+      "file": "almanac/integrations.py",
+      "line": 57,
+      "body_lines": [
+        58,
+        88
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/rag",
+      "methods": [
+        "POST"
+      ],
+      "function": "integrations.rag",
+      "file": "almanac/integrations.py",
+      "line": 107,
+      "body_lines": [
+        108,
+        120
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/rag/sync",
+      "methods": [
+        "POST"
+      ],
+      "function": "integrations.sync",
+      "file": "almanac/integrations.py",
+      "line": 124,
+      "body_lines": [
+        126,
+        135
+      ],
+      "tested": true
+    }
+  ]
+}

@@ -60,7 +60,7 @@ def summarise(report):
         vulnerable = [d for d in dependencies if d.get("vulns")]
         return f"{len(dependencies)} packages, {len(vulnerable)} with known vulnerabilities"
     if scan == "tests":
-        lines = [line for line in stdout.splitlines() if re.search(r"\d+ (passed|failed)", line)]
+        lines = [line for line in stdout.splitlines() if re.search(r"\d+ (passed|failed|errors?)", line)]
         return lines[-1].strip() if lines else "no pytest summary"
     return ""
 

@@ -112,7 +112,8 @@ class TestingChecks(unittest.TestCase):
             (reports / "20261020T000000Z-tests-a.json").write_text(json.dumps(old))
             (reports / "20261021T000000Z-tests-b.json").write_text(json.dumps(new))
             args = argparse.Namespace(security_reports=tmp, services=["vgarden"], workflows=[],
-                                      endpoint_workflows=[], ci_evidence=None, repo="o/r", branch="main")
+                                      endpoint_workflows=[], ci_evidence=None, repo="o/r", branch="main",
+                                      test_evidence=str(Path(tmp) / "none"))
             facts, checks, _ = review.gather_testing(args)
         by_title = {c.title: c for c in checks}
         self.assertEqual(by_title["Pre-commit tests check passes for vgarden"].status, "pass")
@@ -126,6 +127,55 @@ class TestingChecks(unittest.TestCase):
                 '<testcase name="a"/><testcase name="b"/></testsuite></testsuites>')
             totals = review._junit_totals(Path(tmp))
         self.assertEqual((totals["tests"], totals["failures"], totals["testcases"]), (2, 1, ["a", "b"]))
+
+
+def write_service_evidence(root: Path, *, exit_code=0, failures=0, untested=1):
+    folder = root / "vgarden"
+    folder.mkdir(parents=True)
+    routes = [{"methods": ["GET"], "path": f"/r{i}", "file": "vgarden/routes.py", "line": i, "tested": i >= untested}
+              for i in range(3)]
+    (folder / "routes.json").write_text(json.dumps({
+        "service": "vgarden", "commit": "abc1234", "exit_code": exit_code, "line_coverage_percent": 90.0,
+        "endpoints": 3, "endpoints_tested": sum(r["tested"] for r in routes), "routes": routes}))
+    (folder / "junit.xml").write_text(
+        f'<testsuites><testsuite tests="5" failures="{failures}" errors="0" skipped="1">'
+        '<testcase name="a"/></testsuite></testsuites>')
+    log = ("FAILED tests/test_x.py::test_broken - AssertionError\n" if failures else "") + "4 passed, 2 warnings in 1s\n"
+    (folder / "pytest.txt").write_text(log)
+
+
+class TestEvidenceChecks(unittest.TestCase):
+    def gather(self, tmp):
+        args = argparse.Namespace(security_reports=str(Path(tmp) / "none"), services=["vgarden"], workflows=[],
+                                  endpoint_workflows=[], ci_evidence=None, repo="o/r", branch="main",
+                                  test_evidence=tmp)
+        return review.gather_testing(args)
+
+    def test_untested_endpoints_warn_and_are_listed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_service_evidence(Path(tmp))
+            facts, checks, _ = self.gather(tmp)
+        by_title = {c.title: c for c in checks}
+        self.assertEqual(by_title["vgarden tests pass"].status, "pass")
+        self.assertIn("2 warnings", by_title["vgarden tests pass"].detail)
+        coverage = by_title["Every vgarden endpoint is exercised by a test"]
+        self.assertEqual(coverage.status, "warn")
+        self.assertIn("GET /r0", coverage.detail)
+        self.assertEqual(facts["test_evidence"][0]["untested_endpoints"], ["GET /r0 (vgarden/routes.py:0)"])
+
+    def test_failing_tests_fail_and_name_the_test(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_service_evidence(Path(tmp), exit_code=1, failures=1, untested=0)
+            _, checks, _ = self.gather(tmp)
+        by_title = {c.title: c for c in checks}
+        self.assertEqual(by_title["vgarden tests pass"].status, "fail")
+        self.assertIn("test_broken", by_title["vgarden tests pass"].detail)
+        self.assertEqual(by_title["Every vgarden endpoint is exercised by a test"].status, "pass")
+
+    def test_missing_evidence_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, checks, _ = self.gather(tmp)
+        self.assertEqual({c.status for c in checks if "vgarden" in c.title}, {"missing"})
 
 
 class CloudChecks(unittest.TestCase):
@@ -177,6 +227,17 @@ class ObserveRules(unittest.TestCase):
         issues = review.rule_issues(good_draft(verdict="ready"), CHECKS)
         self.assertTrue(any("not_ready" in issue for issue in issues))
 
+    def test_warn_needs_a_finding_and_blocks_ready(self):
+        checks = [review.Check("X-1", "first", "pass", "ok"), review.Check("X-3", "coverage", "warn", "gaps")]
+        draft = {"summary": "Coverage gaps.", "verdict": "ready", "recommendations": [], "findings": []}
+        issues = review.rule_issues(draft, checks)
+        self.assertTrue(any("X-3 warns" in issue for issue in issues))
+        self.assertTrue(any("ready_with_fixes" in issue for issue in issues))
+        fixed = {**draft, "verdict": "ready_with_fixes",
+                 "findings": [{"check_id": "X-3", "severity": "minor", "finding": "gaps"}]}
+        self.assertEqual(review.rule_issues(fixed, checks), [])
+        self.assertEqual(review.deterministic_review(checks)["verdict"], "ready_with_fixes")
+
     def test_deterministic_review_meets_the_rules(self):
         self.assertEqual(review.rule_issues(review.deterministic_review(CHECKS), CHECKS), [])
         passing = [CHECKS[0]]
@@ -186,7 +247,8 @@ class ObserveRules(unittest.TestCase):
 def loop_args(tmp, **overrides):
     values = {"mode": "multi-agent", "log_dir": tmp, "no_model": False, "no_review_model": True,
               "model": "m", "review_model": "m", "ollama_url": "http://ollama.test", "timeout": 5,
-              "max_iterations": 2, "decision": "accept", "reason": "ok", "reviewer_id": "tester"}
+              "max_iterations": 2, "decision": "accept", "reason": "ok", "reviewer_id": "tester",
+              "num_ctx": 8192, "report": None}
     values.update(overrides)
     return argparse.Namespace(**values)
 
@@ -241,6 +303,15 @@ class Loop(unittest.TestCase):
         self.assertIn("count is wrong", draft.call_args_list[1].args[2])
         self.assertEqual(result["verdict_source"], "model")
 
+    def test_writes_the_markdown_report(self):
+        report = Path(self.tmp.name, "report.md")
+        with mock.patch.object(review, "draft_review", return_value=good_draft()):
+            result = review.run_review(loop_args(self.tmp.name, report=str(report)))
+        text = report.read_text()
+        self.assertIn("| X-2 | second | ❌ fail | broken |", text)
+        self.assertIn("Decision: **accept**", text)
+        self.assertIn(result["run_id"], text)
+
     def test_no_decision_without_a_terminal_is_pending(self):
         with mock.patch.object(review, "draft_review", return_value=good_draft()), \
                 mock.patch.object(review.sys.stdin, "isatty", return_value=False):
@@ -250,3 +321,33 @@ class Loop(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CollectorEndpoints(unittest.TestCase):
+    """scripts/test/collect-test-evidence.py finds endpoints without importing the app."""
+
+    def test_finds_routes_and_tools(self):
+        import importlib.util
+
+        path = Path(__file__).resolve().parents[3] / "scripts" / "test" / "collect-test-evidence.py"
+        spec = importlib.util.spec_from_file_location("collect_test_evidence", path)
+        collector = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(collector)
+        with tempfile.TemporaryDirectory() as tmp:
+            service = Path(tmp, "svc")
+            (service / "tests").mkdir(parents=True)
+            (service / "routes.py").write_text(
+                '@bp.route("/items/<int:item_id>", methods=["GET", "POST"])\n'
+                'def item(item_id):\n    """Doc."""\n    return "ok"\n\n'
+                '@app.get("/healthz")\ndef healthz():\n    return {}\n\n'
+                '@server.tool()\ndef search(query):\n    return []\n\n'
+                'def helper():\n    return 1\n')
+            (service / "tests" / "test_x.py").write_text('@bp.route("/not-an-endpoint")\ndef t():\n    pass\n')
+            with mock.patch.object(collector, "ROOT", Path(tmp)):
+                found = collector.endpoints("svc")
+        summary = [(e["kind"], e["path"], e["methods"], e["body_lines"]) for e in found]
+        self.assertEqual(summary, [
+            ("http", "/items/<int:item_id>", ["GET", "POST"], [4, 4]),  # docstring skipped
+            ("http", "/healthz", ["GET"], [8, 8]),
+            ("mcp_tool", "search", [], [12, 12]),
+        ])
