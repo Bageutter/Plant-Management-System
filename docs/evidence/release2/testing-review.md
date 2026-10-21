@@ -4,6 +4,8 @@ Run `review-testing-20261021-134337-18a37a` · verdict **ready_with_fixes** (fro
 
 All pre-commit security and code quality checks passed, with no vulnerabilities or secrets detected. However, multiple services have untested endpoints, resulting in incomplete test coverage. These gaps represent a minor risk to long-term maintainability and reliability.
 
+TS-54 was subsequently refreshed from the multi-agent service's test and coverage evidence at 2026-10-21T14:28Z: all 45 tests pass and all 8 endpoints are exercised (93.9% line coverage). This follow-up resolves the multi-agent endpoint warning; the original review and its model verdict remain historical.
+
 ## Checks
 
 | ID | Check | Result | Detail |
@@ -60,8 +62,8 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 | TS-50 | Every ai-services/mcp-server endpoint is exercised by a test | ⚠️ warn | 12/13 endpoints run by the tests; not exercised: GET /healthz. Line coverage 94.9%. |
 | TS-51 | ai-services/rag-server tests pass | ✅ pass | 70 tests: 0 failures, 0 errors, 1 skipped (commit 228fec3). |
 | TS-52 | Every ai-services/rag-server endpoint is exercised by a test | ⚠️ warn | 5/6 endpoints run by the tests; not exercised: POST /rag/retrieve. Line coverage 82.6%. |
-| TS-53 | ai-services/multi-agent-server tests pass | ✅ pass | 42 tests: 0 failures, 0 errors, 0 skipped (commit 228fec3). |
-| TS-54 | Every ai-services/multi-agent-server endpoint is exercised by a test | ⚠️ warn | 5/8 endpoints run by the tests; not exercised: GET /healthz, GET /dashboard, GET /workflow/metrics. Line coverage 92.9%. |
+| TS-53 | ai-services/multi-agent-server tests pass | ✅ pass | 45 tests: 0 failures, 0 errors, 0 skipped (commit eaff3fb; refreshed evidence). |
+| TS-54 | Every ai-services/multi-agent-server endpoint is exercised by a test | ✅ pass | 8/8 endpoints run by the tests. Line coverage 93.9% (refreshed evidence, 2026-10-21T14:28Z). |
 
 ## Tests and endpoint coverage per service
 
@@ -74,7 +76,7 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 | `shared/frontend` | 3 | 0 | 0 | 0 | 98.0% | 1/1 |
 | `ai-services/mcp-server` | 42 | 0 | 0 | 0 | 94.9% | 12/13 |
 | `ai-services/rag-server` | 70 | 0 | 1 | 0 | 82.6% | 5/6 |
-| `ai-services/multi-agent-server` | 42 | 0 | 0 | 0 | 92.9% | 5/8 |
+| `ai-services/multi-agent-server` | 45 | 0 | 0 | 0 | 93.9% | 8/8 |
 
 ### Endpoints no test exercises
 
@@ -83,7 +85,6 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 - **`health`**: `POST /assessments/<int:assessment_id>/regenerate/stream (health/routes.py:389)`
 - **`ai-services/mcp-server`**: `GET /healthz (ai-services/mcp-server/server.py:60)`
 - **`ai-services/rag-server`**: `POST /rag/retrieve (ai-services/rag-server/routes.py:213)`
-- **`ai-services/multi-agent-server`**: `GET /healthz (ai-services/multi-agent-server/app.py:22)`, `GET /dashboard (ai-services/multi-agent-server/app.py:136)`, `GET /workflow/metrics (ai-services/multi-agent-server/app.py:153)`
 
 ## Findings
 
@@ -92,7 +93,6 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 - **TS-46** (minor): 31 out of 32 endpoints in health are exercised by tests; endpoint POST /assessments/<int:assessment_id>/regenerate/stream is not tested. Line coverage is 91.5% (warn).
 - **TS-50** (minor): 12 out of 13 endpoints in ai-services/mcp-server are exercised by tests; endpoint GET /healthz is not tested. Line coverage is 94.9% (warn).
 - **TS-52** (minor): 5 out of 6 endpoints in ai-services/rag-server are exercised by tests; endpoint POST /rag/retrieve is not tested. Line coverage is 82.6% (warn).
-- **TS-54** (minor): 5 out of 8 endpoints in ai-services/multi-agent-server are exercised by tests; endpoints GET /healthz, GET /dashboard, and GET /workflow/metrics are not tested. Line coverage is 92.9% (warn).
 
 ## Recommendations
 
@@ -101,7 +101,6 @@ All pre-commit security and code quality checks passed, with no vulnerabilities 
 - Develop and execute tests for the missing endpoint in health (POST /assessments/<int:assessment_id>/regenerate/stream) to ensure all functionality is validated.
 - Add test cases for the untested endpoint in ai-services/mcp-server (GET /healthz) to ensure complete coverage of the service.
 - Create test cases for the missing endpoint in ai-services/rag-server (POST /rag/retrieve) to address low line coverage and improve service reliability.
-- Implement tests for the untested endpoints in ai-services/multi-agent-server (GET /healthz, GET /dashboard, GET /workflow/metrics) to ensure full coverage of all endpoints and improve system stability.
 - Review and validate that all endpoints are covered in the test suite, and consider adding integration or endpoint-level tests to validate behavior under real-world conditions.
 
 ## Human decision
@@ -160,7 +159,7 @@ _Reviews saved evidence; a passing review is not proof that every feature works.
 
 ## Acceptance and follow-ups
 
-Amy explicitly accepted these results on 22 October 2026 (Sydney): required tests pass; retain the six coverage gaps as follow-ups. Testing Review is **passed/accepted with follow-ups**; the model verdict remains `ready_with_fixes` and the six warnings remain unchanged. This is not cloud or final group release approval.
+Amy explicitly accepted the original results on 22 October 2026 (Sydney): required tests pass; retain the six coverage gaps as follow-ups. The TS-54 follow-up now resolves the multi-agent endpoint gap, leaving five endpoint-coverage warnings. Testing Review remains **passed/accepted with follow-ups**; the original model verdict remains `ready_with_fixes`. This is not cloud or final group release approval.
 
 Parent: #94
 - #95: Virtual Garden (TS-40)
