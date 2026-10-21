@@ -122,3 +122,11 @@ image build/push -> apps Bicep -> cloud smoke test -> deployment report. The rep
 lands in `docs/evidence/release2/cloud-deployment/` and as a workflow artifact.
 AI-Mode, MCP, RAG and the Multi-Agent Server are disabled in the cloud baseline.
 One-time setup and everything else: [docs/deployment/azure.md](../docs/deployment/azure.md).
+
+## report evidence
+
+Downloaded test artifacts and the write-up for the report live under
+`docs/evidence/release2/post-commit/<service>-<student>/`, and the pre-commit scan
+reports under `docs/evidence/release2/pre-commit-<student>.md` (generated with
+`python scripts/security/report.py <service> --owner "<Your Name>" --out <file>`). See
+`docs/evidence/release2/README.md` for the full index by marking criterion.
