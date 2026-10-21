@@ -1,12 +1,12 @@
 {
   "service": "vgarden",
-  "generated_at": "2026-10-21T13:41:14+00:00",
-  "commit": "228fec3",
+  "generated_at": "2026-10-21T14:27:17+00:00",
+  "commit": "7f49bd6",
   "test_command": "coverage run -m pytest -q tests",
   "exit_code": 0,
-  "line_coverage_percent": 95.5,
+  "line_coverage_percent": 95.7,
   "endpoints": 36,
-  "endpoints_tested": 34,
+  "endpoints_tested": 36,
   "routes": [
     {
       "kind": "http",
@@ -396,7 +396,7 @@
         94,
         94
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
@@ -471,7 +471,7 @@
         213,
         218
       ],
-      "tested": false
+      "tested": true
     },
     {
       "kind": "http",
