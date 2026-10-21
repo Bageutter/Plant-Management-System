@@ -116,3 +116,42 @@ relevant pull requests/pushes with `MCP_ENABLED=false` and `RAG_ENABLED=false` s
 the normal lint, tests and image build do not require live AI services. Live
 validation evidence is collected separately with the commands above; CI success
 is not a live model result.
+
+## Release 2: review modes (`review.py`)
+
+`review.py` runs the same shared loop over a piece of **Release 2 evidence** and
+writes a review/validation log for the technical report (marking criterion 8).
+Each mode builds a JSON grounding in code, pins a response schema, runs the
+proposer and the independent reviewer on **local Ollama only** at temperature 0,
+and refuses rather than guesses. Modes are registered in `MODES` in `review.py`;
+the first is below.
+
+### Cloud Deployment Report Review (`--mode cloud-deployment`)
+
+Reviews the report `scripts/deploy/azure-report.sh` writes at the end of a cloud
+deployment and recommends a release decision to the human release manager.
+
+```bash
+python tools/ai-loop/review.py --mode cloud-deployment
+python tools/ai-loop/review.py --mode cloud-deployment --report docs/evidence/release2/cloud-deployment/cloud-deployment-<stamp>.json
+```
+
+| | |
+|---|---|
+| **Input** | `docs/evidence/release2/cloud-deployment/latest.json` by default, or `--report <path>` |
+| **Grounding (PLAN)** | `build_cloud_deployment_grounding()` in `shared/ai_loop.py` selects: commit, branch, workflow run URL, public URLs, the four cloud-baseline flags, container apps (ingress, `allowInsecure`, revision, status, replicas), PostgreSQL public access and backups, key vault RBAC/soft-delete, storage TLS/HTTPS/public-blob/network settings, the smoke result and the claimed security controls. It also computes `evidence_gaps` in code. Bulky sections (`resources`, `platform_outputs`, internal FQDNs) stay out. |
+| **Response schema (ACT)** | `CLOUD_DECISION_SCHEMA`: `{"decision": approve \| approve_with_corrections \| reject \| insufficient_evidence, "baseline_compliant": bool, "findings": [{"severity": high \| medium \| low, "area": …, "evidence": …, "recommendation": …}], "release_recommendation": …}`. Pinned through Ollama's `format`, then re-validated and clamped in code (`validate_cloud_decision`, `normalise_cloud_decision`). |
+| **Refusal** | No smoke result, or any of the four baseline flags missing → the drafter returns the fixed `insufficient_evidence` decision **without calling the model**, one high finding per gap. |
+| **Baseline breach** | Any of `ai_mode_enabled`, `mcp_enabled`, `rag_enabled`, `multi_agent_enabled` true → a high finding in area `cloud_baseline` per switch, `baseline_compliant: false`, and the decision can never be `approve`. A failed smoke test is always `reject`. A finding that claims a switch is on when the grounding has it off is dropped. These rules hold whatever the model said; when they change the decision, `release_recommendation` is prefixed with *Corrected in code to …* and the model's own text is quoted after it. |
+| **OBSERVE** | `CloudDeploymentReviewer`: a refusal is checked deterministically (the draft must be the fixed refusal for the computed gaps; the model is not consulted). Every other draft goes to the shared `Reviewer` with `PROMPT_CLOUD_DEPLOYMENT_OBSERVE`: is every finding's evidence in the grounding, is an enabled switch or failed smoke test flagged, does the decision follow the rules. `revise` threads guidance into the next ACT (`carried_feedback`), up to `--max-iterations`. |
+| **Models** | `--model` / `OLLAMA_MODEL` (default `qwen3:4b-instruct`), `--review-model` / `OLLAMA_REVIEW_MODEL` (default `llama3.1:8b`; `''` for single-shot, logged as `fallback`), `--ollama-url` / `OLLAMA_URL`, `--auto-pull` / `OLLAMA_AUTO_PULL`. Use instruction-tuned, non-thinking models: a thinking model (e.g. `gemma4`) spends its output budget in Ollama's `thinking` field and returns empty content, so the reviewer call fails and the run is logged as `fallback`. |
+| **Evidence** | The three sinks: stdout, `logs/cloud-deployment.jsonl`, `logs/reports/cloud-deployment/<run_id>.md`; the JSON result on stdout (`--output` to save it); and the validation log copied **next to the report** as `cloud-deployment-<stamp>-review.md` / `.json` plus `latest-review.md` / `.json` (`--copy-dir` to redirect, `--no-copy` to skip). The log lists every correction the code made to the model's draft (also `code_corrections` in the JSON) and ends with the *Final human release decision* checklist. |
+| **Exit code** | `0` approve / approve_with_corrections, `1` reject, `2` insufficient_evidence, `3` the loop could not run (Ollama unreachable, model missing, invalid model output). |
+
+`python tools/ai-loop/view.py --service cloud-deployment` replays the runs. The
+review is advisory: it supports the release manager's decision on the report's
+checklist and does not replace it. Tests: `tools/ai-loop/tests/test_review.py`
+(fake proposer + scripted reviewer: grounding selection, both refusals, schema
+validation, the baseline-breach and failed-smoke rules, feedback threading, all
+sinks and the validation log). Run them from the repository root with
+`python -m pytest -q tools/ai-loop/tests`.

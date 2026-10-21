@@ -1,0 +1,66 @@
+{
+  "report": "cloud-deployment",
+  "generated_at": "2026-10-20T06:15:42Z",
+  "deployment": {
+    "platform": "Microsoft Azure",
+    "subscription": "UTS Student Subscription (sample)",
+    "resource_group": "rg-pms-release2",
+    "location": "australiaeast",
+    "commit": "0a31150520c0069fd43964261085056e615d0c9c",
+    "branch": "main",
+    "image_tag": "0a31150",
+    "actor": "sample-ci",
+    "workflow_run_url": "https://github.com/example-org/Plant-Management-System/actions/runs/1"
+  },
+  "endpoints": {
+    "app_url": "https://pms-proxy.example.azurecontainerapps.io",
+    "public_urls": {
+      "auth": "https://pms-proxy.example.azurecontainerapps.io/auth",
+      "vgarden": "https://pms-proxy.example.azurecontainerapps.io/vgarden",
+      "almanac": "https://pms-proxy.example.azurecontainerapps.io/almanac",
+      "health": "https://pms-proxy.example.azurecontainerapps.io/health"
+    },
+    "internal_fqdns": {
+      "auth": "pms-auth.internal.example.azurecontainerapps.io"
+    }
+  },
+  "cloud_baseline": {
+    "ai_mode_enabled": false,
+    "mcp_enabled": false,
+    "rag_enabled": false,
+    "multi_agent_enabled": false
+  },
+  "smoke_test": {"result": "pass"},
+  "container_apps": [
+    {"name": "pms-proxy", "external": true, "allowInsecure": false, "fqdn": "pms-proxy.example.azurecontainerapps.io", "image": "pmsacr.azurecr.io/pms/proxy:0a31150", "revision": "pms-proxy--0a31150", "status": "Running", "minReplicas": 1, "maxReplicas": 2, "secrets": 0},
+    {"name": "pms-auth", "external": false, "allowInsecure": false, "fqdn": "pms-auth.internal.example.azurecontainerapps.io", "image": "pmsacr.azurecr.io/pms/auth:0a31150", "revision": "pms-auth--0a31150", "status": "Running", "minReplicas": 0, "maxReplicas": 2, "secrets": 3},
+    {"name": "pms-vgarden", "external": false, "allowInsecure": false, "fqdn": "pms-vgarden.internal.example.azurecontainerapps.io", "image": "pmsacr.azurecr.io/pms/vgarden:0a31150", "revision": "pms-vgarden--0a31150", "status": "Running", "minReplicas": 0, "maxReplicas": 2, "secrets": 3},
+    {"name": "pms-almanac", "external": false, "allowInsecure": false, "fqdn": "pms-almanac.internal.example.azurecontainerapps.io", "image": "pmsacr.azurecr.io/pms/almanac:0a31150", "revision": "pms-almanac--0a31150", "status": "Running", "minReplicas": 0, "maxReplicas": 2, "secrets": 3},
+    {"name": "pms-health", "external": false, "allowInsecure": false, "fqdn": "pms-health.internal.example.azurecontainerapps.io", "image": "pmsacr.azurecr.io/pms/health:0a31150", "revision": "pms-health--0a31150", "status": "Running", "minReplicas": 0, "maxReplicas": 2, "secrets": 4}
+  ],
+  "postgres": [
+    {"name": "pms-pg-release2", "version": "16", "sku": "Standard_B1ms", "tier": "Burstable", "publicNetworkAccess": "Disabled", "fqdn": "pms-pg-release2.postgres.database.azure.com", "backupRetentionDays": 7}
+  ],
+  "key_vaults": [
+    {"name": "pms-kv-release2", "rbac": true, "softDelete": true}
+  ],
+  "storage_accounts": [
+    {"name": "pmsstrelease2", "minimumTlsVersion": "TLS1_2", "httpsOnly": true, "blobPublicAccess": false, "networkDefaultAction": "Deny"}
+  ],
+  "resources": [
+    {"name": "pms-proxy", "type": "Microsoft.App/containerApps"},
+    {"name": "pms-pg-release2", "type": "Microsoft.DBforPostgreSQL/flexibleServers"},
+    {"name": "pms-kv-release2", "type": "Microsoft.KeyVault/vaults"}
+  ],
+  "platform_outputs": {"environmentId": "/subscriptions/sample/resourceGroups/rg-pms-release2/providers/Microsoft.App/managedEnvironments/pms-env"},
+  "security_controls": [
+    {"area": "Endpoint", "control": "Single public entry point: only the nginx proxy container app has external ingress; every Flask service is internal-only and not resolvable from the internet."},
+    {"area": "Endpoint", "control": "HTTPS only: the public ingress redirects plain HTTP to HTTPS (allowInsecure=false) with a managed TLS certificate."},
+    {"area": "Endpoint", "control": "Production process model: services run under gunicorn, not Flask's debug server; session cookies are HttpOnly, SameSite=Lax and Secure."},
+    {"area": "Data", "control": "PostgreSQL Flexible Server is VNet-injected with public network access disabled; clients connect with sslmode=require. Automatic backups are retained for 7 days."},
+    {"area": "Data", "control": "Every secret (database URLs, Flask secret keys, inter-service token) lives in Key Vault (RBAC); container apps read them with a user-assigned managed identity. Nothing is stored in the repository, the workflow or GitHub secrets."},
+    {"area": "Data", "control": "Container Registry: admin user disabled, images pulled with the managed identity."},
+    {"area": "Data", "control": "Plant-image storage: HTTPS/TLS 1.2 only, no public blob access, network access limited to the apps subnet."},
+    {"area": "Pipeline", "control": "GitHub Actions authenticates to Azure with OpenID Connect federation scoped to one resource group; no cloud credential is stored in GitHub."}
+  ]
+}
