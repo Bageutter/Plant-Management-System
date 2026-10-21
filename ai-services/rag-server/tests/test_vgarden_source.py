@@ -54,7 +54,7 @@ GARDENS = [
 class FakeVgarden:
     """A minimal stand-in for vgarden's authenticated bulk export endpoint."""
 
-    def __init__(self, token="test-token"):
+    def __init__(self, token="test-token"):  # noqa: S107 -- test value
         self.token = token
         self.calls = []
         self.gardens = GARDENS
@@ -95,7 +95,7 @@ def store(tmp_path):
     index.close()
 
 
-def config_for(url, token="test-token"):
+def config_for(url, token="test-token"):  # noqa: S107 -- test value
     return {
         "VGARDEN_SERVICE_URL": url,
         "VGARDEN_PUBLIC_URL": "http://localhost:3000/vgarden",
@@ -119,7 +119,7 @@ def test_ingest_authenticates_with_the_shared_service_token(fake, store):
 
 def test_wrong_token_is_reported_as_unavailable_not_silently_empty(fake, store):
     with pytest.raises(SourceUnavailable):
-        vgarden.ingest(config_for(fake.url, token="wrong"), store)
+        vgarden.ingest(config_for(fake.url, token="wrong"), store)  # noqa: S106 -- test value
     assert store.count() == 0
 
 

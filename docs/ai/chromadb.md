@@ -7,7 +7,8 @@ No external AI provider receives the records.
 
 ## Start
 
-Install `ai-services/rag-server/requirements.txt` in the existing Python environment.
+Install `ai-services/rag-server/requirements-chroma.txt` in the existing Python environment
+(the default `requirements.txt` leaves Chroma out; see the advisory note in that file).
 The tested embedding model is `bge-m3:latest`, already installed in local Ollama.
 
 ```sh
