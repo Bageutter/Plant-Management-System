@@ -5,8 +5,9 @@ The chat features in `almanac/` and `vgarden/` (Plan -> Act -> Observe -> Adapt)
 and the plant health assessment in `health/` (Perceive -> Reason -> Act ->
 Observe -> Repeat) log every phase of every run to
 `tools/ai-loop/logs/<service>.jsonl` (+ a markdown transcript per run), as do
-the Release 2 review modes run by `review.py` (service `cloud-deployment`). This
-replays them.
+the Release 2 review modes (`validate.py --mode multi-agent|testing|cloud-deployment`,
+services `review-<mode>`, and `cloud_report_review.py`, service `cloud-deployment`).
+This replays them.
 
     python tools/ai-loop/view.py                 # recent runs, both services
     python tools/ai-loop/view.py <run_id>        # full trace of one run
@@ -26,11 +27,17 @@ from collections import OrderedDict
 from pathlib import Path
 
 LOG_DIR = Path(__file__).resolve().parent / "logs"
-SERVICES = ("almanac", "vgarden", "health", "cloud-deployment")
+SERVICES = (
+    "almanac", "vgarden", "health",
+    "review-multi-agent", "review-testing", "review-cloud-deployment", "cloud-deployment",
+)
 WORKFLOWS = {
     "almanac": "Plan -> Act -> Observe -> Adapt",
     "vgarden": "Plan -> Act -> Observe -> Adapt",
     "health": "Perceive -> Reason -> Act -> Observe -> Repeat",
+    "review-multi-agent": "Plan -> Act -> Observe -> Adapt -> Human review",
+    "review-testing": "Plan -> Act -> Observe -> Adapt -> Human review",
+    "review-cloud-deployment": "Plan -> Act -> Observe -> Adapt -> Human review",
     "cloud-deployment": "Plan -> Act -> Observe -> Adapt (Cloud Deployment Report Review)",
 }
 

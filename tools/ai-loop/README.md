@@ -117,23 +117,76 @@ the normal lint, tests and image build do not require live AI services. Live
 validation evidence is collected separately with the commands above; CI success
 is not a live model result.
 
-## Release 2: review modes (`review.py`)
+## Release 2: review modes
 
-`review.py` runs the same shared loop over a piece of **Release 2 evidence** and
-writes a review/validation log for the technical report (marking criterion 8).
-Each mode builds a JSON grounding in code, pins a response schema, runs the
-proposer and the independent reviewer on **local Ollama only** at temperature 0,
-and refuses rather than guesses. Modes are registered in `MODES` in `review.py`;
-the first is below.
+Three more `--mode` values review saved evidence rather than calling a feature.
+The code is in [`review.py`](review.py); the Release 1 `mcp` and `rag` modes are
+unchanged.
 
-### Cloud Deployment Report Review (`--mode cloud-deployment`)
+| Mode | Reviews | Checks |
+|---|---|---|
+| `multi-agent` | `workflow_history.jsonl`, `coordination_audit.jsonl` and `multi-agent-metrics.json` exported by the Multi-Agent Server (`--evidence-dir`, default `docs/evidence/release2`) | every run went Planner → Worker → Reviewer → human review in order; every workflow closed by a human; accepting against the Reviewer's advice has a reason; every change request started a new run; every handoff names its model; human reviews from both the UI and the terminal; metrics match the history. `--source vgarden` reviews one feature's workflows. |
+| `testing` | for every service (`--services`, all eight by default): the newest pre-commit result of each check in `.security-reports/`, the test results, log and endpoint coverage saved by `scripts/test/collect-test-evidence.py` (`--test-evidence`), the newest finished run of each GitHub Actions workflow on `main` (`--workflows`), and optional downloaded CI JUnit files (`--ci-evidence`) | each pre-commit check passed; each service's tests pass (failures, errors, skipped, log warnings); every endpoint is run by a test, measured with coverage.py, so a URL that is only mentioned doesn't count (`warn` with the untested endpoints listed); each workflow's latest run succeeded; `--endpoint-workflows` ran their endpoint test step |
+| `cloud-deployment` | `docs/evidence/release2/cloud-deployment/latest.json` from `scripts/deploy/azure-report.sh` (`--grounding`), the live site (`--url`, default the report's `app_url`) and the `cloud-deployment.yml` runs | AI-Mode, MCP, RAG and Multi-Agent disabled in the cloud baseline; the deploy's smoke test passed; container apps running with one public entry; database not public; the deployed commit passed CI; HTTPS; the same paths as `azure-smoke.sh` respond |
 
-Reviews the report `scripts/deploy/azure-report.sh` writes at the end of a cloud
-deployment and recommends a release decision to the human release manager.
+Each run is one bounded loop:
+
+1. **Plan:** collect the evidence and run the checks above. No model is involved.
+   A check is `pass`, `warn` (needs work but doesn't block, such as an untested
+   endpoint), `fail` or `missing`. Missing evidence is never a pass, and neither is
+   GitHub being unreachable.
+2. **Act:** the local Ollama model (`--model`, default `qwen3:4b-instruct`) drafts
+   a review from those facts only, at temperature 0 with a pinned JSON schema:
+   summary, findings tied to check IDs, recommendations, and a verdict
+   (`ready`, `ready_with_fixes`, `not_ready`).
+3. **Observe:** fixed rules first. The draft may cite only real check IDs, must
+   raise every failing or missing check as major or blocker, and can't say
+   `ready` while any check isn't passing. Then a second model
+   (`--review-model`, through `shared/ai_loop.Reviewer`) checks that every
+   statement is supported by the facts.
+4. **Adapt:** feed the problems back and redraft, up to `--max-iterations` (2).
+   If the last draft still breaks the rules, the review is written from the
+   checks alone, so the verdict never goes beyond the evidence. The same happens
+   with `--no-model` or when Ollama is down, and the log says so.
+5. **Human review:** you record the decision: `accept` / `partially_accept` /
+   `reject`, or `release` / `hold` / `rollback` for `cloud-deployment`. It's
+   asked in the terminal, or passed with `--decision` and `--reason`; without
+   either and without a terminal it's recorded as `pending`.
 
 ```bash
-python tools/ai-loop/review.py --mode cloud-deployment
-python tools/ai-loop/review.py --mode cloud-deployment --report docs/evidence/release2/cloud-deployment/cloud-deployment-<stamp>.json
+python3 tools/ai-loop/validate.py --mode multi-agent --output docs/evidence/release2/review-multi-agent.json
+python3 scripts/test/collect-test-evidence.py      # tests + endpoint coverage, every service
+python3 tools/ai-loop/validate.py --mode testing --output docs/evidence/release2/review-testing.json \
+    --report docs/evidence/release2/testing-review.md
+python3 tools/ai-loop/validate.py --mode cloud-deployment --output docs/evidence/release2/review-cloud-deployment.json
+```
+
+The review/validation log for each run is in the usual places:
+`logs/review-<mode>.jsonl` and `logs/reports/review-<mode>/<run_id>.md`. The
+`--output` JSON holds the checks, the facts the model saw, the review, which
+step the verdict came from, and the human decision. Exit code `0` means every
+check passed.
+
+Tests (fake model and evidence, no Ollama or GitHub; also run in `vgarden.yml`):
+
+```bash
+python3 -m unittest discover -s tools/ai-loop/tests
+```
+
+## Release 2: Cloud Deployment Report Review (`cloud_report_review.py`)
+
+The report-level review of a cloud deployment, implemented **inside the shared
+loop** (`shared/ai_loop.py`) and run from the terminal. It complements
+`validate.py --mode cloud-deployment` above: that mode scores the deployment with
+fixed checks (report, live probes, workflow runs) and records the human decision;
+this one has the loop read the report itself with a pinned decision schema,
+refusal and baseline-breach rules, and writes a validation log next to the report
+for the release manager. Both run on local Ollama only; they log to different
+services so `view.py` keeps them apart.
+
+```bash
+python tools/ai-loop/cloud_report_review.py
+python tools/ai-loop/cloud_report_review.py --report docs/evidence/release2/cloud-deployment/cloud-deployment-<stamp>.json
 ```
 
 | | |
@@ -150,8 +203,7 @@ python tools/ai-loop/review.py --mode cloud-deployment --report docs/evidence/re
 
 `python tools/ai-loop/view.py --service cloud-deployment` replays the runs. The
 review is advisory: it supports the release manager's decision on the report's
-checklist and does not replace it. Tests: `tools/ai-loop/tests/test_review.py`
+checklist and does not replace it. Tests: `tools/ai-loop/tests/test_cloud_report_review.py`
 (fake proposer + scripted reviewer: grounding selection, both refusals, schema
 validation, the baseline-breach and failed-smoke rules, feedback threading, all
-sinks and the validation log). Run them from the repository root with
-`python -m pytest -q tools/ai-loop/tests`.
+sinks and the validation log); they run with the `unittest discover` command above.

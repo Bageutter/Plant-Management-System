@@ -1,528 +1,353 @@
-"""Unit tests for the Cloud Deployment Report Review mode (shared/ai_loop.py +
-tools/ai-loop/review.py), driven with a fake proposer model and a scripted
-reviewer. No Ollama, no network.
+"""Unit tests for the Release 2 review modes.
 
-Run from the repository root:
-    python -m pytest -q tools/ai-loop/tests
+They use fake evidence and a fake model. Nothing calls Ollama or GitHub.
+
+    python -m unittest discover -s tools/ai-loop/tests
 """
 
-from __future__ import annotations
-
 import argparse
-import importlib.util
 import json
 import sys
+import tempfile
+import unittest
 from pathlib import Path
+from unittest import mock
 
-import pytest
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import review  # noqa: E402
 
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[2]
-sys.path.insert(0, str(ROOT / "shared"))
-import ai_loop  # noqa: E402
-
-# review.py lives in a hyphenated folder, so load it by path like tools/ai-dev's tests do.
-_SPEC = importlib.util.spec_from_file_location("ai_loop_review", HERE.parent / "review.py")
-review = importlib.util.module_from_spec(_SPEC)
-assert _SPEC.loader is not None
-_SPEC.loader.exec_module(review)
-
-FIXTURE = HERE / "fixtures" / "cloud-deployment-sample.json"
+WORKFLOW = "aaaaaaaa-0000-0000-0000-000000000000"
 
 
-def sample_report() -> dict:
-    return json.loads(FIXTURE.read_text(encoding="utf-8"))
+def history_event(sequence, status, details=None, run_id="run-1"):
+    return {"sequence": sequence, "workflow_id": WORKFLOW, "status": status, "details": details or {},
+            "created_at": "2026-10-20T00:00:00+00:00", "task": "What is flowering?", "run_id": run_id}
 
 
-class FakeModel:
-    """Stands in for the Ollama proposer: returns the scripted JSON objects in turn."""
+def write_multi_agent_evidence(directory: Path, *, close=True, reason="Checked the records", reviewer="vgarden-user-1"):
+    events = [
+        history_event(1, "received", {"source": "vgarden"}),
+        history_event(2, "planning", {"run_id": "run-1"}),
+        history_event(3, "working"),
+        history_event(4, "reviewing"),
+        history_event(5, "awaiting_human_review", {"review": {"recommendation": "revise", "issues": ["x"]}}),
+        history_event(6, "changes_requested", {"human_review": {"decision": "request_changes",
+                                                                "feedback": "Add the count",
+                                                                "reviewer_id": "yunus-terminal"}}),
+        history_event(7, "planning", {"run_id": "run-2"}, "run-2"),
+        history_event(8, "working", run_id="run-2"),
+        history_event(9, "reviewing", run_id="run-2"),
+        history_event(10, "awaiting_human_review", {"review": {"recommendation": "revise", "issues": ["y"]}}, "run-2"),
+    ]
+    if close:
+        events.append(history_event(11, "accepted", {"human_review": {"decision": "accept", "feedback": reason,
+                                                                      "reviewer_id": reviewer}}, "run-2"))
+    roles = {"working": "planner", "reviewing": "worker", "awaiting_human_review": "reviewer"}
+    audit = [{"sequence": e["sequence"], "workflow_id": WORKFLOW, "event": e["status"],
+              "completed_role": roles.get(e["status"]), "model": "qwen3:4b-instruct" if e["status"] in roles else None}
+             for e in events]
+    (directory / "workflow_history.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
+    (directory / "coordination_audit.jsonl").write_text("".join(json.dumps(e) + "\n" for e in audit))
+    (directory / "multi-agent-metrics.json").write_text(json.dumps({"tracked_workflows": 1}))
 
-    def __init__(self, *responses):
-        self.responses = list(responses)
-        self.calls: list[tuple[str, dict]] = []
 
-    def __call__(self, system: str, user: str) -> dict:
-        self.calls.append((system, json.loads(user)))
-        return self.responses[min(len(self.calls) - 1, len(self.responses) - 1)]
+def multi_agent_args(directory, **overrides):
+    values = {"mode": "multi-agent", "evidence_dir": str(directory), "source": None}
+    values.update(overrides)
+    return argparse.Namespace(**values)
 
 
-class FakeReviewer:
-    def __init__(self, *verdicts):
-        self.verdicts = list(verdicts) or ["approved"]
-        self.drafts: list[dict] = []
-
-    def review(self, question, grounding, draft):
-        self.drafts.append(json.loads(draft))
-        verdict = self.verdicts[min(len(self.drafts) - 1, len(self.verdicts) - 1)]
-        if verdict == "approved":
-            return {"verdict": "approved", "issues": [], "guidance": ""}
-        return {"verdict": "revise", "issues": ["evidence not in grounding"], "guidance": "cite a grounding value"}
+def statuses(checks):
+    return {c.id: c.status for c in checks}
 
 
-def approve_draft(**overrides) -> dict:
-    draft = {
-        "decision": "approve",
-        "baseline_compliant": True,
-        "findings": [],
-        "release_recommendation": "Approve: smoke test passed and the required baseline holds.",
-    }
+class MultiAgentChecks(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_complete_workflow_passes_every_check(self):
+        write_multi_agent_evidence(self.dir)
+        facts, checks, sources = review.gather_multi_agent(multi_agent_args(self.dir))
+        self.assertEqual(set(statuses(checks).values()), {"pass"}, checks)
+        self.assertEqual(facts["workflows"][0]["runs"], 2)
+        self.assertEqual(facts["workflows"][0]["human_decisions"], ["request_changes", "accept"])
+        self.assertEqual(len(sources), 3)
+
+    def test_open_workflow_fails_the_closed_check(self):
+        write_multi_agent_evidence(self.dir, close=False)
+        _, checks, _ = review.gather_multi_agent(multi_agent_args(self.dir))
+        self.assertEqual(statuses(checks)["MA-3"], "fail")
+
+    def test_override_without_reason_fails(self):
+        write_multi_agent_evidence(self.dir, reason="")
+        _, checks, _ = review.gather_multi_agent(multi_agent_args(self.dir))
+        self.assertEqual(statuses(checks)["MA-4"], "fail")
+
+    def test_only_terminal_reviews_fail_the_interface_check(self):
+        write_multi_agent_evidence(self.dir, reviewer="someone-terminal")
+        _, checks, _ = review.gather_multi_agent(multi_agent_args(self.dir))
+        self.assertEqual(statuses(checks)["MA-7"], "fail")
+
+    def test_missing_exports_are_reported_as_missing(self):
+        _, checks, _ = review.gather_multi_agent(multi_agent_args(self.dir))
+        self.assertEqual(statuses(checks), {"MA-1": "missing"})
+
+    def test_source_filter_excludes_other_features(self):
+        write_multi_agent_evidence(self.dir)
+        _, checks, _ = review.gather_multi_agent(multi_agent_args(self.dir, source="almanac"))
+        self.assertEqual(statuses(checks), {"MA-1": "fail"})
+
+
+class TestingChecks(unittest.TestCase):
+    def test_reads_newest_pre_commit_result_per_check(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            reports = Path(tmp)
+            old = {"scan": "tests", "exit_code": 1, "files": ["vgarden/tests"], "stdout": "1 failed",
+                   "started_at": "2026-10-20T00:00:00"}
+            new = {**old, "exit_code": 0, "stdout": "137 passed in 11s", "started_at": "2026-10-21T00:00:00"}
+            (reports / "20261020T000000Z-tests-a.json").write_text(json.dumps(old))
+            (reports / "20261021T000000Z-tests-b.json").write_text(json.dumps(new))
+            args = argparse.Namespace(security_reports=tmp, services=["vgarden"], workflows=[],
+                                      endpoint_workflows=[], ci_evidence=None, repo="o/r", branch="main",
+                                      test_evidence=str(Path(tmp) / "none"))
+            facts, checks, _ = review.gather_testing(args)
+        by_title = {c.title: c for c in checks}
+        self.assertEqual(by_title["Pre-commit tests check passes for vgarden"].status, "pass")
+        self.assertIn("137 passed", by_title["Pre-commit tests check passes for vgarden"].detail)
+        self.assertEqual(by_title["Pre-commit ruff check passes for vgarden"].status, "missing")
+
+    def test_junit_totals_count_failures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "endpoint.xml").write_text(
+                '<testsuites><testsuite tests="2" failures="1" errors="0" skipped="0">'
+                '<testcase name="a"/><testcase name="b"/></testsuite></testsuites>')
+            totals = review._junit_totals(Path(tmp))
+        self.assertEqual((totals["tests"], totals["failures"], totals["testcases"]), (2, 1, ["a", "b"]))
+
+
+def write_service_evidence(root: Path, *, exit_code=0, failures=0, untested=1):
+    folder = root / "vgarden"
+    folder.mkdir(parents=True)
+    routes = [{"methods": ["GET"], "path": f"/r{i}", "file": "vgarden/routes.py", "line": i, "tested": i >= untested}
+              for i in range(3)]
+    (folder / "routes.json").write_text(json.dumps({
+        "service": "vgarden", "commit": "abc1234", "exit_code": exit_code, "line_coverage_percent": 90.0,
+        "endpoints": 3, "endpoints_tested": sum(r["tested"] for r in routes), "routes": routes}))
+    (folder / "junit.xml").write_text(
+        f'<testsuites><testsuite tests="5" failures="{failures}" errors="0" skipped="1">'
+        '<testcase name="a"/></testsuite></testsuites>')
+    log = ("FAILED tests/test_x.py::test_broken - AssertionError\n" if failures else "") + "4 passed, 2 warnings in 1s\n"
+    (folder / "pytest.txt").write_text(log)
+
+
+class TestEvidenceChecks(unittest.TestCase):
+    def gather(self, tmp):
+        args = argparse.Namespace(security_reports=str(Path(tmp) / "none"), services=["vgarden"], workflows=[],
+                                  endpoint_workflows=[], ci_evidence=None, repo="o/r", branch="main",
+                                  test_evidence=tmp)
+        return review.gather_testing(args)
+
+    def test_untested_endpoints_warn_and_are_listed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_service_evidence(Path(tmp))
+            facts, checks, _ = self.gather(tmp)
+        by_title = {c.title: c for c in checks}
+        self.assertEqual(by_title["vgarden tests pass"].status, "pass")
+        self.assertIn("2 warnings", by_title["vgarden tests pass"].detail)
+        coverage = by_title["Every vgarden endpoint is exercised by a test"]
+        self.assertEqual(coverage.status, "warn")
+        self.assertIn("GET /r0", coverage.detail)
+        self.assertEqual(facts["test_evidence"][0]["untested_endpoints"], ["GET /r0 (vgarden/routes.py:0)"])
+
+    def test_failing_tests_fail_and_name_the_test(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_service_evidence(Path(tmp), exit_code=1, failures=1, untested=0)
+            _, checks, _ = self.gather(tmp)
+        by_title = {c.title: c for c in checks}
+        self.assertEqual(by_title["vgarden tests pass"].status, "fail")
+        self.assertIn("test_broken", by_title["vgarden tests pass"].detail)
+        self.assertEqual(by_title["Every vgarden endpoint is exercised by a test"].status, "pass")
+
+    def test_missing_evidence_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, checks, _ = self.gather(tmp)
+        self.assertEqual({c.status for c in checks if "vgarden" in c.title}, {"missing"})
+
+
+class CloudChecks(unittest.TestCase):
+    def test_enabled_ai_service_fails_the_baseline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "latest.json")
+            path.write_text(json.dumps({
+                "deployment": {"commit": "abc"}, "endpoints": {"app_url": None},
+                "cloud_baseline": {"ai_mode_enabled": False, "mcp_enabled": True},
+                "smoke_test": {"result": "pass"},
+                "container_apps": [{"name": "proxy", "external": True, "status": "Running"}],
+                "postgres": [{"name": "pg", "publicNetworkAccess": "Enabled"}],
+            }))
+            args = argparse.Namespace(grounding=str(path), url=None, paths=["/"], repo="o/r", branch="main",
+                                      workflows=["vgarden.yml"], deploy_workflow="cloud-deployment.yml")
+            with mock.patch.object(review, "_get_json", side_effect=review.error.URLError("offline")):
+                _, checks, _ = review.gather_cloud(args)
+        found = statuses(checks)
+        self.assertEqual(found["CD-2"], "fail")
+        self.assertEqual(found["CD-3"], "pass")
+        self.assertEqual(found["CD-5"], "fail")
+        self.assertEqual(found["CD-6"], "missing")  # GitHub offline is never a pass
+        self.assertEqual(found["CD-7"], "missing")  # no URL to probe
+
+
+CHECKS = [review.Check("X-1", "first", "pass", "ok"), review.Check("X-2", "second", "fail", "broken")]
+
+
+def good_draft(**overrides):
+    draft = {"summary": "One check fails.", "verdict": "not_ready", "recommendations": ["Fix X-2."],
+             "findings": [{"check_id": "X-2", "severity": "major", "finding": "second is broken"}]}
     draft.update(overrides)
     return draft
 
 
-def drafter_with(model: FakeModel) -> ai_loop.CloudDeploymentDrafter:
-    return ai_loop.CloudDeploymentDrafter(call_model=model)
-
-
-def run_loop(report, model, reviewer, tmp_path, max_iterations=2):
-    return ai_loop.review_cloud_deployment(
-        report, drafter_with(model), reviewer, str(tmp_path), max_iterations=max_iterations
-    )
-
-
-# --------------------------------------------------------------------------- #
-# Grounding (PLAN)                                                            #
-# --------------------------------------------------------------------------- #
-
-
-def test_grounding_selects_the_reviewable_facts_only():
-    grounding, plan = ai_loop.build_cloud_deployment_grounding(sample_report())
-
-    assert grounding["deployment"]["commit"].startswith("0a31150")
-    assert grounding["deployment"]["workflow_run_url"].startswith("https://")
-    assert set(grounding["endpoints"]["public_urls"]) == {"auth", "vgarden", "almanac", "health"}
-    assert grounding["cloud_baseline"] == {flag: False for flag in ai_loop.CLOUD_BASELINE_FLAGS}
-    assert grounding["smoke_test"] == {"result": "pass"}
-    assert [app["name"] for app in grounding["container_apps"]][0] == "pms-proxy"
-    assert set(grounding["container_apps"][0]) == {
-        "name", "external", "allowInsecure", "image", "revision", "status", "minReplicas", "maxReplicas",
-    }
-    assert grounding["postgres"][0]["publicNetworkAccess"] == "Disabled"
-    assert grounding["key_vaults"][0] == {"name": "pms-kv-release2", "rbac": True, "softDelete": True}
-    assert grounding["storage_accounts"][0]["blobPublicAccess"] is False
-    assert len(grounding["security_controls"]) == 8
-    assert grounding["evidence_gaps"] == []
-    # bulky, non-reviewable sections stay out of the model's context
-    assert "resources" not in grounding and "platform_outputs" not in grounding
-    assert "internal_fqdns" not in grounding["endpoints"]
-    assert plan["smoke_result"] == "pass" and plan["evidence_gaps"] == 0 and plan["container_apps"] == 5
-
-
-def test_grounding_rejects_a_non_object_report():
-    with pytest.raises(ValueError):
-        ai_loop.build_cloud_deployment_grounding(["not", "a", "report"])
-
-
-# --------------------------------------------------------------------------- #
-# Refusals: insufficient evidence, decided in code without a model call       #
-# --------------------------------------------------------------------------- #
-
-
-def test_refuses_when_the_smoke_result_is_missing(tmp_path):
-    report = sample_report()
-    report["smoke_test"] = {"result": "unknown"}
-    model = FakeModel(approve_draft())
-    reviewer = FakeReviewer("approved")
-
-    decision, result = run_loop(report, model, reviewer, tmp_path)
-
-    assert model.calls == []  # nothing to guess from -> the proposer is never asked
-    assert decision["decision"] == "insufficient_evidence"
-    assert decision["baseline_compliant"] is False
-    assert [f["area"] for f in decision["findings"]] == ["smoke_test"]
-    assert decision["findings"][0]["severity"] == "high"
-    assert "smoke_test.result" in decision["findings"][0]["evidence"]
-    assert decision["release_recommendation"].startswith("Insufficient evidence")
-    # OBSERVE is deterministic for a refusal: approved on the first pass, model reviewer unused
-    assert result.verdict == "approved" and result.iterations == 1
-    assert reviewer.drafts == []
-    observe = next(e for e in result.trace if e["phase"] == "observe")
-    assert observe["verdict"] == "approved" and "reviewer model not consulted" in observe["issues"]
-
-
-def test_refuses_when_the_baseline_flags_are_missing(tmp_path):
-    report = sample_report()
-    del report["cloud_baseline"]
-    model = FakeModel(approve_draft())
-
-    decision, _ = run_loop(report, model, FakeReviewer(), tmp_path)
-
-    assert model.calls == []
-    assert decision["decision"] == "insufficient_evidence"
-    assert [f["area"] for f in decision["findings"]] == ["cloud_baseline"]
-    assert "cloud_baseline flags missing" in decision["findings"][0]["evidence"]
-    for flag in ai_loop.CLOUD_BASELINE_FLAGS:
-        assert flag in decision["findings"][0]["evidence"]
-
-
-def test_refusal_is_checked_deterministically_even_without_a_review_model(tmp_path):
-    report = sample_report()
-    report["smoke_test"] = {"result": None}
-
-    decision, result = run_loop(report, FakeModel(approve_draft()), None, tmp_path)
-
-    assert decision["decision"] == "insufficient_evidence"
-    assert result.verdict == "approved"  # not the single-shot fallback
-    assert [e["phase"] for e in result.trace] == ["plan", "act", "observe", "adapt"]
-
-
-def test_a_draft_that_is_not_the_refusal_is_sent_back_when_evidence_is_missing():
-    report = sample_report()
-    report["smoke_test"] = {}
-    grounding, _ = ai_loop.build_cloud_deployment_grounding(report)
-    reviewer = ai_loop.CloudDeploymentReviewer(None)
-
-    verdict = reviewer.review("q", grounding, json.dumps(approve_draft()))
-
-    assert verdict["verdict"] == "revise" and "fixed refusal" in verdict["issues"][0]
-
-
-def test_reviewer_wrapper_delegates_real_reviews_to_the_model_reviewer():
-    grounding, _ = ai_loop.build_cloud_deployment_grounding(sample_report())
-    inner = FakeReviewer("revise")
-
-    verdict = ai_loop.CloudDeploymentReviewer(inner).review("q", grounding, json.dumps(approve_draft()))
-
-    assert verdict["verdict"] == "revise" and inner.drafts == [approve_draft()]
-    with pytest.raises(ai_loop.LoopError):
-        ai_loop.CloudDeploymentReviewer(None).review("q", grounding, json.dumps(approve_draft()))
-
-
-def test_a_partial_flag_set_names_only_the_missing_flags():
-    report = sample_report()
-    report["cloud_baseline"] = {"ai_mode_enabled": False, "mcp_enabled": "false"}  # a string is not a flag
-
-    grounding, _ = ai_loop.build_cloud_deployment_grounding(report)
-
-    assert grounding["cloud_baseline"]["ai_mode_enabled"] is False
-    assert grounding["cloud_baseline"]["mcp_enabled"] is None
-    assert len(grounding["evidence_gaps"]) == 1
-    assert "mcp_enabled, rag_enabled, multi_agent_enabled" in grounding["evidence_gaps"][0]
-
-
-def test_both_gaps_produce_two_refusal_findings():
-    report = sample_report()
-    report["smoke_test"] = {}
-    report["cloud_baseline"] = {}
-    grounding, _ = ai_loop.build_cloud_deployment_grounding(report)
-
-    refusal = ai_loop.cloud_deployment_refusal(grounding)
-
-    assert refusal["decision"] == "insufficient_evidence"
-    assert [f["area"] for f in refusal["findings"]] == ["smoke_test", "cloud_baseline"]
-    assert ai_loop.validate_cloud_decision(refusal) == []
-
-
-# --------------------------------------------------------------------------- #
-# Schema validation and normalisation of the model's output                  #
-# --------------------------------------------------------------------------- #
-
-
-def test_schema_constant_pins_the_enums():
-    schema = ai_loop.CLOUD_DECISION_SCHEMA
-    assert schema["required"] == ["decision", "baseline_compliant", "findings", "release_recommendation"]
-    assert schema["properties"]["decision"]["enum"] == list(ai_loop.CLOUD_DECISIONS)
-    finding = schema["properties"]["findings"]["items"]
-    assert finding["properties"]["severity"]["enum"] == ["high", "medium", "low"]
-    assert finding["properties"]["area"]["enum"] == list(ai_loop.CLOUD_AREAS)
-    assert finding["required"] == ["severity", "area", "evidence", "recommendation"]
-
-
-@pytest.mark.parametrize(
-    "bad, message",
-    [
-        ("not json object", "must be a JSON object"),
-        (approve_draft(decision="maybe"), "decision must be one of"),
-        (approve_draft(baseline_compliant="yes"), "baseline_compliant must be a boolean"),
-        (approve_draft(release_recommendation=""), "release_recommendation must be a non-empty string"),
-        (approve_draft(findings={"severity": "high"}), "findings must be a list"),
-        (approve_draft(findings=["high"]), "findings[0] must be an object"),
-        (
-            approve_draft(findings=[{"severity": "urgent", "area": "postgres", "evidence": "x", "recommendation": "y"}]),
-            "severity must be high, medium or low",
-        ),
-        (
-            approve_draft(findings=[{"severity": "low", "area": "network", "evidence": "x", "recommendation": "y"}]),
-            "area must be one of",
-        ),
-        (
-            approve_draft(findings=[{"severity": "low", "area": "postgres", "evidence": "", "recommendation": "y"}]),
-            "evidence must be a non-empty string",
-        ),
-    ],
-)
-def test_validate_cloud_decision_rejects_shapes_outside_the_schema(bad, message):
-    problems = ai_loop.validate_cloud_decision(bad)
-    assert any(message in problem for problem in problems), problems
-
-
-def test_invalid_model_output_is_a_loop_error_not_a_decision(tmp_path):
-    model = FakeModel({"decision": "approve"})  # missing the other required keys
-
-    with pytest.raises(ai_loop.LoopError, match="invalid decision"):
-        drafter_with(model).draft("q", ai_loop.build_cloud_deployment_grounding(sample_report())[0])
-
-
-def test_valid_output_is_normalised_and_clipped():
-    grounding, _ = ai_loop.build_cloud_deployment_grounding(sample_report())
-    raw = approve_draft(
-        decision="approve_with_corrections",
-        findings=[
-            {
-                "severity": "low",
-                "area": "container_apps",
-                "evidence": "  container_apps[1].minReplicas = 0 \n (scale to zero)  ",
-                "recommendation": "x" * 500,
-            }
-        ],
-    )
-
-    decision = ai_loop.normalise_cloud_decision(raw, grounding)
-
-    assert decision["decision"] == "approve_with_corrections"
-    assert decision["baseline_compliant"] is True
-    assert decision["findings"][0]["evidence"] == "container_apps[1].minReplicas = 0 (scale to zero)"
-    assert len(decision["findings"][0]["recommendation"]) == ai_loop.CLOUD_MAX_FIELD_CHARS
-    assert ai_loop.validate_cloud_decision(decision) == []
-
-
-def test_model_may_not_refuse_when_the_evidence_is_complete():
-    grounding, _ = ai_loop.build_cloud_deployment_grounding(sample_report())
-    decision = ai_loop.normalise_cloud_decision(approve_draft(decision="insufficient_evidence"), grounding)
-    assert decision["decision"] == "reject"
-
-
-# --------------------------------------------------------------------------- #
-# Release rules enforced whatever the model said                              #
-# --------------------------------------------------------------------------- #
-
-
-def test_an_enabled_ai_service_is_a_baseline_breach(tmp_path):
-    report = sample_report()
-    report["cloud_baseline"]["mcp_enabled"] = True
-    report["cloud_baseline"]["rag_enabled"] = True
-    model = FakeModel(approve_draft())  # the model wrongly approves with no findings
-    drafter = drafter_with(model)
-
-    decision, _ = ai_loop.review_cloud_deployment(report, drafter, FakeReviewer(), str(tmp_path))
-
-    assert len(model.calls) == 1
-    assert decision["baseline_compliant"] is False
-    assert decision["decision"] == "approve_with_corrections"  # never "approve" with a breach
-    assert "approve with an enabled baseline switch -> approve_with_corrections" in drafter.last_corrections
-    assert "baseline_compliant corrected to False from the grounding flags" in drafter.last_corrections
-    # the model's "no further action" prose may not stand under a corrected decision
-    assert decision["release_recommendation"].startswith("Corrected in code to approve_with_corrections: ")
-    assert "mcp_enabled" in decision["release_recommendation"]
-    assert "The model's draft said: Approve:" in decision["release_recommendation"]
-    breaches = [f for f in decision["findings"] if f["area"] == "cloud_baseline"]
-    assert {f["severity"] for f in breaches} == {"high"}
-    assert any("mcp_enabled" in f["evidence"] for f in breaches)
-    assert any("rag_enabled" in f["evidence"] for f in breaches)
-    # the system prompt itself states the rule the code enforces
-    assert "baseline breach" in model.calls[0][0]
-
-
-def test_a_model_reported_breach_is_kept_not_duplicated():
-    report = sample_report()
-    report["cloud_baseline"]["ai_mode_enabled"] = True
-    grounding, _ = ai_loop.build_cloud_deployment_grounding(report)
-    raw = approve_draft(
-        decision="reject",
-        baseline_compliant=False,
-        findings=[
-            {
-                "severity": "high",
-                "area": "cloud_baseline",
-                "evidence": "cloud_baseline.ai_mode_enabled = true",
-                "recommendation": "Redeploy with AI-Mode off.",
-            }
-        ],
-    )
-
-    decision = ai_loop.normalise_cloud_decision(raw, grounding)
-
-    assert decision["decision"] == "reject"
-    assert len(decision["findings"]) == 1
-    assert decision["release_recommendation"] == raw["release_recommendation"]
-
-
-def test_a_finding_that_contradicts_a_disabled_flag_is_dropped_and_recorded(tmp_path):
-    """The live qwen2.5vl run claimed every switch was 'Enabled' while the grounding
-    had all four false, and still said approve; the code must not pass that on."""
-    model = FakeModel(
-        approve_draft(
-            findings=[
-                {
-                    "severity": "high",
-                    "area": "cloud_baseline",
-                    "evidence": "ai_mode_enabled = Enabled",
-                    "recommendation": "Disable it.",
-                },
-                {
-                    "severity": "low",
-                    "area": "container_apps",
-                    "evidence": "container_apps[1].minReplicas = 0",
-                    "recommendation": "Consider a warm replica for auth.",
-                },
-            ]
-        )
-    )
-    drafter = drafter_with(model)
-
-    decision, _ = ai_loop.review_cloud_deployment(
-        sample_report(), drafter, FakeReviewer(), str(tmp_path)
-    )
-
-    assert decision["decision"] == "approve"
-    assert [f["area"] for f in decision["findings"]] == ["container_apps"]
-    assert any(note.startswith("dropped finding") and "ai_mode_enabled=false" in note for note in drafter.last_corrections)
-
-
-def test_approve_with_a_high_finding_becomes_approve_with_corrections():
-    grounding, _ = ai_loop.build_cloud_deployment_grounding(sample_report())
-    notes: list[str] = []
-    raw = approve_draft(
-        findings=[
-            {
-                "severity": "high",
-                "area": "postgres",
-                "evidence": "postgres[0].backupRetentionDays = 7",
-                "recommendation": "Raise retention to 14 days.",
-            }
-        ]
-    )
-
-    decision = ai_loop.normalise_cloud_decision(raw, grounding, notes)
-
-    assert decision["decision"] == "approve_with_corrections"
-    assert notes == ["approve with a high finding is inconsistent -> approve_with_corrections"]
-
-
-def test_corrections_are_recorded_for_the_refusal_and_for_a_clean_draft():
-    gap_report = sample_report()
-    gap_report["smoke_test"] = {}
-    drafter = drafter_with(FakeModel(approve_draft()))
-
-    drafter.draft("q", ai_loop.build_cloud_deployment_grounding(gap_report)[0])
-    assert drafter.last_corrections == [
-        "evidence gaps -> fixed insufficient_evidence decision, no model call"
-    ]
-
-    drafter.draft("q", ai_loop.build_cloud_deployment_grounding(sample_report())[0])
-    assert drafter.last_corrections == []
-
-
-def test_a_failed_smoke_test_rejects(tmp_path):
-    report = sample_report()
-    report["smoke_test"]["result"] = "FAIL"
-    model = FakeModel(approve_draft())
-
-    decision, _ = run_loop(report, model, FakeReviewer(), tmp_path)
-
-    assert decision["decision"] == "reject"
-    assert decision["findings"][0] == {
-        "severity": "high",
-        "area": "smoke_test",
-        "evidence": "smoke_test.result = fail",
-        "recommendation": "Fix the failing endpoint, redeploy and re-run scripts/deploy/azure-smoke.sh.",
-    }
-    assert decision["release_recommendation"].startswith("Corrected in code to reject: smoke_test.result = fail")
-
-
-# --------------------------------------------------------------------------- #
-# The loop: feedback threading and the three evidence sinks                   #
-# --------------------------------------------------------------------------- #
-
-
-def test_reviewer_guidance_is_carried_into_the_next_draft(tmp_path):
-    model = FakeModel(approve_draft(), approve_draft(release_recommendation="Approve (revised)."))
-
-    decision, result = run_loop(sample_report(), model, FakeReviewer("revise", "approved"), tmp_path)
-
-    assert result.iterations == 2 and result.verdict == "approved"
-    assert "reviewer_feedback" not in model.calls[0][1]
-    assert "cite a grounding value" in model.calls[1][1]["reviewer_feedback"]
-    assert model.calls[1][1]["grounding"]["smoke_test"] == {"result": "pass"}
-    assert decision["release_recommendation"] == "Approve (revised)."
-
-
-def test_no_reviewer_is_a_logged_single_shot_fallback(tmp_path):
-    decision, result = run_loop(sample_report(), FakeModel(approve_draft()), None, tmp_path)
-
-    assert decision["decision"] == "approve"
-    assert result.verdict == "fallback"
-    assert [e["phase"] for e in result.trace] == ["plan", "fallback"]
-
-
-def test_run_cloud_deployment_writes_all_sinks_and_the_validation_log(tmp_path, caplog):
-    import logging
-
-    caplog.set_level(logging.INFO, logger="ai_loop")
-    log_dir = tmp_path / "logs"
-    copy_dir = tmp_path / "evidence"
-    args = argparse.Namespace(
-        report=str(FIXTURE), ollama_url="http://localhost:11434", model="fake-proposer",
-        review_model="fake-reviewer", max_iterations=2, auto_pull=False, log_dir=log_dir,
-        copy_dir=copy_dir, no_copy=False, output=None,
-    )
-
-    summary = review.run_cloud_deployment(
-        args, drafter=drafter_with(FakeModel(approve_draft())), reviewer=FakeReviewer("approved")
-    )
-
-    assert summary["decision"]["decision"] == "approve"
-    assert summary["loop"]["verdict"] == "approved"
-    assert review.EXIT_CODES[summary["decision"]["decision"]] == 0
-    # 1. stdout logger
-    assert any("PLAN" in r.message and "smoke_result=pass" in r.message for r in caplog.records)
-    assert any("ADAPT" in r.message for r in caplog.records)
-    # 2. JSONL, under the mode's own service name
-    events = [json.loads(line) for line in (log_dir / "cloud-deployment.jsonl").read_text(encoding="utf-8").splitlines()]
-    assert [e["phase"] for e in events] == ["plan", "act", "observe", "adapt"]
-    assert all(e["service"] == "cloud-deployment" and e["run_id"] == summary["run_id"] for e in events)
-    # 3. markdown transcript
-    transcript = Path(summary["loop"]["transcript"])
-    assert transcript == log_dir / "reports" / "cloud-deployment" / f"{summary['run_id']}.md"
-    assert "## OBSERVE" in transcript.read_text(encoding="utf-8")
-    # + the validation log next to the report, stamped like azure_report.py's files
-    md = Path(summary["validation_log"]["markdown"])
-    assert md == copy_dir / "cloud-deployment-20261020T061542Z-review.md"
-    text = md.read_text(encoding="utf-8")
-    assert "# Cloud Deployment Report Review — validation log" in text
-    assert "| **approve** | yes | pass | 0 |" in text
-    assert "## Final human release decision" in text and "- [ ] **Approved**" in text
-    assert "## Code corrections applied to the final draft" in text
-    assert summary["code_corrections"] == []
-    assert "| PLAN |" in text and "| OBSERVE |" in text
-    saved = json.loads(Path(summary["validation_log"]["json"]).read_text(encoding="utf-8"))
-    assert saved["decision"] == summary["decision"]
-    assert (copy_dir / "latest-review.md").read_text(encoding="utf-8") == text
-
-
-def test_refusal_exit_code_and_log(tmp_path):
-    report = sample_report()
-    report["smoke_test"] = {}
-    report_path = tmp_path / "latest.json"
-    report_path.write_text(json.dumps(report), encoding="utf-8")
-    args = argparse.Namespace(
-        report=str(report_path), ollama_url="http://localhost:11434", model="fake", review_model="",
-        max_iterations=2, auto_pull=False, log_dir=tmp_path / "logs", copy_dir=None, no_copy=False, output=None,
-    )
-
-    summary = review.run_cloud_deployment(args, drafter=drafter_with(FakeModel(approve_draft())))
-
-    assert summary["decision"]["decision"] == "insufficient_evidence"
-    assert review.EXIT_CODES["insufficient_evidence"] == 2
-    log = (tmp_path / "latest-review.md").read_text(encoding="utf-8")  # next to the report by default
-    assert "**insufficient_evidence**" in log and "smoke_test.result is missing" in log
-    assert summary["code_corrections"] == [
-        "evidence gaps -> fixed insufficient_evidence decision, no model call"
-    ]
-    assert "- evidence gaps -> fixed insufficient_evidence decision, no model call" in log
-
-
-def test_main_fails_clearly_without_a_report(tmp_path, capsys):
-    with pytest.raises(SystemExit) as exit_info:
-        review.main(["--mode", "cloud-deployment", "--report", str(tmp_path / "missing.json")])
-    assert "No report at" in str(exit_info.value)
+class ObserveRules(unittest.TestCase):
+    def test_good_draft_has_no_issues(self):
+        self.assertEqual(review.rule_issues(good_draft(), CHECKS), [])
+
+    def test_invented_check_id_is_caught(self):
+        draft = good_draft(findings=good_draft()["findings"] + [{"check_id": "X-9", "severity": "info", "finding": "?"}])
+        self.assertTrue(any("X-9" in issue for issue in review.rule_issues(draft, CHECKS)))
+
+    def test_failed_check_must_be_raised(self):
+        issues = review.rule_issues(good_draft(findings=[]), CHECKS)
+        self.assertTrue(any("X-2" in issue for issue in issues))
+
+    def test_cannot_call_a_failing_release_ready(self):
+        issues = review.rule_issues(good_draft(verdict="ready"), CHECKS)
+        self.assertTrue(any("not_ready" in issue for issue in issues))
+
+    def test_warn_needs_a_finding_and_blocks_ready(self):
+        checks = [review.Check("X-1", "first", "pass", "ok"), review.Check("X-3", "coverage", "warn", "gaps")]
+        draft = {"summary": "Coverage gaps.", "verdict": "ready", "recommendations": [], "findings": []}
+        issues = review.rule_issues(draft, checks)
+        self.assertTrue(any("X-3 warns" in issue for issue in issues))
+        self.assertTrue(any("ready_with_fixes" in issue for issue in issues))
+        fixed = {**draft, "verdict": "ready_with_fixes",
+                 "findings": [{"check_id": "X-3", "severity": "minor", "finding": "gaps"}]}
+        self.assertEqual(review.rule_issues(fixed, checks), [])
+        self.assertEqual(review.deterministic_review(checks)["verdict"], "ready_with_fixes")
+
+    def test_deterministic_review_meets_the_rules(self):
+        self.assertEqual(review.rule_issues(review.deterministic_review(CHECKS), CHECKS), [])
+        passing = [CHECKS[0]]
+        self.assertEqual(review.deterministic_review(passing)["verdict"], "ready")
+
+
+def loop_args(tmp, **overrides):
+    values = {"mode": "multi-agent", "log_dir": tmp, "no_model": False, "no_review_model": True,
+              "model": "m", "review_model": "m", "ollama_url": "http://ollama.test", "timeout": 5,
+              "max_iterations": 2, "decision": "accept", "reason": "ok", "reviewer_id": "tester",
+              "num_ctx": 8192, "report": None}
+    values.update(overrides)
+    return argparse.Namespace(**values)
+
+
+class Loop(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        patcher = mock.patch.dict(review.GATHER, {"multi-agent": lambda args: ({"n": 1}, list(CHECKS), ["src"])})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(self.tmp.cleanup)
+        ready = mock.patch.object(review, "ensure_model")
+        ready.start()
+        self.addCleanup(ready.stop)
+
+    def phases(self, result):
+        return [json.loads(line)["phase"] for line in
+                Path(self.tmp.name, "review-multi-agent.jsonl").read_text().splitlines()
+                if json.loads(line)["run_id"] == result["run_id"]]
+
+    def test_bad_draft_is_revised_with_the_rule_feedback(self):
+        drafts = [good_draft(verdict="ready"), good_draft()]
+        with mock.patch.object(review, "draft_review", side_effect=drafts) as draft:
+            result = review.run_review(loop_args(self.tmp.name))
+        self.assertEqual(result["iterations"], 2)
+        self.assertEqual(result["review"]["verdict"], "not_ready")
+        self.assertIn("not_ready", draft.call_args_list[1].args[2])  # feedback carried into ACT
+        self.assertEqual(self.phases(result), ["plan", "act", "observe", "adapt", "act", "observe", "adapt",
+                                               "human_review", "result"])
+        self.assertEqual(result["human_review"]["decision"], "accept")
+
+    def test_draft_that_never_meets_the_rules_falls_back_to_the_checks(self):
+        with mock.patch.object(review, "draft_review", return_value=good_draft(verdict="ready")):
+            result = review.run_review(loop_args(self.tmp.name))
+        self.assertEqual(result["verdict_source"], "checks_after_capped_model")
+        self.assertEqual(result["review"]["verdict"], "not_ready")
+
+    def test_unreachable_model_falls_back_and_is_logged(self):
+        with mock.patch.object(review, "draft_review", side_effect=review.LoopError("down")):
+            result = review.run_review(loop_args(self.tmp.name))
+        self.assertEqual(result["verdict_source"], "checks_only")
+        self.assertIn("fallback", self.phases(result))
+
+    def test_second_model_revise_triggers_another_draft(self):
+        reviewer = mock.Mock()
+        reviewer.review.side_effect = [{"verdict": "revise", "issues": ["count is wrong"], "guidance": "fix"},
+                                       {"verdict": "approved", "issues": [], "guidance": ""}]
+        with mock.patch.object(review, "Reviewer", return_value=reviewer), \
+                mock.patch.object(review, "draft_review", return_value=good_draft()) as draft:
+            result = review.run_review(loop_args(self.tmp.name, no_review_model=False))
+        self.assertEqual(result["iterations"], 2)
+        self.assertIn("count is wrong", draft.call_args_list[1].args[2])
+        self.assertEqual(result["verdict_source"], "model")
+
+    def test_writes_the_markdown_report(self):
+        report = Path(self.tmp.name, "report.md")
+        with mock.patch.object(review, "draft_review", return_value=good_draft()):
+            result = review.run_review(loop_args(self.tmp.name, report=str(report)))
+        text = report.read_text()
+        self.assertIn("| X-2 | second | ❌ fail | broken |", text)
+        self.assertIn("Decision: **accept**", text)
+        self.assertIn(result["run_id"], text)
+
+    def test_no_decision_without_a_terminal_is_pending(self):
+        with mock.patch.object(review, "draft_review", return_value=good_draft()), \
+                mock.patch.object(review.sys.stdin, "isatty", return_value=False):
+            result = review.run_review(loop_args(self.tmp.name, decision=None))
+        self.assertEqual(result["human_review"]["decision"], "pending")
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class CollectorEndpoints(unittest.TestCase):
+    """scripts/test/collect-test-evidence.py finds endpoints without importing the app."""
+
+    def test_finds_routes_and_tools(self):
+        import importlib.util
+
+        path = Path(__file__).resolve().parents[3] / "scripts" / "test" / "collect-test-evidence.py"
+        spec = importlib.util.spec_from_file_location("collect_test_evidence", path)
+        collector = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(collector)
+        with tempfile.TemporaryDirectory() as tmp:
+            service = Path(tmp, "svc")
+            (service / "tests").mkdir(parents=True)
+            (service / "routes.py").write_text(
+                '@bp.route("/items/<int:item_id>", methods=["GET", "POST"])\n'
+                'def item(item_id):\n    """Doc."""\n    return "ok"\n\n'
+                '@app.get("/healthz")\ndef healthz():\n    return {}\n\n'
+                '@server.tool()\ndef search(query):\n    return []\n\n'
+                'def helper():\n    return 1\n')
+            (service / "tests" / "test_x.py").write_text('@bp.route("/not-an-endpoint")\ndef t():\n    pass\n')
+            with mock.patch.object(collector, "ROOT", Path(tmp)):
+                found = collector.endpoints("svc")
+        summary = [(e["kind"], e["path"], e["methods"], e["body_lines"]) for e in found]
+        self.assertEqual(summary, [
+            ("http", "/items/<int:item_id>", ["GET", "POST"], [4, 4]),  # docstring skipped
+            ("http", "/healthz", ["GET"], [8, 8]),
+            ("mcp_tool", "search", [], [12, 12]),
+        ])

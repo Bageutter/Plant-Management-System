@@ -1,0 +1,102 @@
+{
+  "service": "ai-services/rag-server",
+  "generated_at": "2026-10-21T10:18:25+00:00",
+  "commit": "48fcee1",
+  "test_command": "coverage run -m pytest -q tests",
+  "exit_code": 0,
+  "line_coverage_percent": 89.2,
+  "endpoints": 6,
+  "endpoints_tested": 5,
+  "routes": [
+    {
+      "kind": "http",
+      "path": "/healthz",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.healthz",
+      "file": "ai-services/rag-server/routes.py",
+      "line": 54,
+      "body_lines": [
+        55,
+        69
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.index",
+      "file": "ai-services/rag-server/routes.py",
+      "line": 90,
+      "body_lines": [
+        91,
+        96
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/rag/sources",
+      "methods": [
+        "GET"
+      ],
+      "function": "routes.sources",
+      "file": "ai-services/rag-server/routes.py",
+      "line": 103,
+      "body_lines": [
+        104,
+        116
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/rag/ingest/<source>",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.ingest",
+      "file": "ai-services/rag-server/routes.py",
+      "line": 120,
+      "body_lines": [
+        121,
+        134
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/rag/query",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.query",
+      "file": "ai-services/rag-server/routes.py",
+      "line": 141,
+      "body_lines": [
+        142,
+        161
+      ],
+      "tested": true
+    },
+    {
+      "kind": "http",
+      "path": "/rag/retrieve",
+      "methods": [
+        "POST"
+      ],
+      "function": "routes.retrieve_context",
+      "file": "ai-services/rag-server/routes.py",
+      "line": 213,
+      "body_lines": [
+        215,
+        236
+      ],
+      "tested": false
+    }
+  ]
+}

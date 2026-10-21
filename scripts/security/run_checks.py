@@ -32,9 +32,9 @@ def git(*args):
     return subprocess.check_output([GIT, *args], cwd=ROOT, text=True).strip()  # noqa: S603 -- fixed executable; no shell
 
 
-def audit_targets():
+def audit_targets(requested=()):
     changed = git("diff", "--cached", "--name-only").splitlines()
-    selected = [
+    selected = [service for service in requested if service in SERVICES] or [
         service for service in SERVICES if any(name.startswith(service + "/") for name in changed)
     ]
     if not selected:
@@ -89,12 +89,14 @@ def main():
             *files,
         ]
     elif mode == "audit":
-        files = audit_targets()
+        # Hooks pass no names; scripts/security/report.py names the services to audit.
+        files = audit_targets(files)
         command = [str(PYTHON), "-m", "pip_audit", "--format", "json", "--progress-spinner", "off"]
         for filename in files:
             command.extend(["-r", filename])
     elif mode == "tests":
-        service = git("config", "--get", "security.service")
+        # Hooks use the configured service; report.py may name one explicitly.
+        service = files[0] if files else git("config", "--get", "security.service")
         if service not in ("almanac", "health", "vgarden", "auth"):
             sys.exit("Configure almanac, health, vgarden or auth for feature tests")
         python = (
@@ -137,6 +139,7 @@ def main():
         json.dumps(
             {
                 "scan": mode,
+                "trigger": os.environ.get("SECURITY_TRIGGER", "hook"),
                 "started_at": started.isoformat(),
                 "finished_at": datetime.now(timezone.utc).isoformat(),
                 "branch": git("branch", "--show-current"),
