@@ -129,6 +129,7 @@ class Reviewer:
         auto_pull: bool = False,
         num_predict: int = 300,
         prompt: str = PROMPT_REVIEW,
+        num_ctx: int | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -139,6 +140,10 @@ class Reviewer:
         # with a different kind of draft (e.g. the health service's structured
         # assessment) supplies its own.
         self.prompt = prompt
+        # Context window to request from Ollama. None keeps the model's default;
+        # the Release 2 review modes pass a larger window because their grounding
+        # (a whole evidence export) is far bigger than one chat question.
+        self.num_ctx = num_ctx
         self._ready = False
 
     def ensure_ready(self) -> None:
@@ -167,7 +172,11 @@ class Reviewer:
                         {"role": "system", "content": self.prompt},
                         {"role": "user", "content": user},
                     ],
-                    "options": {"temperature": 0, "num_predict": self.num_predict},
+                    "options": {
+                        "temperature": 0,
+                        "num_predict": self.num_predict,
+                        **({"num_ctx": self.num_ctx} if self.num_ctx else {}),
+                    },
                 },
                 self.timeout,
             )
@@ -907,4 +916,199 @@ def review_cloud_deployment(
         max_iterations=max_iterations,
     )
     result = loop.run(CLOUD_DEPLOYMENT_QUESTION, lambda: build_cloud_deployment_grounding(report))
+    return json.loads(result.answer), result
+
+
+# --------------------------------------------------------------------------- #
+# Release 2 review modes: shared building blocks for a *structured* review    #
+# --------------------------------------------------------------------------- #
+#
+# The Multi-Agent Workflow Review and Testing Report Review modes
+# (`tools/ai-loop/multi_agent_review.py`, `tools/ai-loop/testing_review.py`)
+# share one shape with the cloud deployment review above: the code builds the
+# grounding and computes the facts, a proposer model drafts a JSON decision
+# pinned to a schema at temperature 0, the code validates and normalises it, and
+# an independent reviewer model observes it. These two classes hold the part of
+# that shape which does not depend on the evidence being reviewed, so a mode
+# module only supplies its prompt, schema, refusal, validation and rules.
+
+
+class StructuredDrafter:
+    """ACT for a structured review. Subclasses set `prompt` and `schema` and
+    implement `refusal()`, `validate()` and `normalise()`:
+
+    - `refusal(grounding)` returns the fixed decision to return *without a model
+      call* when the evidence cannot be reviewed, or None;
+    - `validate(raw)` lists the schema problems of the model's output;
+    - `normalise(raw, grounding, corrections)` clamps a valid output and
+      enforces the mode's rules, appending every change to `corrections`.
+
+    `call_model(system, user) -> dict` is injectable so tests run the whole loop
+    with a fake model; the default talks to local Ollama with the pinned schema.
+    """
+
+    prompt = ""
+    schema: dict = {"type": "object"}
+
+    def __init__(
+        self,
+        base_url: str = "http://localhost:11434",
+        model: str = "qwen3:4b-instruct",
+        timeout: int = 180,
+        auto_pull: bool = False,
+        num_predict: int = 1200,
+        call_model: ModelCall | None = None,
+        num_ctx: int = 8192,
+    ):
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.timeout = timeout
+        self.auto_pull = auto_pull
+        self.num_predict = num_predict
+        self.num_ctx = num_ctx  # the grounding is a whole evidence export, not one question
+        self.call_model: ModelCall = call_model or self._ollama_chat
+        self._ready = False
+        self.last_corrections: list[str] = []
+
+    # -- mode hooks ---------------------------------------------------------
+    def refusal(self, grounding: dict) -> dict | None:
+        return None
+
+    def validate(self, raw) -> list[str]:
+        raise NotImplementedError
+
+    def normalise(self, raw: dict, grounding: dict, corrections: list[str]) -> dict:
+        raise NotImplementedError
+
+    # -- the model call -----------------------------------------------------
+    def _ollama_chat(self, system: str, user: str) -> dict:
+        if not self._ready:
+            ensure_model(self.base_url, self.model, self.auto_pull)
+            self._ready = True
+        try:
+            body = _ollama_post(
+                self.base_url,
+                "/api/chat",
+                {
+                    "model": self.model,
+                    "stream": False,
+                    "format": self.schema,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    "options": {"temperature": 0, "num_predict": self.num_predict, "num_ctx": self.num_ctx},
+                },
+                self.timeout,
+            )
+            return json.loads(body["message"]["content"])
+        except (error.URLError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+            raise LoopError(f"Proposer call failed: {exc}") from exc
+
+    def draft(self, question: str, grounding: dict, feedback: str | None = None) -> str:
+        self.last_corrections = []
+        refusal = self.refusal(grounding)
+        if refusal is not None:
+            self.last_corrections.append(
+                "evidence gaps -> fixed insufficient_evidence decision, no model call"
+            )
+            return json.dumps(refusal, ensure_ascii=False)
+        context = {"task": question, "grounding": grounding}
+        if feedback:
+            context["reviewer_feedback"] = (
+                f"A reviewer rejected your previous draft: {feedback}. Produce a corrected "
+                "decision that fixes this, still using only the grounding."
+            )
+        raw = self.call_model(self.prompt, json.dumps(context, ensure_ascii=False))
+        problems = self.validate(raw)
+        if problems:
+            raise LoopError("Proposer returned an invalid decision: " + "; ".join(problems))
+        return json.dumps(self.normalise(raw, grounding, self.last_corrections), ensure_ascii=False)
+
+
+class GatedReviewer:
+    """OBSERVE for a structured review, in two layers.
+
+    1. Deterministic. When the drafter must have refused (the mode's `refusal()`
+       returns a decision for this grounding) the draft must be exactly that
+       refusal. Otherwise, when the code had to correct the model's draft
+       (`code_issues()` returns the drafter's corrections: findings the grounding
+       does not confirm, code checks it left out, a decision that broke the
+       rules), the verdict is `revise` with those corrections as the guidance, so
+       the next ACT can fix them itself. The reviewer model is not consulted for
+       either; the small local models are exactly what these checks guard against.
+    2. The independent model reviewer, for every draft the code found consistent.
+    """
+
+    def __init__(
+        self,
+        model_reviewer: Reviewer | None,
+        refusal: Callable[[dict], "dict | None"],
+        code_issues: Callable[[], list] | None = None,
+    ):
+        self.model_reviewer = model_reviewer
+        self.refusal = refusal
+        self.code_issues = code_issues
+
+    def review(self, question: str, grounding: dict, draft: str) -> dict:
+        expected = self.refusal(grounding)
+        if expected is not None:
+            if json.loads(draft) == expected:
+                return {
+                    "verdict": "approved",
+                    "issues": [
+                        "none (deterministic check: the draft is the fixed insufficient_evidence "
+                        "refusal for the computed evidence gaps; reviewer model not consulted)"
+                    ],
+                    "guidance": "",
+                }
+            return {
+                "verdict": "revise",
+                "issues": ["the evidence has gaps, so the only valid draft is the fixed refusal"],
+                "guidance": "Return the insufficient_evidence refusal for the listed evidence gaps.",
+            }
+        corrections = [str(note) for note in (self.code_issues() if self.code_issues else [])]
+        if corrections:
+            shown = corrections[:6]
+            if len(corrections) > len(shown):
+                shown.append(f"... and {len(corrections) - len(shown)} more correction(s)")
+            return {
+                "verdict": "revise",
+                "issues": ["deterministic check: the code had to correct the draft -> " + shown[0], *shown[1:]],
+                "guidance": (
+                    "Return findings that are exactly the grounding.code_checks entries (same check or "
+                    "area, subject and severity, your own wording and recommendation) and a decision "
+                    "that follows them; the grounding confirms nothing else. Corrections made: "
+                    + "; ".join(shown)
+                ),
+            }
+        if self.model_reviewer is None:
+            raise LoopError("No review model configured for this review mode.")
+        return self.model_reviewer.review(question, grounding, draft)
+
+
+def run_structured_review(
+    service: str,
+    question: str,
+    build_grounding: ContextBuilder,
+    drafter: StructuredDrafter,
+    reviewer: Reviewer | None,
+    log_dir: str,
+    max_iterations: int = 2,
+) -> tuple[dict, LoopResult]:
+    """Run one structured review through Plan -> Act -> Observe -> Adapt and return
+    (decision, loop_result). The decision is the normalised JSON of the final ACT,
+    so it always matches the mode's schema. The refusal and the code corrections
+    are checked deterministically even with no model reviewer; a draft the code
+    found consistent, with no model reviewer, is the loop's usual single-shot
+    `fallback`."""
+    observe = GatedReviewer(reviewer, drafter.refusal, code_issues=lambda: drafter.last_corrections)
+    loop = AgenticLoop(
+        service=service,
+        drafter=drafter.draft,
+        reviewer=observe,
+        log_dir=log_dir,
+        max_iterations=max_iterations,
+    )
+    result = loop.run(question, build_grounding)
     return json.loads(result.answer), result

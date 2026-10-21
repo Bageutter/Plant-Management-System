@@ -15,6 +15,10 @@ rationale.
 | `SYSTEM_PROMPT` + `_build_prompt()` | `health/ai.py` | Plant Health assessment | `RESPONSE_SCHEMA` (status, score, confidence, issues, recs, …) |
 | `PROMPT_CLOUD_DEPLOYMENT_ACT` | `shared/ai_loop.py` | Release 2 Cloud Deployment Report Review ACT (`tools/ai-loop/review.py --mode cloud-deployment`) | `CLOUD_DECISION_SCHEMA` (`{decision, baseline_compliant, findings[], release_recommendation}`) |
 | `PROMPT_CLOUD_DEPLOYMENT_OBSERVE` | `shared/ai_loop.py` | OBSERVE step for the cloud deployment review | inline `{verdict, issues, guidance}` |
+| `PROMPT_ACT` | `tools/ai-loop/multi_agent_review.py` | Release 2 Multi-Agent Workflow Review ACT (`review.py --mode multi-agent`) | `SCHEMA` (`{decision, workflows_reviewed, findings[{severity, check, workflow_id, evidence, recommendation}], recommendations[], summary}`) |
+| `PROMPT_OBSERVE` | `tools/ai-loop/multi_agent_review.py` | OBSERVE step for the multi-agent review | inline `{verdict, issues, guidance}` |
+| `PROMPT_ACT` | `tools/ai-loop/testing_review.py` | Release 2 Testing Report Review ACT (`review.py --mode testing`) | `SCHEMA` (`{decision, students_reviewed, findings[{severity, area, subject, evidence, recommendation}], recommendations[], summary}`) |
+| `PROMPT_OBSERVE` | `tools/ai-loop/testing_review.py` | OBSERVE step for the testing review | inline `{verdict, issues, guidance}` |
 | `act.txt` | `tools/ai-dev/prompts/act.txt` | Build-time proposer | inline finding schema |
 | `observe.txt` | `tools/ai-dev/prompts/observe.txt` | Build-time reviewer | `{status, summary, findings}` |
 
@@ -41,6 +45,13 @@ tools). The model *cannot* return prose. Then the code parses and **re-checks**:
   enforce the release rules in code: evidence gaps refuse (`insufficient_evidence`,
   decided before any model call), an enabled AI switch is a high `cloud_baseline`
   finding that blocks `approve`, a failed smoke test is `reject`.
+- `tools/ai-loop/multi_agent_review.py::normalise()` and
+  `testing_review.py::normalise()` (through `review_common.py`) drop a finding
+  about a workflow or report that is not in the grounding, add every violation
+  the code computed that the model left out, raise a softer severity to the
+  code's, and derive the decision from the findings (a high finding is `fail`)
+  whatever the model returned; the refusal (`insufficient_evidence`) is decided
+  in code before any model call and checked deterministically in OBSERVE.
 - `tools/ai-dev/pipeline.py::validate_finding()` rejects any finding that cites a
   file it wasn't shown.
 

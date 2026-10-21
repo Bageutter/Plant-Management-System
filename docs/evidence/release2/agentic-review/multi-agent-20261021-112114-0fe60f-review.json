@@ -1,0 +1,52 @@
+{
+  "mode": "multi-agent",
+  "evidence": {
+    "kind": "files",
+    "directory": "docs/evidence/release2/local-deployment",
+    "files": {
+      "workflow_history.jsonl": "docs/evidence/release2/local-deployment/workflow_history.jsonl",
+      "coordination_audit.jsonl": "docs/evidence/release2/local-deployment/coordination_audit.jsonl",
+      "multi-agent-metrics.json": "docs/evidence/release2/local-deployment/multi-agent-metrics.json"
+    },
+    "skipped_lines": 0,
+    "history_events": 17,
+    "audit_events": 17,
+    "metrics_present": true,
+    "workflow_filter": null
+  },
+  "run_id": "multi-agent-20261021-112114-0fe60f",
+  "models": {
+    "proposer": "gemma3:4b",
+    "reviewer": "qwen2.5vl:3b",
+    "ollama_url": "http://localhost:11434"
+  },
+  "loop": {
+    "workflow": "Plan -> Act -> Observe -> Adapt",
+    "verdict": "revised_capped",
+    "iterations": 2,
+    "transcript": "tools/ai-loop/logs/reports/multi-agent/multi-agent-20261021-112114-0fe60f.md"
+  },
+  "decision": {
+    "decision": "pass",
+    "workflows_reviewed": 2,
+    "findings": [],
+    "recommendations": [
+      "The Worker's citations are present in the evidence, as confirmed by the code checks.",
+      "The human decision aligns with the reviewer's recommendation, as confirmed by the code checks.",
+      "The workflow pipeline is correctly followed: Planner -> Worker -> Reviewer -> Human Decision."
+    ],
+    "summary": "3 finding(s) in the model's draft were not confirmed by the code checks and were removed (see the corrections); read its prose with that in mind. Corrected in code to pass: no code check supports a different decision. The model's draft said: Two workflows related to plant health assessments were reviewed. One workflow resulted in a partially accepted decision, while the other resulted in an accepted decision. The code checks confirmed that the workflow pipeline was followed and the human decisions aligned with the reviewer's recommendations."
+  },
+  "code_checks": [],
+  "code_corrections": [
+    "dropped finding 'The Worker cited 'health-history', 'health-3', 'health-2', and 'health-1' as cit': the worker_citations check holds for a7f23d6d-9f83-41bd-bb01-02402e50244a in the grounding, so nothing confirms it",
+    "dropped finding 'The human decision was 'request_changes' despite the reviewer recommending 'revi': the human_decision check holds for a7f23d6d-9f83-41bd-bb01-02402e50244a in the grounding, so nothing confirms it",
+    "dropped finding 'The human decision was 'accept' despite the reviewer recommending 'revise' and c': the human_decision check holds for ae71c81a-e925-4c27-af94-98a445aa6629 in the grounding, so nothing confirms it",
+    "pass_with_findings is inconsistent with the findings -> pass"
+  ],
+  "validation_log": {
+    "markdown": "docs/evidence/release2/agentic-review/multi-agent-20261021-112114-0fe60f-review.md",
+    "json": "docs/evidence/release2/agentic-review/multi-agent-20261021-112114-0fe60f-review.json"
+  },
+  "scope": "Advisory review of the exported workflow evidence; the team confirms the review and the human decisions recorded in the workflows stand as the ground truth."
+}

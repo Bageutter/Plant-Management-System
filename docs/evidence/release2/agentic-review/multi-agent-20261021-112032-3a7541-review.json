@@ -1,0 +1,55 @@
+{
+  "mode": "multi-agent",
+  "evidence": {
+    "kind": "files",
+    "directory": "docs/evidence/release2",
+    "files": {
+      "workflow_history.jsonl": "docs/evidence/release2/workflow_history.jsonl",
+      "coordination_audit.jsonl": "docs/evidence/release2/coordination_audit.jsonl",
+      "multi-agent-metrics.json": "docs/evidence/release2/multi-agent-metrics.json"
+    },
+    "skipped_lines": 0,
+    "history_events": 61,
+    "audit_events": 61,
+    "metrics_present": true,
+    "workflow_filter": null
+  },
+  "run_id": "multi-agent-20261021-112032-3a7541",
+  "models": {
+    "proposer": "gemma3:4b",
+    "reviewer": "qwen2.5vl:3b",
+    "ollama_url": "http://localhost:11434"
+  },
+  "loop": {
+    "workflow": "Plan -> Act -> Observe -> Adapt",
+    "verdict": "revised_capped",
+    "iterations": 2,
+    "transcript": "tools/ai-loop/logs/reports/multi-agent/multi-agent-20261021-112032-3a7541.md"
+  },
+  "decision": {
+    "decision": "pass",
+    "workflows_reviewed": 6,
+    "findings": [],
+    "recommendations": [
+      "Ensure all reviewer recommendations are accompanied by a clear human feedback explanation, detailing the rationale for the recommendation.",
+      "Implement a mechanism to automatically prompt reviewers to provide feedback when a 'revise' recommendation is made.",
+      "Improve the human feedback template to include fields for specifying the reason for a revision.",
+      "Consider adding a severity level to the reviewer issues to prioritize critical issues."
+    ],
+    "summary": "6 finding(s) in the model's draft were not confirmed by the code checks and were removed (see the corrections); read its prose with that in mind. This review examined 6 workflows from the vgarden source, focusing on summarization tasks related to plant growth. The workflows resulted in an 'accepted' final status for 4, 'partially_accepted' for 2, and a 'revise' recommendation for the remaining 0. The primary issue was the absence of human feedback explaining the reviewer's recommendations, leading to a need for improved feedback processes."
+  },
+  "code_checks": [],
+  "code_corrections": [
+    "dropped finding 'Reviewer recommended 'revise' but no human feedback was provided to explain the ': the revise_followed_by_reason check holds for ba579e19-2032-45e1-978f-1f611437c5ba in the grounding, so nothing confirms it",
+    "dropped finding 'Reviewer recommended 'accept' but no human feedback was provided to explain the ': the revise_followed_by_reason check holds for f7633348-421c-49b6-a73f-e580c2699641 in the grounding, so nothing confirms it",
+    "dropped finding 'Reviewer recommended 'revise' but no human feedback was provided to explain the ': the revise_followed_by_reason check holds for a7567b60-f298-4600-a445-a3d025dd6d01 in the grounding, so nothing confirms it",
+    "dropped finding 'Reviewer recommended 'revise' but no human feedback was provided to explain the ': the revise_followed_by_reason check holds for 8dfb6fda-a30c-4aed-80cc-9f2cd10f64bf in the grounding, so nothing confirms it",
+    "dropped finding 'Reviewer recommended 'revise' but no human feedback was provided to explain the ': the revise_followed_by_reason check holds for ea2f3224-b83d-421d-9b9c-1b6de8f92c4c in the grounding, so nothing confirms it",
+    "dropped finding 'Reviewer recommended 'revise' but no human feedback was provided to explain the ': the revise_followed_by_reason check holds for 7c228ba1-17ec-48f6-b248-4ca2809c6e08 in the grounding, so nothing confirms it"
+  ],
+  "validation_log": {
+    "markdown": "docs/evidence/release2/agentic-review/multi-agent-20261021-112032-3a7541-review.md",
+    "json": "docs/evidence/release2/agentic-review/multi-agent-20261021-112032-3a7541-review.json"
+  },
+  "scope": "Advisory review of the exported workflow evidence; the team confirms the review and the human decisions recorded in the workflows stand as the ground truth."
+}

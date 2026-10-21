@@ -1,0 +1,15 @@
+{
+  "workflow": "Virtual Garden (Sample)",
+  "owner": "Sample Student",
+  "service": "vgarden",
+  "workflow_file": ".github/workflows/vgarden.yml",
+  "event": "push",
+  "source_sha": "0a31150520c0069fd43964261085056e615d0c9c",
+  "tested_sha": "0a31150520c0069fd43964261085056e615d0c9c",
+  "run_url": "https://github.com/example-org/Plant-Management-System/actions/runs/1",
+  "python": "3.12.15",
+  "endpoint_functions": {
+    "routes.create_garden": "POST /gardens",
+    "routes.garden_snapshot": "GET /gardens/<id>/snapshot"
+  }
+}

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Release 2 review modes of the shared agentic loop, run from the terminal.
 
-    python tools/ai-loop/review.py --mode cloud-deployment
-    python tools/ai-loop/review.py --mode cloud-deployment --report docs/evidence/release2/cloud-deployment/cloud-deployment-<stamp>.json
+    python tools/ai-loop/review.py --mode multi-agent [--evidence-dir <folder> | --server http://127.0.0.1:8003]
+    python tools/ai-loop/review.py --mode testing [--pre-commit-dir <folder> --post-commit-dir <folder>]
+    python tools/ai-loop/review.py --mode cloud-deployment [--report docs/evidence/release2/cloud-deployment/cloud-deployment-<stamp>.json]
 
 Each mode reviews one piece of Release 2 evidence through the same
 Plan -> Act -> Observe -> Adapt loop the chat features use (`shared/ai_loop.py`):
@@ -12,6 +13,18 @@ the loop revises until approved or capped. Both models run on local Ollama only.
 
 Modes:
 
+- ``multi-agent`` — Multi-Agent Workflow Review (`multi_agent_review.py`). Reads
+  the Multi-Agent Server's exports (`workflow_history.jsonl`,
+  `coordination_audit.jsonl`, `multi-agent-metrics.json`; default folder
+  `docs/evidence/release2`, or live from `--server`) and checks every run went
+  Planner -> Worker -> Reviewer -> human decision, that Worker citations are in the
+  evidence, that a `revise` was closed with a reason, and that audit and metrics
+  agree; then recommends implementation and review improvements.
+- ``testing`` — Testing Report Review (`testing_review.py`). Reads the pre-commit
+  security reports (`docs/evidence/release2/pre-commit/*.md`) and the post-commit
+  CI/CD evidence folders (`docs/evidence/release2/post-commit/*/`) and checks the
+  four required scans ran and passed, and that each student's two endpoint
+  functions were tested on a successful push run with the regressions green.
 - ``cloud-deployment`` — Cloud Deployment Report Review. Reads the JSON report
   `scripts/deploy/azure-report.sh` wrote (default
   `docs/evidence/release2/cloud-deployment/latest.json`) and recommends
@@ -21,8 +34,9 @@ Modes:
 
 Evidence: the three sinks every loop run writes (stdout, `logs/<mode>.jsonl`,
 `logs/reports/<mode>/<run_id>.md`), the JSON result on stdout, and a
-review/validation log (`.md` + `.json`) copied next to the report for the
-technical report's final human release decision. See README.md.
+review/validation log (`.md` + `.json`) copied next to the evidence (the cloud
+report's folder, or `docs/evidence/release2/agentic-review/`) for the technical
+report's human confirmation or release decision. See README.md.
 """
 
 from __future__ import annotations
@@ -39,13 +53,21 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[2]
 LOG_DIR = Path(__file__).resolve().parent / "logs"
 sys.path.insert(0, str(ROOT / "shared"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # the sibling mode modules (hyphenated folder)
 import ai_loop  # noqa: E402 -- the shared loop; sys.path entry above
+import multi_agent_review  # noqa: E402 -- Multi-Agent Workflow Review mode
+import testing_review  # noqa: E402 -- Testing Report Review mode
 
 DEFAULT_CLOUD_REPORT = ROOT / "docs" / "evidence" / "release2" / "cloud-deployment" / "latest.json"
 MODEL_TIMEOUT = 180  # one local model call; the same bound the health service uses
 
-# exit codes: the decision, so a shell step can gate on it
-EXIT_CODES = {"approve": 0, "approve_with_corrections": 0, "reject": 1, "insufficient_evidence": 2}
+# exit codes: the decision, so a shell step can gate on it. The cloud mode recommends a
+# release decision; the multi-agent and testing modes return a review verdict.
+EXIT_CODES = {
+    "approve": 0, "approve_with_corrections": 0, "reject": 1,
+    "pass": 0, "pass_with_findings": 0, "fail": 1,
+    "insufficient_evidence": 2,
+}
 EXIT_LOOP_ERROR = 3
 
 
@@ -258,7 +280,11 @@ def run_cloud_deployment(args: argparse.Namespace, drafter=None, reviewer=None) 
     return summary
 
 
-MODES = {"cloud-deployment": run_cloud_deployment}
+MODES = {
+    "multi-agent": multi_agent_review.run,
+    "testing": testing_review.run,
+    "cloud-deployment": run_cloud_deployment,
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -268,7 +294,27 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mode", choices=sorted(MODES), required=True)
     parser.add_argument(
         "--report", default=str(DEFAULT_CLOUD_REPORT),
-        help="the JSON report to review (default: docs/evidence/release2/cloud-deployment/latest.json)",
+        help="cloud-deployment: the JSON report to review (default: docs/evidence/release2/cloud-deployment/latest.json)",
+    )
+    parser.add_argument(
+        "--evidence-dir", default=str(multi_agent_review.DEFAULT_EVIDENCE_DIR),
+        help="multi-agent: folder holding workflow_history.jsonl, coordination_audit.jsonl and "
+        "multi-agent-metrics.json (default: docs/evidence/release2; the Plant Health export is "
+        "docs/evidence/release2/local-deployment)",
+    )
+    parser.add_argument(
+        "--server", default=None,
+        help="multi-agent: review the live Multi-Agent Server instead of files, e.g. http://127.0.0.1:8003",
+    )
+    parser.add_argument("--workflow-id", default=None, help="multi-agent: review this one workflow only")
+    parser.add_argument(
+        "--pre-commit-dir", default=str(testing_review.DEFAULT_PRE_COMMIT_DIR),
+        help="testing: folder of scripts/security/report.py pages (default: docs/evidence/release2/pre-commit)",
+    )
+    parser.add_argument(
+        "--post-commit-dir", default=str(testing_review.DEFAULT_POST_COMMIT_DIR),
+        help="testing: folder of CI artifact folders with run.json + JUnit files "
+        "(default: docs/evidence/release2/post-commit)",
     )
     parser.add_argument(
         "--ollama-url", default=os.environ.get("OLLAMA_URL", "http://localhost:11434"),
@@ -294,9 +340,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--log-dir", type=Path, default=LOG_DIR, help="JSONL + transcript directory")
     parser.add_argument(
         "--copy-dir", type=Path, default=None,
-        help="where to write the validation log copies (default: next to the report)",
+        help="where to write the validation log copies (default: next to the cloud report, or "
+        "docs/evidence/release2/agentic-review for the multi-agent and testing modes)",
     )
-    parser.add_argument("--no-copy", action="store_true", help="do not copy the validation log next to the report")
+    parser.add_argument("--no-copy", action="store_true", help="do not copy the validation log next to the evidence")
     parser.add_argument("--output", type=Path, help="also save the JSON result to this file")
     return parser
 
@@ -306,6 +353,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if urlparse(args.ollama_url).scheme not in ("http", "https"):
         parser.error("--ollama-url must be an http or https URL")
+    if args.server and urlparse(args.server).scheme not in ("http", "https"):
+        parser.error("--server must be an http or https URL")
     if args.max_iterations < 1:
         parser.error("--max-iterations must be at least 1")
     logging.basicConfig(level=logging.INFO, format="%(message)s")
