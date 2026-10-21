@@ -425,9 +425,21 @@ python -m pytest -q
 
 Tests use a fake model. The MCP tests run the real shared server in-process and route
 its HTTP calls back into the Flask app under test, so a tool run exercises the whole
-frontend → backend → MCP server → health API loop. `.github/workflows/health.yml` runs
-lint, these tests, the image build, and a compose smoke test
-(`scripts/test/smoke-health.sh`) with `MCP_ENABLED=false RAG_ENABLED=false`.
+frontend → backend → MCP server → health API loop.
+
+`.github/workflows/health.yml` (Release 2) runs lint, then the **two assigned endpoint
+functions** by name from `tests/test_endpoints.py` — `routes.create_assessment`
+(`POST /plant-health-records/assessments`) and `routes.list_assessments`
+(`GET /plant-health-records/assessments`) — then the rest of the suite as regressions,
+the image build, and a compose smoke test (`scripts/test/smoke-health.sh`) with
+`MCP_ENABLED=false RAG_ENABLED=false`. The Tests job keeps `endpoints.xml`,
+`endpoints.log`, `regressions.xml`, `regressions.log` and `run.json` (source SHA, run
+URL, the two function names) as a 30-day Actions artifact, including when a test
+fails. The Docker build and smoke test only run after lint and tests pass.
+
+Before committing, the shared pre-commit checks (Ruff security rules, detect-secrets,
+pip-audit and this service's tests) run via `python scripts/security/install.py health`
+from the repository root; see `.github/README.md`.
 
 ## Database schema changes (Flask-Migrate / Alembic)
 
