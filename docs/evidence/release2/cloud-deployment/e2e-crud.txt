@@ -1,0 +1,28 @@
+$ python3 scripts/deploy/azure-e2e.py https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io
+# run 2026-10-21T23:47:18Z against the deployment of 0f88ba4 (run 39680594970)
+End-to-end check of https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io
+  PASS    1.6s  register, add a garden, open it (SSO), add an area and a planting
+          account vgarden-validate-891f75d9a1@mailinator.com, garden 11 with an area and a Tomato planting
+  PASS    0.1s  account page lists the garden (auth -> vgarden)
+  PASS    0.1s  garden page shows the area and the planting
+  PASS    0.3s  vgarden: update the garden (rename)
+  PASS    0.5s  vgarden: update then delete the planting
+  PASS    0.3s  vgarden: delete the area
+  PASS   28.1s  almanac catalogue is seeded  (slow)
+          46 plants
+  PASS    0.9s  almanac recognises the logged-in user (almanac -> auth)
+  PASS    0.5s  almanac: create, update, read and delete a plant (as the logged-in user)
+          plant e2e-basil-11: created, updated, read, deleted
+  PASS   23.5s  health: create a plant title  (slow)
+          plant 9
+  PASS    0.2s  health: list plant titles
+  PASS    0.1s  health: delete the plant title
+  PASS    0.1s  health: create a record with AI-Mode off
+          record 3 saved, not assessed (AI-Mode off)
+  PASS    0.3s  health: read, update and delete the record
+  PASS    0.6s  auth + vgarden: delete the garden (auth -> vgarden)
+  PASS    0.1s  cloud baseline: MCP, RAG and Multi-Agent are off
+          {'mcp': False, 'multi_agent': False, 'rag': False}
+
+16/16 passed in 57.1s; slow (> 5s): almanac catalogue is seeded, health: create a plant title
+exit code: 0
