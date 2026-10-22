@@ -35,14 +35,44 @@ SERVICES=(proxy frontend auth vgarden almanac health)
 PROXY_MIN_REPLICAS=${PROXY_MIN_REPLICAS:-1}
 SERVICE_MIN_REPLICAS=${SERVICE_MIN_REPLICAS:-0}
 
-# Cloud baseline: all four AI services disabled. Only the bonus profile flips these.
-CLOUD_AI_ENABLED=${CLOUD_AI_ENABLED:-false}
-MCP_ENABLED=${MCP_ENABLED:-false}
-RAG_ENABLED=${RAG_ENABLED:-false}
-MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-false}
+# Deployment profile:
+#   baseline (default, the required cloud deployment): all four AI services disabled.
+#   bonus    (optional B1-B4): Ollama, MCP, RAG and the Multi-Agent Server run as
+#            internal container apps (infra/apps.bicep) and every feature uses them.
+DEPLOY_PROFILE=${DEPLOY_PROFILE:-baseline}
+case $DEPLOY_PROFILE in
+  baseline)
+    CLOUD_AI_ENABLED=${CLOUD_AI_ENABLED:-false}
+    MCP_ENABLED=${MCP_ENABLED:-false}
+    RAG_ENABLED=${RAG_ENABLED:-false}
+    MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-false}
+    AI_SERVICES_DEPLOYED=false
+    REPORT_DIR=${REPORT_DIR:-$ROOT/docs/evidence/release2/cloud-deployment}
+    ;;
+  bonus)
+    CLOUD_AI_ENABLED=true
+    MCP_ENABLED=true
+    RAG_ENABLED=true
+    MULTI_AGENT_ENABLED=true
+    AI_SERVICES_DEPLOYED=true
+    # Kept apart from the baseline report, which stays the required evidence.
+    REPORT_DIR=${REPORT_DIR:-$ROOT/docs/evidence/release2/cloud-bonus}
+    ;;
+  *)
+    echo "DEPLOY_PROFILE must be baseline or bonus (got '$DEPLOY_PROFILE')" >&2
+    exit 1
+    ;;
+esac
+export DEPLOY_PROFILE CLOUD_AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED AI_SERVICES_DEPLOYED
 
-# Where azure-report.sh writes the deployment report (committed as evidence).
-REPORT_DIR=${REPORT_DIR:-$ROOT/docs/evidence/release2/cloud-deployment}
+# Bonus profile: images of the three shared AI servers (cloud-only Dockerfiles), the
+# Ollama image (imported into the registry, so no Docker Hub pull at run time) and
+# the two models every feature uses locally.
+AI_SERVICES=(mcp-server rag-server multi-agent-server)
+OLLAMA_SOURCE_IMAGE=${OLLAMA_SOURCE_IMAGE:-docker.io/ollama/ollama:0.40.7}
+CLOUD_TEXT_MODEL=${CLOUD_TEXT_MODEL:-qwen3:4b-instruct}
+CLOUD_VISION_MODEL=${CLOUD_VISION_MODEL:-qwen2.5vl:3b}
+AI_MIN_REPLICAS=${AI_MIN_REPLICAS:-0}
 
 # --- helpers -------------------------------------------------------------------
 

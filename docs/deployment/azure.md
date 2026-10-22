@@ -85,9 +85,35 @@ and `scripts/deploy/azure-config.sh` passes the same `MCP_ENABLED=false`,
 The deployment report records the four values; `azure-smoke.sh` asserts that the
 `/integrations` endpoints report exactly this state.
 
-Bonus profile (B1–B4): the same parameters flipped to `true` plus the URLs of the
-cloud-hosted services (`CLOUD_AI_ENABLED`, `OLLAMA_URL`, `MCP_SERVER_URL`, ...
-in `azure-config.sh`). Hosting those services is not part of this baseline.
+### Bonus profile (B1–B4): the AI services in the cloud
+
+Opt-in only; pushes to `main` always deploy the baseline above. Run the workflow by
+hand with **profile = bonus** (or `DEPLOY_PROFILE=bonus` for the scripts):
+
+```bash
+gh workflow run cloud-deployment.yml -f profile=bonus            # AI apps scale to zero
+gh workflow run cloud-deployment.yml -f profile=bonus -f ai_min_replicas=1 -f service_min_replicas=1   # demo: all warm
+gh workflow run cloud-deployment.yml                             # back to the baseline (AI apps unused, scaled to zero)
+```
+
+The four switches become `true` and four more **internal-only** container apps join
+the environment (`infra/apps.bicep`, `aiServicesDeployed=true`):
+
+| App | Image | Size | Notes |
+|---|---|---|---|
+| `plantms-prod-ollama` (AI-Mode) | `ollama/ollama:0.40.7`, imported into the registry | 4 vCPU / 8 GiB | CPU inference; `qwen3:4b-instruct` (text) and `qwen2.5vl:3b` (vision) pulled once onto the `ollama-models` Azure Files share; one model in memory at a time |
+| `plantms-prod-mcp` | `ai-services/mcp-server/Dockerfile` | 0.5 vCPU / 1 GiB | tools over the features' internal APIs; DNS-rebinding protection allows only its own internal name |
+| `plantms-prod-rag` | `ai-services/rag-server/Dockerfile` | 0.5 vCPU / 1 GiB | `cloud_start.py`: gunicorn, index rebuilt from the features at start and every 10 min |
+| `plantms-prod-agents` | `ai-services/multi-agent-server/Dockerfile` | 0.5 vCPU / 1 GiB | Planner → Worker → Reviewer; human review stays in each feature's UI |
+
+Every feature reaches them only through its own backend, exactly as locally
+(browser → proxy → feature backend → AI app). Model calls stay under the ingress's
+240 s request limit (`OLLAMA_TIMEOUT=230`); Plant Health streams its assessment, and
+the Multi-Agent runs are polled. The deploy job then runs
+`scripts/deploy/azure-ai-e2e.py` (an AI-Mode assessment and chat answer, an MCP tool
+run, a grounded RAG answer with citations, a full Planner → Worker → Reviewer → human
+review workflow) and keeps its output in `docs/evidence/release2/cloud-bonus/`.
+The Dockerfiles are for the cloud only: locally the AI services stay host processes.
 
 ## 2. One-time setup
 
@@ -245,7 +271,25 @@ Useful knobs (environment variables, or repository variables / workflow inputs):
 
 Cold start: with `SERVICE_MIN_REPLICAS=0` the first request to an idle service
 takes 20–40 seconds (image pull from cache, gunicorn start, migration check). The
-smoke script retries for that reason.
+smoke script retries for that reason. **auth and vgarden are always kept warm**
+(`dependencyMinReplicas=1` in `infra/apps.bicep`): other services call them
+server-to-server, and a cold start there showed up as "Couldn't reach the garden
+service".
+
+`python3 scripts/deploy/azure-e2e.py <public URL>` goes beyond the smoke test and
+uses the site like a person, timing each step: register, add a garden, open it
+(SSO), add an area and a planting; the almanac catalogue and logged-in state;
+health plant titles and a record saved "not assessed" with AI-Mode off; the AI
+baseline.
+
+### Before a demo or marking: keep everything warm
+
+```bash
+gh workflow run cloud-deployment.yml -f service_min_replicas=1   # then approve the run
+```
+
+Every page is then instant. Afterwards, run it again with `service_min_replicas=0`
+(or without `-f`) to go back to scale-to-zero, which costs less.
 
 ### Rehearsing the cloud configuration locally
 
@@ -266,8 +310,10 @@ a compose file; repeat it after changing a Dockerfile, a migration or the proxy.
 | Deployed frontend and CRUD (criterion 7) | the public URL in the browser (register, create a garden, add a plant-health record, browse the almanac) and `azure-smoke.sh` output; the report's *Cloud baseline* table shows the four AI services disabled |
 | Cloud Deployment Review (criterion 8) | feed `latest.json` / `latest.md` to the shared agentic loop's Cloud Deployment Review mode; keep its review/validation log next to the report |
 | Final human release decision | the checklist at the end of the report, plus the environment approval |
-| Bonus B5 endpoint security | single public entry point, HTTPS-only with managed certificate, internal-only services (the smoke script proves both), gunicorn instead of the debug server, Secure/HttpOnly/SameSite cookies |
-| Bonus B6 data security | PostgreSQL private to the VNet with public access disabled and `sslmode=require`, Key Vault + managed identity for every secret, registry without admin user, storage TLS 1.2 / no public blobs / subnet-restricted, OIDC instead of stored cloud credentials |
+| Bonus B1–B4 cloud AI | `docs/evidence/release2/cloud-bonus/` — the bonus deployment report and `ai-e2e.txt` |
+| Bonus endpoint security | single public entry point (proxy), HTTPS only with TLS ≤ 1.1 refused, internal-only services and AI apps, security headers (HSTS, CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`), per-client rate limits (sign-in 10/min), no server version, dotfiles refused, CSRF on every form, Secure/HttpOnly/SameSite cookies, gunicorn instead of the debug server |
+| Bonus data security | PostgreSQL private to the VNet, TLS required (`require_secure_transport`, TLS 1.2+, `sslmode=require`), encrypted at rest with 7-day backups; every secret in Key Vault (RBAC, soft delete) read through a managed identity as Key Vault references; registry without admin user; storage HTTPS/TLS 1.2 only, no public blobs, subnet-restricted, encrypted; OIDC instead of stored cloud credentials; salted password hashes; detect-secrets on every commit |
+| Bonus security validation | `scripts/deploy/azure_security_check.py` (read-only; run by the deploy job after the smoke test) → `docs/evidence/release2/cloud-security/latest.md` |
 
 Commit the generated `cloud-deployment-*.md/json` files from the run you cite (the
 workflow also uploads them as a 90-day artifact).
@@ -277,7 +323,12 @@ workflow also uploads them as a 90-day artifact).
 Approximate monthly cost in `australiaeast` with the defaults (services scale to
 zero, proxy always on): PostgreSQL B1ms + 32 GB ≈ US$17, Container Apps ≈ US$10,
 Container Registry Basic ≈ US$5, storage and logs ≈ US$2. Keeping all five services
-warm (`SERVICE_MIN_REPLICAS=1`) adds roughly US$9 per service per month. A credit-
+warm (`SERVICE_MIN_REPLICAS=1`) adds roughly US$9 per service per month; auth and
+vgarden are always warm (about US$18 of that). The bonus profile adds the
+Ollama app at 4 vCPU / 8 GiB, about US$0.45 for every hour it runs (it scales to zero
+after a few idle minutes unless `ai_min_replicas=1`), plus a few cents a month for the
+model share; keeping it warm all month would be about US$320, so warm it only for a
+demo and redeploy the baseline afterwards. A credit-
 based subscription (Visual Studio, Azure for Students) has a spending limit: when
 the credit is gone the resources pause instead of charging a card.
 
@@ -296,6 +347,13 @@ bash scripts/deploy/azure-teardown.sh
 
 | Symptom | Cause / fix |
 |---|---|
+| Sign-in fails with `AADSTS700213` (no matching federated identity) | the repository sends GitHub's immutable OIDC subject `repo:owner@id/repo@id:...`; re-run `azure-bootstrap.sh`, which registers both forms |
+| A later step fails with `AADSTS700024` (assertion expired) | the OIDC token lasts 5 minutes; the workflow signs in again before each long step |
+| Every page answers `426 Upgrade Required` | the proxy must speak HTTP/1.1 to the internal apps (`proxy_http_version 1.1` in `shared/proxy/default.conf.template`) |
+| The Platform step stays Running for an hour (`DeploymentActive` on the next run) | the PostgreSQL server is created once and referenced afterwards (`deployPostgres`); cancel a stuck deployment with `az deployment group cancel -g rg-plantms-prod -n plantms-platform` |
+| DB apps crash-loop: `password authentication failed for user "plantadmin"` | Key Vault and the server disagree on the password. Set one clean value on both (`az postgres flexible-server update --admin-password`, `az keyvault secret set ... postgres-admin-password`), then rerun the platform and apps steps |
+| `SSL error: decryption failed or bad record mac` | gunicorn `--preload` workers shared the start-up DB connection; each app now disposes its engine at the end of `create_app` |
+| Health says the model is not available | expected in the cloud baseline (AI-Mode off): new records are saved "not assessed" |
 | `az` targets the wrong tenant or subscription | `az login --use-device-code --tenant <student tenant>` then `az account show`; the scripts honour `AZURE_SUBSCRIPTION_ID` for the bootstrap and the signed-in context afterwards |
 | `SkuNotAvailable` / `OfferNotAvailable` / quota exceeded on the student offer | try another region (`AZURE_LOCATION`) or a different `postgresSkuName`; the resource group can be deleted and re-created in the new region with `azure-teardown.sh` + `azure-bootstrap.sh` |
 | `AuthorizationFailed` in the first deploy after bootstrap | role assignments still propagating; re-run after a few minutes |

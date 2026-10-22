@@ -3,7 +3,7 @@ import os
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from model_config import model_for
+from model_config import model_for, timeout as model_timeout
 
 PLAN_SCHEMA = {
     "type": "object",
@@ -95,7 +95,7 @@ def create_plan(task: str, source: str = "almanac") -> dict:
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urlopen(request, timeout=120) as response:  # noqa: S310 -- http(s) only, see above
+        with urlopen(request, timeout=model_timeout()) as response:  # noqa: S310 -- http(s) only, see above
             body = json.load(response)
     except (URLError, TimeoutError, OSError) as error:
         raise RuntimeError("Ollama request failed") from error

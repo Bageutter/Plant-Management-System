@@ -22,6 +22,10 @@ from models import Garden, User
 bp = Blueprint("auth", __name__)
 
 SSO_SALT = "vgarden-sso"
+# vgarden can be cold-starting in the cloud (scale from zero takes 15-40 s), so the
+# server-to-server calls wait long enough instead of reporting it unreachable.
+VGARDEN_TIMEOUT = 15
+VGARDEN_WRITE_TIMEOUT = 30
 
 
 def _vgarden_service_headers() -> dict:
@@ -87,7 +91,7 @@ def account():
                 f"{current_app.config['VGARDEN_URL']}/gardens",
                 params={"owner_id": current_user.id},
                 headers=_vgarden_service_headers(),
-                timeout=5,
+                timeout=VGARDEN_TIMEOUT,
             )
             resp.raise_for_status()
         except requests.RequestException:
@@ -127,7 +131,7 @@ def create_garden():
             f"{current_app.config['VGARDEN_URL']}/gardens",
             json=payload,
             headers=_vgarden_service_headers(),
-            timeout=10,
+            timeout=VGARDEN_WRITE_TIMEOUT,
         )
     except requests.RequestException:
         flash("Couldn't reach the garden service. Please try again.", "error")
@@ -156,7 +160,7 @@ def delete_garden(garden_id):
         resp = requests.get(
             f"{current_app.config['VGARDEN_URL']}/gardens/{garden_id}",
             headers=_vgarden_service_headers(),
-            timeout=5,
+            timeout=VGARDEN_TIMEOUT,
         )
     except requests.RequestException:
         flash("Couldn't reach the garden service. Please try again.", "error")
@@ -176,7 +180,7 @@ def delete_garden(garden_id):
         del_resp = requests.delete(
             f"{current_app.config['VGARDEN_URL']}/gardens/{garden_id}",
             headers=_vgarden_service_headers(),
-            timeout=5,
+            timeout=VGARDEN_TIMEOUT,
         )
     except requests.RequestException:
         flash("Couldn't reach the garden service. Please try again.", "error")

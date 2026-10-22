@@ -29,7 +29,9 @@ fail() { echo "    FAIL: $*"; failures=$((failures + 1)); }
 check_url() { # path  [expected substring]
   echo "==> GET $1"
   local body
-  if ! body=$(curl "${retry[@]}" --max-time 120 "$base$1"); then
+  # 60 s covers a cold start from zero replicas (20-40 s); 120 s x 20 retries used to
+  # outlast the job timeout, so a broken service showed up as "cancelled", not FAIL.
+  if ! body=$(curl "${retry[@]}" --max-time 60 "$base$1"); then
     fail "$1 did not answer 2xx"
     return
   fi

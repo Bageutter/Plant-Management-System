@@ -1,0 +1,62 @@
+%% Release 2 application design flow (group). Render: npx mmdc -i release2-design-flow.mmd -o release2-design-flow.svg
+flowchart LR
+    subgraph UI["Frontend UI (browser · HTMX + Alpine.js, Franken UI)"]
+        direction TB
+        UI_H["Plant Health page"]
+        UI_V["Virtual Garden pages"]
+        UI_A["Plant Almanac pages"]
+    end
+
+    subgraph Compose["Docker Compose (local) · nginx proxy :3000, path-routed"]
+        direction TB
+        PROXY["proxy (nginx)"]
+        subgraph BE["Backend / API microservices (Flask)"]
+            direction LR
+            AUTH["auth"]
+            H["health"]
+            V["vgarden"]
+            A["almanac"]
+        end
+        subgraph DB["Databases (SQLite dev · PostgreSQL cloud · Alembic migrations)"]
+            direction LR
+            DBAUTH[("auth.db")]
+            DBH[("health.db")]
+            DBV[("vgarden.db")]
+            DBA[("almanac.db")]
+        end
+        OLL[("Ollama · AI-Mode<br/>qwen2.5vl:3b · qwen3:4b-instruct")]
+    end
+
+    subgraph Host["Shared NON-containerised local AI services (host processes)"]
+        direction TB
+        MCP["MCP Server :5105<br/>health · almanac · vgarden tools"]
+        RAG["RAG Server :5106<br/>health · almanac · vgarden sources"]
+        subgraph MAS["Multi-Agent Server :8003"]
+            direction LR
+            P["Planner"] --> W["Worker"] --> R["Reviewer"]
+        end
+        LOOP["Shared agentic loop · shared/ai_loop.py, tools/ai-loop/validate.py<br/>Release 1 MCP/RAG modes + Multi-Agent · Testing · Cloud-Deployment Review"]
+    end
+
+    HR{{"Human Review (on the feature's page)<br/>accept · partially accept · request changes · reject"}}
+
+    UI --> PROXY
+    PROXY --> AUTH & H & V & A
+    AUTH --> DBAUTH
+    H --> DBH
+    V --> DBV
+    A --> DBA
+    AUTH -- "SSO handoff · service token" --> V
+
+    BE -- "Release 0/1 AI-Mode: health Perceive→Reason→Act→Observe→Repeat;<br/>almanac + vgarden chat Plan→Act→Observe→Adapt" --> OLL
+    BE -- "Release 1: whitelisted tools/run · ask (grounded, cited)" --> MCP & RAG
+    MCP -. "reads only the public feature APIs" .-> PROXY
+    RAG -. "indexes records via the APIs" .-> PROXY
+    RAG --> OLL
+
+    BE -- "Release 2: POST /workflow (source + feature evidence) · run · status" --> P
+    W -. "retrieve_context (almanac only)" .-> MCP
+    MAS --> OLL
+    R --> HR
+    HR -- "decision + feedback → POST /workflow/review → response on the page" --> UI
+    HR -- "request changes → revised run" --> P

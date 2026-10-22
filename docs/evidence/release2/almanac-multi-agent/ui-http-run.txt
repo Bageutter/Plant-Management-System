@@ -1,0 +1,22 @@
+# Almanac chat (Multi-Agent mode) driven over HTTP with the exact requests the page sends:
+# auth :5001 register -> almanac :5061 POST /ai/ask mode=multi_agent -> POST /ai/multi-agent/<id> action=review/run
+10:46:22 UI run over HTTP: the requests the Almanac chat page sends
+10:46:22 signed in through auth as almanac-ui-cee07a8e@mailinator.com
+10:46:22 GET almanac / -> 200 | Multi-Agent mode offered: True
+10:46:49 POST /ai/ask mode=multi_agent 'Tomato planting months' -> 200 in 27s, chat message 4
+10:46:49 workflow 120184b5-64ae-4772-9cc4-7d5589d69de6 status awaiting_human_review | Worker: January, September, October, November, December | Reviewer: accept
+10:46:49 review request_changes -> 200 status changes_requested
+10:47:14 run again -> 200 in 25s | status awaiting_human_review | Worker: Scientific name: Solanum lycopersicum. Family: Solanaceae. Planting months: January, September, October, November, December. | Reviewer: revise
+10:47:14 review partially_accept -> 200 | final partially_accepted by user:2
+   2026-10-21T23:46:22 received
+   2026-10-21T23:46:22 planning
+   2026-10-21T23:46:34 working
+   2026-10-21T23:46:43 reviewing
+   2026-10-21T23:46:49 awaiting_human_review
+   2026-10-21T23:46:49 changes_requested
+   2026-10-21T23:46:49 planning
+   2026-10-21T23:47:02 working
+   2026-10-21T23:47:14 reviewing
+   2026-10-21T23:47:14 awaiting_human_review
+   2026-10-21T23:47:14 partially_accepted
+WORKFLOW_ID 120184b5-64ae-4772-9cc4-7d5589d69de6

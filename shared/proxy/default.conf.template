@@ -21,6 +21,30 @@ map $http_x_forwarded_proto $client_scheme {
     http    http;
 }
 
+# --- Endpoint security (bonus B5; also on locally) -------------------------------
+# No nginx version in responses or error pages.
+server_tokens off;
+
+# The client's own address. Behind the Container Apps edge every request comes from
+# the edge, which appends the real client to X-Forwarded-For; the LAST entry is the
+# one the edge added (earlier entries are whatever the client sent, so not trusted).
+map $http_x_forwarded_for $client_ip {
+    "~(?<last>[^,\s]+)\s*$" $last;
+    default $remote_addr;
+}
+
+# Rate limits per client: a general ceiling for every route, and a much lower one
+# for sign-in and registration (password guessing, account spam).
+limit_req_zone $client_ip zone=per_client:10m rate=20r/s;
+limit_req_zone $client_ip zone=sign_in:10m rate=10r/m;
+limit_req_status 429;
+
+# HSTS only when the client actually used HTTPS (never on http://localhost:3000).
+map $client_scheme $hsts {
+    https "max-age=31536000; includeSubDomains";
+    default "";
+}
+
 # Ollama-backed AI endpoints (almanac, health, vgarden) can take a while on CPU.
 # Keep the proxy from timing out before the app's own client does.
 proxy_read_timeout 300s;
@@ -61,6 +85,27 @@ upstream almanac {
 server {
     listen 80;
 
+    limit_req zone=per_client burst=80 nodelay;
+
+    # Security headers on every response (also errors). The pages load HTMX, Alpine,
+    # Franken UI and fonts from these CDNs; Alpine evaluates its attribute
+    # expressions, hence 'unsafe-eval'. Framing, plugins and foreign form targets are refused.
+    add_header Strict-Transport-Security $hsts always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), payment=(), usb=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'" always;
+    # The apps' own server banners (gunicorn / Werkzeug) are not passed on.
+    proxy_hide_header Server;
+    proxy_hide_header X-Powered-By;
+
+    # Dotfiles (.env, .git, ...) are never served or routed on.
+    location ~ /\.(?!well-known/) {
+        return 404;
+    }
+
     # Answered by the proxy itself (used as its container probe); never routed on.
     location = /proxy-healthz {
         access_log off;
@@ -88,6 +133,19 @@ server {
         proxy_set_header X-Forwarded-Proto $client_scheme;
         # Tells the Flask app (via ProxyFix) that it is mounted under /auth,
         # so url_for()/redirects come back with the /auth prefix.
+        proxy_set_header X-Forwarded-Prefix /auth;
+    }
+
+    # Sign-in and registration: the same auth upstream with the stricter limit.
+    location ~ ^/auth/(login|register)$ {
+        limit_req zone=sign_in burst=10 nodelay;
+        proxy_pass http://auth;
+        rewrite ^/auth/(.*)$ /$1 break;
+        proxy_set_header Host ${AUTH_HOST};
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $client_scheme;
         proxy_set_header X-Forwarded-Prefix /auth;
     }
 

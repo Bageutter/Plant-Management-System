@@ -130,6 +130,13 @@ def create_app(config_class: type = Config) -> Flask:
     if app.config.get("AUTO_MIGRATE", True):
         upgrade_database(app)
 
+    # Start-up work above (migrations, seeding) opened database connections in this
+    # process. Under gunicorn --preload it is the master, and forked workers would
+    # inherit and share those SSL sockets ("SSL error: decryption failed or bad record
+    # mac" in the cloud). Close them so each worker opens its own.
+    with app.app_context():
+        db.engine.dispose()
+
     return app
 
 

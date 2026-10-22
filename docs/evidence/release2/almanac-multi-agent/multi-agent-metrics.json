@@ -1,0 +1,127 @@
+{
+  "generated_at": "2026-10-21T23:48:34.731939+00:00",
+  "scope": "Local development history, including failures and interrupted runs; not a benchmark.",
+  "tracked_workflows": 3,
+  "untracked_legacy_workflows": 0,
+  "run_attempts": 6,
+  "current_states": {
+    "partially_accepted": 2,
+    "accepted": 1
+  },
+  "plan_acceptance_rate": {
+    "value": null,
+    "reason": "No separate plan-approval decision is recorded."
+  },
+  "plan_generation_rate": {
+    "numerator": 6,
+    "denominator": 6,
+    "value": 1.0,
+    "definition": "Runs producing a plan / runs started"
+  },
+  "worker_completion_rate": {
+    "numerator": 6,
+    "denominator": 6,
+    "value": 1.0,
+    "definition": "Worker results saved / Worker starts"
+  },
+  "handoff_success_rate": {
+    "numerator": 18,
+    "denominator": 18,
+    "value": 1.0,
+    "definition": "Completed AI stages / started AI stages; includes pending and interrupted starts"
+  },
+  "reviewer_defect_yield": {
+    "issues_reported": 2,
+    "reviews": 6,
+    "issues_per_review": 0.3333333333333333,
+    "reviews_with_issues": 2,
+    "confirmed_defects": null,
+    "note": "Reported issues are not confirmed defects. Ground-truth regression results are separate."
+  },
+  "rework_ratio": {
+    "numerator": 3,
+    "denominator": 6,
+    "value": 0.5,
+    "definition": "Repeat runs / all runs; includes failure retries"
+  },
+  "human_requested_revision_runs": 3,
+  "workflow_completion_rate": {
+    "numerator": 3,
+    "denominator": 3,
+    "value": 1.0,
+    "definition": "Workflows with a final human decision / tracked workflows; rejection counts as closed"
+  },
+  "human_approval_rate": {
+    "numerator": 3,
+    "denominator": 3,
+    "value": 1.0,
+    "definition": "Accepted or partially accepted workflows / tracked workflows"
+  },
+  "end_to_end_completion_times": [
+    {
+      "workflow_id": "f0a706d0-04d9-4eb1-8fe1-82d50d0eed48",
+      "decision": "accepted",
+      "seconds": 29.987517
+    },
+    {
+      "workflow_id": "8a8bae49-bd28-49ff-8ce5-d9b3663d71bd",
+      "decision": "partially_accepted",
+      "seconds": 600.494384
+    },
+    {
+      "workflow_id": "120184b5-64ae-4772-9cc4-7d5589d69de6",
+      "decision": "partially_accepted",
+      "seconds": 51.724934
+    }
+  ],
+  "end_to_end_note": "Creation to final decision, including human waiting time; pending workflows have no completion duration.",
+  "stage_execution_times": {
+    "planner": {
+      "samples": 6,
+      "mean_seconds": 10.918026,
+      "successful_seconds": [
+        9.884983,
+        5.655721,
+        10.135974,
+        15.222105,
+        11.678272,
+        12.931099
+      ]
+    },
+    "worker": {
+      "samples": 6,
+      "mean_seconds": 99.322279,
+      "successful_seconds": [
+        5.158746,
+        3.915762,
+        553.612621,
+        12.422352,
+        9.130433,
+        11.693758
+      ]
+    },
+    "reviewer": {
+      "samples": 6,
+      "mean_seconds": 2.831801,
+      "successful_seconds": [
+        0.004209,
+        4.947471,
+        6.547769,
+        0.016755,
+        5.469255,
+        0.005346
+      ]
+    }
+  },
+  "latest_agent_run": {
+    "workflow_id": "120184b5-64ae-4772-9cc4-7d5589d69de6",
+    "run_id": "e61fd9f8-8b0c-4071-9f6c-4f4879da3cf0",
+    "finished_at": "2026-10-21T23:47:14.401587+00:00",
+    "seconds_to_human_review": 24.630203,
+    "stage_seconds": {
+      "planner": 12.931099,
+      "worker": 11.693758,
+      "reviewer": 0.005346
+    }
+  }
+}

@@ -1,0 +1,261 @@
+{
+  "report": "cloud-deployment",
+  "generated_at": "2026-10-21T21:55:49Z",
+  "deployment": {
+    "platform": "Microsoft Azure",
+    "subscription": "Azure for Students",
+    "resource_group": "rg-plantms-prod",
+    "location": "australiaeast",
+    "commit": "0f88ba47a0a604eaea568e1eeff5665f3ed2fb9d",
+    "branch": "yunz/fix-postgres-redeploy",
+    "image_tag": "0f88ba4",
+    "actor": "yunz-dev",
+    "workflow_run_url": "https://github.com/Bageutter/Plant-Management-System/actions/runs/39680594970"
+  },
+  "endpoints": {
+    "app_url": "https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+    "public_urls": {
+      "almanac": "https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io/almanac/",
+      "auth": "https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io/auth",
+      "health": "https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io/health/plant-health-records/",
+      "vgarden": "https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io/vgarden"
+    },
+    "internal_fqdns": {
+      "almanac": "plantms-prod-almanac.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "auth": "plantms-prod-auth.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "frontend": "plantms-prod-frontend.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "health": "plantms-prod-health.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "vgarden": "plantms-prod-vgarden.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io"
+    }
+  },
+  "cloud_baseline": {
+    "ai_mode_enabled": false,
+    "mcp_enabled": false,
+    "rag_enabled": false,
+    "multi_agent_enabled": false
+  },
+  "smoke_test": {
+    "result": "pass"
+  },
+  "container_apps": [
+    {
+      "allowInsecure": true,
+      "external": false,
+      "fqdn": "plantms-prod-frontend.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "image": "acrplantms4m5abpehqyc2o.azurecr.io/plantms/frontend:0f88ba4",
+      "maxReplicas": 1,
+      "minReplicas": 0,
+      "name": "plantms-prod-frontend",
+      "revision": "plantms-prod-frontend--0000005",
+      "secrets": 0,
+      "status": "Running"
+    },
+    {
+      "allowInsecure": false,
+      "external": true,
+      "fqdn": "plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "image": "acrplantms4m5abpehqyc2o.azurecr.io/plantms/proxy:0f88ba4",
+      "maxReplicas": 2,
+      "minReplicas": 1,
+      "name": "plantms-prod-proxy",
+      "revision": "plantms-prod-proxy--0000005",
+      "secrets": 0,
+      "status": "Running"
+    },
+    {
+      "allowInsecure": true,
+      "external": false,
+      "fqdn": "plantms-prod-auth.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "image": "acrplantms4m5abpehqyc2o.azurecr.io/plantms/auth:0f88ba4",
+      "maxReplicas": 1,
+      "minReplicas": 1,
+      "name": "plantms-prod-auth",
+      "revision": "plantms-prod-auth--0000005",
+      "secrets": 3,
+      "status": "Running"
+    },
+    {
+      "allowInsecure": true,
+      "external": false,
+      "fqdn": "plantms-prod-health.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "image": "acrplantms4m5abpehqyc2o.azurecr.io/plantms/health:0f88ba4",
+      "maxReplicas": 1,
+      "minReplicas": 0,
+      "name": "plantms-prod-health",
+      "revision": "plantms-prod-health--0000005",
+      "secrets": 1,
+      "status": "Running"
+    },
+    {
+      "allowInsecure": true,
+      "external": false,
+      "fqdn": "plantms-prod-almanac.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "image": "acrplantms4m5abpehqyc2o.azurecr.io/plantms/almanac:0f88ba4",
+      "maxReplicas": 1,
+      "minReplicas": 0,
+      "name": "plantms-prod-almanac",
+      "revision": "plantms-prod-almanac--0000005",
+      "secrets": 2,
+      "status": "Running"
+    },
+    {
+      "allowInsecure": true,
+      "external": false,
+      "fqdn": "plantms-prod-vgarden.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+      "image": "acrplantms4m5abpehqyc2o.azurecr.io/plantms/vgarden:0f88ba4",
+      "maxReplicas": 1,
+      "minReplicas": 1,
+      "name": "plantms-prod-vgarden",
+      "revision": "plantms-prod-vgarden--0000005",
+      "secrets": 3,
+      "status": "Running"
+    }
+  ],
+  "postgres": [
+    {
+      "backupRetentionDays": 7,
+      "fqdn": "psql-plantms-prod-4m5abpehqyc2o.postgres.database.azure.com",
+      "name": "psql-plantms-prod-4m5abpehqyc2o",
+      "publicNetworkAccess": "Disabled",
+      "sku": "Standard_B1ms",
+      "tier": "Burstable",
+      "version": "16"
+    }
+  ],
+  "key_vaults": [
+    {
+      "name": "kv-plantms-4m5abpeh",
+      "rbac": true,
+      "softDelete": true
+    }
+  ],
+  "storage_accounts": [
+    {
+      "blobPublicAccess": false,
+      "httpsOnly": true,
+      "minimumTlsVersion": "TLS1_2",
+      "name": "stplantms4m5abpehqy",
+      "networkDefaultAction": "Deny"
+    }
+  ],
+  "resources": [
+    {
+      "name": "id-plantms-apps",
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities"
+    },
+    {
+      "name": "id-plantms-github",
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities"
+    },
+    {
+      "name": "kv-plantms-4m5abpeh",
+      "type": "Microsoft.KeyVault/vaults"
+    },
+    {
+      "name": "log-plantms-prod",
+      "type": "Microsoft.OperationalInsights/workspaces"
+    },
+    {
+      "name": "acrplantms4m5abpehqyc2o",
+      "type": "Microsoft.ContainerRegistry/registries"
+    },
+    {
+      "name": "plantms-prod.private.postgres.database.azure.com",
+      "type": "Microsoft.Network/privateDnsZones"
+    },
+    {
+      "name": "vnet-plantms-prod",
+      "type": "Microsoft.Network/virtualNetworks"
+    },
+    {
+      "name": "stplantms4m5abpehqy",
+      "type": "Microsoft.Storage/storageAccounts"
+    },
+    {
+      "name": "cae-plantms-prod",
+      "type": "Microsoft.App/managedEnvironments"
+    },
+    {
+      "name": "plantms-prod.private.postgres.database.azure.com/vnet-plantms-prod-link",
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks"
+    },
+    {
+      "name": "psql-plantms-prod-4m5abpehqyc2o",
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers"
+    },
+    {
+      "name": "plantms-prod-proxy",
+      "type": "Microsoft.App/containerApps"
+    },
+    {
+      "name": "plantms-prod-frontend",
+      "type": "Microsoft.App/containerApps"
+    },
+    {
+      "name": "plantms-prod-auth",
+      "type": "Microsoft.App/containerApps"
+    },
+    {
+      "name": "plantms-prod-health",
+      "type": "Microsoft.App/containerApps"
+    },
+    {
+      "name": "plantms-prod-almanac",
+      "type": "Microsoft.App/containerApps"
+    },
+    {
+      "name": "plantms-prod-vgarden",
+      "type": "Microsoft.App/containerApps"
+    }
+  ],
+  "platform_outputs": {
+    "acrLoginServer": "acrplantms4m5abpehqyc2o.azurecr.io",
+    "acrName": "acrplantms4m5abpehqyc2o",
+    "almanacStorageName": "almanac-instance",
+    "appsIdentityClientId": "dd5a227a-79b3-4b91-b097-a0f574980e71",
+    "environmentDefaultDomain": "thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+    "environmentId": "/subscriptions/1b273291-2a36-4c74-8baa-c7845335f641/resourceGroups/rg-plantms-prod/providers/Microsoft.App/managedEnvironments/cae-plantms-prod",
+    "environmentName": "cae-plantms-prod",
+    "environmentStaticIp": "4.147.102.175",
+    "keyVaultName": "kv-plantms-4m5abpeh",
+    "keyVaultUri": "https://kv-plantms-4m5abpeh.vault.azure.net/",
+    "logAnalyticsWorkspaceId": "53b41452-18cf-4ac0-a16b-cc161ab1d831",
+    "postgresFqdn": "psql-plantms-prod-4m5abpehqyc2o.postgres.database.azure.com",
+    "postgresName": "psql-plantms-prod-4m5abpehqyc2o",
+    "storageAccountName": "stplantms4m5abpehqy"
+  },
+  "security_controls": [
+    {
+      "area": "Endpoint",
+      "control": "Single public entry point: only the nginx proxy container app has external ingress; every Flask service is internal-only and not resolvable from the internet."
+    },
+    {
+      "area": "Endpoint",
+      "control": "HTTPS only: the public ingress redirects plain HTTP to HTTPS (allowInsecure=false) with a managed TLS certificate."
+    },
+    {
+      "area": "Endpoint",
+      "control": "Production process model: services run under gunicorn, not Flask's debug server; session cookies are HttpOnly, SameSite=Lax and Secure."
+    },
+    {
+      "area": "Data",
+      "control": "PostgreSQL Flexible Server is VNet-injected with public network access disabled; clients connect with sslmode=require. Automatic backups are retained for 7 days."
+    },
+    {
+      "area": "Data",
+      "control": "Every secret (database URLs, Flask secret keys, inter-service token) lives in Key Vault (RBAC); container apps read them with a user-assigned managed identity. Nothing is stored in the repository, the workflow or GitHub secrets."
+    },
+    {
+      "area": "Data",
+      "control": "Container Registry: admin user disabled, images pulled with the managed identity."
+    },
+    {
+      "area": "Data",
+      "control": "Plant-image storage: HTTPS/TLS 1.2 only, no public blob access, network access limited to the apps subnet."
+    },
+    {
+      "area": "Pipeline",
+      "control": "GitHub Actions authenticates to Azure with OpenID Connect federation scoped to one resource group; no cloud credential is stored in GitHub."
+    }
+  ]
+}

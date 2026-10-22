@@ -58,6 +58,10 @@ class AlmanacAIModeTests(unittest.TestCase):
                 "SQLALCHEMY_DATABASE_URI": f"sqlite:///{os.path.join(self.temp_dir.name, 'a.db')}",
                 "AI_LOOP_LOG_DIR": os.path.join(self.temp_dir.name, "ai-loop-logs"),
                 "AI_LOOP_MAX_ITERATIONS": 2,
+                # These tests drive the RAG/MCP chat modes with a mocked reference call;
+                # CI exports MCP_ENABLED/RAG_ENABLED=false, so switch them on here.
+                "MCP_ENABLED": True,
+                "RAG_ENABLED": True,
             }
         )
         self.auth = FakeAuthClient({"id": 1, "email": "amy@example.com"})
@@ -101,6 +105,19 @@ class AlmanacAIModeTests(unittest.TestCase):
         with patch("app.chat_reference_result", side_effect=ValueError("offline")):
             response = self.client.post("/ai/ask", data={"question": "Basil?", "mode": "rag"})
         self.assertEqual(response.status_code, 503)
+        with self.app.app_context():
+            self.assertEqual(AIChatMessage.query.count(), 0)
+
+    def test_switched_off_reference_modes_say_so_and_call_nothing(self):
+        for mode, flag, label in (("rag", "RAG_ENABLED", b"Grounded answers (RAG) is turned off"),
+                                  ("mcp", "MCP_ENABLED", b"Reference search (MCP) is turned off")):
+            self.app.config[flag] = False
+            with patch("app.chat_reference_result") as reference:
+                response = self.client.post("/ai/ask", data={"question": "basil", "mode": mode})
+            self.assertEqual(response.status_code, 503)
+            self.assertIn(label, response.data)
+            reference.assert_not_called()
+            self.app.config[flag] = True
         with self.app.app_context():
             self.assertEqual(AIChatMessage.query.count(), 0)
 

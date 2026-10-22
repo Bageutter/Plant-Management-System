@@ -47,7 +47,22 @@ param proxyMinReplicas int = 1
 @minValue(0)
 param serviceMinReplicas int = 0
 
+@description('auth and vgarden are called server-to-server (auth -> vgarden for every garden action, almanac -> auth for every page), so a cold start there surfaces as "could not reach" errors. Keep them warm by default.')
+@minValue(0)
+param dependencyMinReplicas int = 1
+
 // --- Optional bonus profile: all off for the required cloud baseline -------------
+@description('Bonus profile: run Ollama, MCP, RAG and the Multi-Agent Server as internal container apps in this environment. Their URLs then replace the four *Url parameters below.')
+param aiServicesDeployed bool = false
+param ollamaStorageName string = 'ollama-models'
+@description('Ollama image imported into the registry by scripts/deploy/azure-build-push.sh.')
+param ollamaImage string = ''
+@description('Text model for chats, agents, RAG and reviews; vision model for Plant Health.')
+param textModel string = 'qwen3:4b-instruct'
+param visionModel string = 'qwen2.5vl:3b'
+@description('0 = the AI apps scale to zero when idle (Ollama is 4 vCPU / 8 GiB while running).')
+@minValue(0)
+param aiMinReplicas int = 0
 param aiEnabled bool = false
 param ollamaUrl string = 'http://127.0.0.1:11434'
 param mcpEnabled bool = false
@@ -84,6 +99,10 @@ var names = {
   vgarden: '${prefix}-vgarden'
   almanac: '${prefix}-almanac'
   health: '${prefix}-health'
+  ollama: '${prefix}-ollama'
+  mcp: '${prefix}-mcp'
+  rag: '${prefix}-rag'
+  agents: '${prefix}-agents'
 }
 
 // Browser-facing addresses: everything goes through the proxy, path-routed exactly
@@ -104,6 +123,20 @@ var internalFqdn = {
   almanac: '${names.almanac}.internal.${domain}'
   health: '${names.health}.internal.${domain}'
 }
+
+// Bonus profile: the AI services' internal addresses (never reachable from the internet).
+var aiFqdn = {
+  ollama: '${names.ollama}.internal.${domain}'
+  mcp: '${names.mcp}.internal.${domain}'
+  rag: '${names.rag}.internal.${domain}'
+  agents: '${names.agents}.internal.${domain}'
+}
+var ollamaEndpoint = aiServicesDeployed ? 'http://${aiFqdn.ollama}' : ollamaUrl
+var mcpEndpoint = aiServicesDeployed ? 'http://${aiFqdn.mcp}/mcp' : mcpServerUrl
+var ragEndpoint = aiServicesDeployed ? 'http://${aiFqdn.rag}' : ragServerUrl
+var agentsEndpoint = aiServicesDeployed ? 'http://${aiFqdn.agents}' : multiAgentUrl
+// The cloud ingress ends a request after 240 s, so every model call stays under it.
+var modelTimeout = aiServicesDeployed ? '230' : '120'
 
 var image = {
   proxy: '${acrLoginServer}/${imageRepositoryPrefix}/proxy:${imageTag}'
@@ -151,17 +184,33 @@ var commonEnv = [
 
 // Cloud baseline switches (all four services read the ones they know about).
 var aiEnv = [
-  { name: 'OLLAMA_URL', value: aiEnabled ? ollamaUrl : 'http://127.0.0.1:11434' }
+  // Explicit AI-Mode switch (health saves records "not assessed" when off).
+  { name: 'AI_MODE_ENABLED', value: string(aiEnabled) }
+  { name: 'OLLAMA_URL', value: aiEnabled ? ollamaEndpoint : 'http://127.0.0.1:11434' }
   { name: 'OLLAMA_AUTO_PULL', value: string(aiEnabled) }
   { name: 'OLLAMA_PRELOAD', value: string(aiEnabled) }
+  { name: 'OLLAMA_TIMEOUT', value: modelTimeout }
   { name: 'MCP_ENABLED', value: string(mcpEnabled) }
-  { name: 'MCP_SERVER_URL', value: mcpServerUrl }
+  { name: 'MCP_SERVER_URL', value: mcpEndpoint }
   { name: 'RAG_ENABLED', value: string(ragEnabled) }
-  { name: 'RAG_SERVER_URL', value: ragServerUrl }
+  { name: 'RAG_SERVER_URL', value: ragEndpoint }
   { name: 'MULTI_AGENT_ENABLED', value: string(multiAgentEnabled) }
-  { name: 'MULTI_AGENT_URL', value: multiAgentUrl }
+  { name: 'MULTI_AGENT_URL', value: agentsEndpoint }
+  // The Almanac reads its own name for the same setting.
+  { name: 'MULTI_AGENT_SERVER_URL', value: agentsEndpoint }
   { name: 'AI_LOOP_MAX_ITERATIONS', value: '2' }
   { name: 'AI_LOOP_LOG_DIR', value: '/tmp/ai-loop-logs' }
+]
+
+// One text model in the cloud: the local review default (llama3.1:8b) does not fit
+// next to the others in Ollama's 8 GiB.
+var textModelEnv = [
+  { name: 'OLLAMA_MODEL', value: textModel }
+  { name: 'OLLAMA_REVIEW_MODEL', value: textModel }
+]
+var visionModelEnv = [
+  { name: 'OLLAMA_MODEL', value: visionModel }
+  { name: 'OLLAMA_REVIEW_MODEL', value: textModel }
 ]
 
 // ---------------------------------------------------------------------------
@@ -240,7 +289,7 @@ module auth 'modules/container-app.bicep' = {
     image: image.auth
     command: gunicorn
     probePath: '/login'
-    minReplicas: serviceMinReplicas
+    minReplicas: max(serviceMinReplicas, dependencyMinReplicas)
     secrets: [
       { name: 'secret-key', keyVaultUrl: secretUrl(vaultUri, 'auth-secret-key') }
       { name: 'database-url', keyVaultUrl: secretUrl(vaultUri, 'database-url-auth') }
@@ -270,13 +319,13 @@ module vgarden 'modules/container-app.bicep' = {
     image: image.vgarden
     command: gunicorn
     probePath: '/healthz'
-    minReplicas: serviceMinReplicas
+    minReplicas: max(serviceMinReplicas, dependencyMinReplicas)
     secrets: [
       { name: 'secret-key', keyVaultUrl: secretUrl(vaultUri, 'vgarden-secret-key') }
       { name: 'database-url', keyVaultUrl: secretUrl(vaultUri, 'database-url-vgarden') }
       { name: 'inter-service-secret', keyVaultUrl: secretUrl(vaultUri, 'inter-service-secret') }
     ]
-    env: concat(commonEnv, aiEnv, [
+    env: concat(commonEnv, aiEnv, textModelEnv, [
       { name: 'SECRET_KEY', secretRef: 'secret-key' } // pragma: allowlist secret
       { name: 'DATABASE_URL', secretRef: 'database-url' } // pragma: allowlist secret
       { name: 'INTER_SERVICE_SECRET', secretRef: 'inter-service-secret' } // pragma: allowlist secret
@@ -304,7 +353,7 @@ module almanac 'modules/container-app.bicep' = {
       { name: 'secret-key', keyVaultUrl: secretUrl(vaultUri, 'almanac-secret-key') }
       { name: 'database-url', keyVaultUrl: secretUrl(vaultUri, 'database-url-almanac') }
     ]
-    env: concat(commonEnv, aiEnv, [
+    env: concat(commonEnv, aiEnv, textModelEnv, [
       { name: 'SECRET_KEY', secretRef: 'secret-key' } // pragma: allowlist secret
       { name: 'DATABASE_URL', secretRef: 'database-url' } // pragma: allowlist secret
       { name: 'AUTH_URL', value: 'http://${internalFqdn.auth}' }
@@ -342,20 +391,164 @@ module health 'modules/container-app.bicep' = {
     secrets: [
       { name: 'database-url', keyVaultUrl: secretUrl(vaultUri, 'database-url-health') }
     ]
-    env: concat(commonEnv, aiEnv, [
+    env: concat(commonEnv, aiEnv, visionModelEnv, [
       { name: 'DATABASE_URL', secretRef: 'database-url' } // pragma: allowlist secret
     ])
+  }
+}
+
+// ===========================================================================
+// Bonus profile (B1-B4): the shared AI services, as internal-only container apps.
+// The required cloud baseline deploys none of these (aiServicesDeployed=false).
+// ===========================================================================
+
+// Ollama (AI-Mode): CPU inference, models kept on an Azure Files share so a
+// restart or scale-from-zero does not download them again.
+module ollama 'modules/container-app.bicep' = if (aiServicesDeployed) {
+  name: 'app-ollama'
+  params: {
+    name: names.ollama
+    location: location
+    tags: tags
+    environmentId: environment.id
+    identityId: appsIdentity.id
+    acrLoginServer: acrLoginServer
+    image: ollamaImage
+    targetPort: 11434
+    // Serve at once, then fetch any missing model in the background (a no-op once
+    // the share holds them).
+    command: [
+      '/bin/sh'
+      '-c'
+      'ollama serve & pid=$!; sleep 5; for m in $OLLAMA_PULL_MODELS; do ollama pull "$m" || echo "pull $m failed"; done; wait $pid'
+    ]
+    cpu: '4'
+    memory: '8Gi'
+    probePath: '/'
+    minReplicas: aiMinReplicas
+    maxReplicas: 1
+    env: [
+      { name: 'OLLAMA_HOST', value: '0.0.0.0:11434' }
+      { name: 'OLLAMA_PULL_MODELS', value: '${textModel} ${visionModel}' }
+      // One model in memory at a time; requests queue instead of overcommitting 8 GiB.
+      { name: 'OLLAMA_MAX_LOADED_MODELS', value: '1' }
+      { name: 'OLLAMA_NUM_PARALLEL', value: '1' }
+      { name: 'OLLAMA_KEEP_ALIVE', value: '15m' }
+    ]
+    volumes: [
+      { name: 'models', storageType: 'AzureFile', storageName: ollamaStorageName }
+    ]
+    volumeMounts: [
+      { volumeName: 'models', mountPath: '/root/.ollama' }
+    ]
+  }
+}
+
+// Feature addresses the AI services call: internal ingress, no proxy prefix.
+var featureServiceUrls = [
+  { name: 'HEALTH_SERVICE_URL', value: 'http://${internalFqdn.health}' }
+  { name: 'ALMANAC_SERVICE_URL', value: 'http://${internalFqdn.almanac}' }
+  { name: 'VGARDEN_SERVICE_URL', value: 'http://${internalFqdn.vgarden}' }
+  // Cold features take 20-40 s to answer their first request.
+  { name: 'SERVICE_TIMEOUT', value: '60' }
+]
+
+// MCP server: tools over the features' APIs (vgarden's with the inter-service token).
+module mcp 'modules/container-app.bicep' = if (aiServicesDeployed) {
+  name: 'app-mcp'
+  params: {
+    name: names.mcp
+    location: location
+    tags: tags
+    environmentId: environment.id
+    identityId: appsIdentity.id
+    acrLoginServer: acrLoginServer
+    image: '${acrLoginServer}/${imageRepositoryPrefix}/mcp-server:${imageTag}'
+    targetPort: 5105
+    probePath: '/healthz'
+    minReplicas: aiMinReplicas
+    secrets: [
+      { name: 'inter-service-secret', keyVaultUrl: secretUrl(vaultUri, 'inter-service-secret') }
+    ]
+    env: concat(featureServiceUrls, [
+      { name: 'MCP_ENABLED', value: string(mcpEnabled) }
+      // DNS-rebinding protection: only its own internal name (and the probe's loopback).
+      { name: 'MCP_ALLOWED_HOSTS', value: '${aiFqdn.mcp},${aiFqdn.mcp}:*,127.0.0.1:*,localhost:*' }
+      { name: 'RAG_SERVICE_URL', value: ragEndpoint }
+      { name: 'ASSESS_TIMEOUT', value: modelTimeout }
+      { name: 'VGARDEN_SERVICE_TOKEN', secretRef: 'inter-service-secret' } // pragma: allowlist secret
+    ])
+  }
+}
+
+// RAG server: index rebuilt from the features at start and every 10 minutes.
+module rag 'modules/container-app.bicep' = if (aiServicesDeployed) {
+  name: 'app-rag'
+  params: {
+    name: names.rag
+    location: location
+    tags: tags
+    environmentId: environment.id
+    identityId: appsIdentity.id
+    acrLoginServer: acrLoginServer
+    image: '${acrLoginServer}/${imageRepositoryPrefix}/rag-server:${imageTag}'
+    targetPort: 5106
+    // Not /healthz: that answers 503 while Ollama is still scaling up from zero.
+    probePath: '/'
+    minReplicas: aiMinReplicas
+    secrets: [
+      { name: 'inter-service-secret', keyVaultUrl: secretUrl(vaultUri, 'inter-service-secret') }
+    ]
+    env: concat(featureServiceUrls, [
+      { name: 'RAG_ENABLED', value: string(ragEnabled) }
+      { name: 'OLLAMA_URL', value: ollamaEndpoint }
+      { name: 'OLLAMA_MODEL', value: textModel }
+      { name: 'OLLAMA_AUTO_PULL', value: 'false' }
+      { name: 'OLLAMA_TIMEOUT', value: modelTimeout }
+      // Citations link to the public pages.
+      { name: 'HEALTH_PUBLIC_URL', value: '${publicBaseUrl}/health' }
+      { name: 'ALMANAC_PUBLIC_URL', value: '${publicBaseUrl}/almanac' }
+      { name: 'VGARDEN_PUBLIC_URL', value: '${publicBaseUrl}/vgarden' }
+      { name: 'VGARDEN_SERVICE_TOKEN', secretRef: 'inter-service-secret' } // pragma: allowlist secret
+    ])
+  }
+}
+
+// Multi-Agent Server: Planner -> Worker -> Reviewer, human review in the features.
+module agents 'modules/container-app.bicep' = if (aiServicesDeployed) {
+  name: 'app-agents'
+  params: {
+    name: names.agents
+    location: location
+    tags: tags
+    environmentId: environment.id
+    identityId: appsIdentity.id
+    acrLoginServer: acrLoginServer
+    image: '${acrLoginServer}/${imageRepositoryPrefix}/multi-agent-server:${imageTag}'
+    targetPort: 8003
+    probePath: '/healthz'
+    minReplicas: aiMinReplicas
+    env: [
+      { name: 'OLLAMA_URL', value: ollamaEndpoint }
+      { name: 'OLLAMA_MODEL', value: textModel }
+      { name: 'REVIEWER_MODEL', value: textModel }
+      { name: 'OLLAMA_TIMEOUT', value: modelTimeout }
+      { name: 'MCP_SERVER_URL', value: mcpEndpoint }
+    ]
   }
 }
 
 output appUrl string = publicBaseUrl
 output proxyFqdn string = proxy.outputs.fqdn
 output publicUrls object = publicUrls
-output internalFqdns object = internalFqdn
+output internalFqdns object = aiServicesDeployed ? union(internalFqdn, aiFqdn) : internalFqdn
 output imageTag string = imageTag
 output cloudBaseline object = {
   aiMode: aiEnabled
   mcp: mcpEnabled
   rag: ragEnabled
   multiAgent: multiAgentEnabled
+  aiServicesDeployed: aiServicesDeployed
+  textModel: aiServicesDeployed ? textModel : ''
+  visionModel: aiServicesDeployed ? visionModel : ''
 }

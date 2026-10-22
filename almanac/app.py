@@ -372,6 +372,11 @@ def create_app(test_config: dict | None = None) -> Flask:
         HEALTH_PUBLIC_URL=os.environ.get(
             "HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records/"
         ),
+        # Session cookie (CSRF token, chat owner): never readable by scripts, not sent
+        # on cross-site requests, and HTTPS-only in the cloud (SESSION_COOKIE_SECURE).
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true",
         OLLAMA_URL=os.environ.get("OLLAMA_URL", "http://localhost:11434"),
         OLLAMA_MODEL=os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
         OLLAMA_TIMEOUT=int(os.environ.get("OLLAMA_TIMEOUT", "120")),
@@ -419,7 +424,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.jinja_env.filters["highlight_excerpt"] = _highlight_excerpt
     app.register_blueprint(catalogue_api)
     app.register_blueprint(integrations)
-    app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"])
+    app.extensions["auth_client"] = AuthClient(app.config["AUTH_URL"], timeout=10)
     app.extensions["almanac_ai"] = OllamaAlmanacAI(
         base_url=app.config["OLLAMA_URL"],
         model=app.config["OLLAMA_MODEL"],
@@ -851,6 +856,11 @@ def create_app(test_config: dict | None = None) -> Flask:
             return _render_chat(owner_key)
 
         if mode in ("rag", "mcp"):
+            # Same as Multi-Agent above: say the integration is switched off (the cloud
+            # baseline and CI) instead of "unavailable, try again", which suggests a fault.
+            if not app.config["MCP_ENABLED" if mode == "mcp" else "RAG_ENABLED"]:
+                label = "Reference search (MCP)" if mode == "mcp" else "Grounded answers (RAG)"
+                return _render_chat(owner_key, f"{label} is turned off in this deployment. Your question has not been saved."), 503
             if mode == "mcp" and len(question) > 120:
                 return _render_chat(owner_key, "For reference search, enter a name under 120 characters."), 400
             try:
@@ -1074,6 +1084,13 @@ def create_app(test_config: dict | None = None) -> Flask:
         print(
             f"Updated {refresh_garden_wording()} text fields; added {seed_guilds()} companion links."
         )
+
+    # Start-up work above (migrations, seeding) opened database connections in this
+    # process. Under gunicorn --preload it is the master, and forked workers would
+    # inherit and share those SSL sockets ("SSL error: decryption failed or bad record
+    # mac" in the cloud). Close them so each worker opens its own.
+    with app.app_context():
+        db.engine.dispose()
 
     return app
 

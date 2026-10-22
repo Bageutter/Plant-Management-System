@@ -1,0 +1,46 @@
+%% Group cloud reference architecture (Microsoft Azure, cloud baseline: AI-Mode, MCP, RAG and Multi-Agent disabled).
+%% Mirrors docs/deployment/azure.md and infra/*.bicep (PR #78). Render: npx mmdc -i cloud-architecture.mmd -o cloud-architecture.svg
+flowchart LR
+    U["Users<br/>(browser, HTTPS)"]
+
+    subgraph GH["GitHub"]
+        REPO["Repository · main"]
+        ACT["GitHub Actions<br/>cloud-deployment.yml"]
+    end
+
+    subgraph AZ["Azure · resource group rg-plantms-prod · australiaeast"]
+        ACR[("Azure Container Registry<br/>6 images tagged with the commit SHA")]
+        KV[("Key Vault<br/>SECRET_KEY · INTER_SERVICE_SECRET · DB passwords")]
+        LOG[("Log Analytics<br/>container logs · metrics")]
+        ST[("Azure Files<br/>almanac plant images")]
+        MI["Managed identities<br/>id-plantms-apps (AcrPull, KV Secrets User)<br/>id-plantms-github (OIDC, Contributor)"]
+        subgraph VNET["VNet 10.20.0.0/16"]
+            subgraph CAE["Container Apps environment (snet-apps)"]
+                PX["proxy (nginx)<br/>the only public ingress"]
+                FE["frontend<br/>internal ingress"]
+                AU["auth<br/>internal"]
+                VG["vgarden<br/>internal"]
+                AL["almanac<br/>internal"]
+                HE["health<br/>internal"]
+            end
+            PG[("Azure Database for PostgreSQL<br/>Flexible Server (snet-postgres, private)<br/>auth · vgarden · almanac · health")]
+        end
+    end
+
+    OFF["AI services in the cloud baseline:<br/>OLLAMA unreachable · MCP_ENABLED=false<br/>RAG_ENABLED=false · MULTI_AGENT_ENABLED=false<br/>(bonus profile would enable them)"]
+
+    U -- "https://plantms-prod-proxy.&lt;env&gt;.australiaeast.azurecontainerapps.io" --> PX
+    PX --> FE & AU & VG & AL & HE
+    AU -- "service token" --> VG
+    AL -- "cookie → /me" --> AU
+    AU & VG & AL & HE -- "sslmode=require" --> PG
+    AL --- ST
+    CAE --> LOG
+    KV -. "secrets via managed identity" .-> CAE
+    ACR -. "image pull via managed identity" .-> CAE
+
+    REPO -- "push to main" --> ACT
+    ACT -- "OIDC sign-in (no stored credential)" --> MI
+    ACT -- "docker build + push" --> ACR
+    ACT -- "az deployment (Bicep)" --> VNET
+    HE & VG & AL -.- OFF
