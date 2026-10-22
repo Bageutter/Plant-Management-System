@@ -188,6 +188,13 @@ def test_integrations_status_reports_disabled_modes_without_calling_out(app, cli
     assert "MCP off" in page and "RAG off" in page
 
 
+@pytest.mark.parametrize("enabled", [False, True])
+def test_integrations_reports_actual_ai_mode_configuration(app, client, enabled):
+    app.config["AI_MODE_ENABLED"] = enabled
+    body = client.get("/plant-health-records/integrations").get_json()
+    assert body["ai_mode"] == {"enabled": enabled}
+
+
 def test_integrations_status_probes_when_enabled(app, client, mcp, rag):
     body = client.get("/plant-health-records/integrations").get_json()
     assert body["mcp"]["enabled"] is True and body["mcp"]["reachable"] is True
