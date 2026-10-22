@@ -236,8 +236,10 @@ def gather_multi_agent(args) -> tuple[dict, list[Check], list[str]]:
            f"{len(handoffs)} handoffs" + (f"; no model at sequence {no_model[:5]}" if no_model else "."))
 
     reviewers = sorted({str(h.get("reviewer_id")) for w in workflows.values() for h in w["humans"]})
-    ui = [r for r in reviewers if "-user-" in r]
-    terminal = [r for r in reviewers if "-user-" not in r]
+    # Terminal runs name themselves "...terminal"; UI decisions carry the signed-in or
+    # web user ("vgarden-user-1", "health-user-web", almanac's "user:<id>").
+    terminal = [r for r in reviewers if "terminal" in r]
+    ui = [r for r in reviewers if "terminal" not in r]
     _check(checks, "MA-7", "Human reviews came from both the frontend UI and the terminal",
            bool(ui and terminal), f"UI reviewer ids: {ui or 'none'}; terminal reviewer ids: {terminal or 'none'}.")
 
