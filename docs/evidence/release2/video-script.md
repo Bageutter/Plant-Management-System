@@ -1,4 +1,4 @@
-# Release 2 showcase video script (8 minutes, ~120 wpm)
+# Release 2 showcase video script (9 minutes, ~120 wpm)
 
 Written against the Assessment 3 brief. The video must show, through the frontend UI: the
 Multi-Agent workflow, the UI running locally **and** in the cloud, pre-commit security scans,
@@ -6,7 +6,7 @@ post-commit CI/CD endpoint tests (two endpoint functions per student, in that st
 workflow file), and the agentic-loop review modes. All three students must appear, each
 must explain their own Release 2 contribution, and each must show their own feature in the
 cloud deployment as well as locally. Maximum length is 10 minutes; this script targets
-eight so there is room for Q&A.
+about nine, including the bonus section (AI services and security in the cloud).
 
 Speakers: **Yunus** (Virtual Garden, auth, proxy, local deployment, pre-commit, cloud
 deployment), **Amy** (Plant Almanac, Multi-Agent Server, agentic-loop review modes),
@@ -14,8 +14,8 @@ deployment), **Amy** (Plant Almanac, Multi-Agent Server, agentic-loop review mod
 
 Conventions: `[square brackets]` are what the screen shows or what the presenter clicks.
 Bold name = who speaks the lines underneath. Times are cumulative targets. Spoken text is
-about 960 words, which is eight minutes at 120 words per minute; cut the model
-waits in editing so the clicks and page loads do not push it past nine.
+about 1,070 words, which is nine minutes at 120 words per minute; cut the model
+waits in editing so the clicks and page loads do not push it past ten.
 
 ## Before recording (not spoken)
 
@@ -27,11 +27,12 @@ waits in editing so the clicks and page loads do not push it past nine.
 6. Plant Health: plant name **Tomato in the back bed** with two or three earlier assessments. Click **Sync records to the knowledge base** once. One clear photo of a plant with yellowing leaves on the desktop.
 7. Almanac opened once so the seed catalogue has loaded, then, while logged in, on **Reference tools** expand **Updated the catalogue?** and click **Refresh references** once so the RAG server has indexed the catalogue (otherwise "Ask with sources" answers "insufficient context").
 8. Browser tabs ready: GitHub **Actions** filtered to each of `vgarden.yml`, `plant_almanac.yml`, `health.yml` and `cloud-deployment.yml` (one green run each, opened at the "Test the two assigned endpoint functions" step); the Azure portal resource group `rg-plantms-prod`; the deployed proxy URL from `docs/evidence/release2/cloud-deployment/latest.md`; `http://127.0.0.1:8003/dashboard`.
-9. The deployed site must be on the **baseline** profile for the cloud shot: `curl <deployed URL>/vgarden/integrations` must report `"enabled": false` for `mcp`, `rag` and `multi_agent`. A bonus-profile run leaves them enabled. `gh workflow run cloud-deployment.yml -f service_min_replicas=1`, approved in `azure-production`, puts the baseline back in 6–10 minutes and keeps every service warm so the first click is instant; run it again without `-f` after recording to scale back to zero.
-10. A one-line change staged so a commit can be shown running the pre-commit hooks.
-11. Record the model waits in full, then cut them in editing. On CPU the garden workflow, the health assessment and the review modes can each take one to three minutes; with the models on a GPU a Planner, Worker, Reviewer run takes about 15 to 25 seconds and a chat answer 5 to 10 seconds.
-12. If any container is recreated (for example after a compose change), restart the proxy too: nginx caches each backend's IP at startup and otherwise answers 502.
-13. On the Windows/WSL laptop, `docker-compose.demo.yml` holds the recording settings and the rerun steps are in its header comment.
+9. Record the **bonus** section (7:15) first, while the deployed site is on the bonus profile: `curl <deployed URL>/vgarden/integrations` reports `"enabled": true` for `mcp`, `rag` and `multi_agent`. If it is on the baseline, `gh workflow run cloud-deployment.yml -f profile=bonus -f ai_min_replicas=1 -f service_min_replicas=1` (approved in `azure-production`) brings the AI apps up; Ollama's models are already on the file share. On the deployed site, log in, open a garden with a planting and click **Sync this garden to the knowledge base** about a minute before the RAG question. Each cloud model answer takes one to three minutes on CPU, so cut the waits. Then switch to the baseline for the cloud shot as in step 10.
+10. The deployed site must be on the **baseline** profile for the cloud shot: `curl <deployed URL>/vgarden/integrations` must report `"enabled": false` for `mcp`, `rag` and `multi_agent`. A bonus-profile run leaves them enabled. `gh workflow run cloud-deployment.yml -f service_min_replicas=1`, approved in `azure-production`, puts the baseline back in 6–10 minutes and keeps every service warm so the first click is instant; run it again without `-f` after recording to scale back to zero.
+11. A one-line change staged so a commit can be shown running the pre-commit hooks.
+12. Record the model waits in full, then cut them in editing. On CPU the garden workflow, the health assessment and the review modes can each take one to three minutes; with the models on a GPU a Planner, Worker, Reviewer run takes about 15 to 25 seconds and a chat answer 5 to 10 seconds.
+13. If any container is recreated (for example after a compose change), restart the proxy too: nginx caches each backend's IP at startup and otherwise answers 502.
+14. On the Windows/WSL laptop, `docker-compose.demo.yml` holds the recording settings and the rerun steps are in its header comment.
 
 ---
 
@@ -161,7 +162,22 @@ waits in editing so the clicks and page loads do not push it past nine.
 **Amy**
 > The shared agentic loop gained three Release 2 modes alongside the Release 1 MCP and RAG modes. Multi-Agent Review checks the workflow history and audit logs, Testing Review reads the pre-commit and CI evidence, and Cloud Deployment Review reads the deployment report and the baseline switches. Each one runs fixed checks first, drafts findings with a local model, has a second model review the draft, and ends in a human release decision written into the log.
 
-## 7:15 – Close (≈40 words)
+## 7:15 – Bonus: AI services and security in the cloud (≈110 words)
+
+`[Deployed site (bonus profile), open the garden. In "Tools" (badge "MCP on") choose "get_garden_snapshot", click "Run tool". In "Ask about this garden (grounded)" type "What is planted in the North bed?", click "Ask".]`
+
+**Yunus**
+> For the bonus, an opt-in deploy profile runs AI-Mode, MCP, RAG and the Multi-Agent Server in Azure as four internal-only container apps, reached only through each feature's backend. Here the MCP tool and the grounded RAG answer come from the cloud.
+
+`[In "Agent workflow (Planner → Worker → Reviewer → you)" type "Summarise what is planted in each area", click "Start workflow". Cut the wait. Choose "Accept", click "Submit review".]`
+
+> The full Planner, Worker, Reviewer and human-review workflow runs on the cloud model too.
+
+`[Terminal: curl -sI <deployed URL> — the security headers. Then open docs/evidence/release2/cloud-security/latest.md, "17/17 controls pass".]`
+
+> For security, the proxy is the only public endpoint. It adds HSTS and a content security policy, and rate-limits sign-in. The database is private to the network, secrets live in Key Vault, and GitHub signs in without stored credentials. All 17 checks pass.
+
+## 8:15 – Close (≈40 words)
 
 `[Return to the local landing page.]`
 
