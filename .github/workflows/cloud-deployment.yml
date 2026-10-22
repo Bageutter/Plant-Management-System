@@ -34,6 +34,15 @@ on:
         description: "Minimum replicas for the public proxy"
         required: false
         default: "1"
+      profile:
+        description: "baseline = the required deployment (AI services off). bonus = also run Ollama, MCP, RAG and the Multi-Agent Server in the cloud (B1-B4)"
+        type: choice
+        options: [baseline, bonus]
+        default: baseline
+      ai_min_replicas:
+        description: "bonus only: minimum replicas of the AI apps (0 = scale to zero; Ollama is 4 vCPU / 8 GiB while running)"
+        required: false
+        default: "0"
 
 permissions:
   contents: read
@@ -136,7 +145,8 @@ jobs:
     name: Deploy to Azure Container Apps
     needs: [lint, endpoint-tests, build-validate]
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The bonus profile's first run downloads the models (~6 GB) before its AI check.
+    timeout-minutes: 100
     environment:
       name: azure-production
       url: ${{ steps.apps.outputs.app_url }}
@@ -147,6 +157,9 @@ jobs:
       AZURE_STAGE: ${{ vars.AZURE_STAGE || 'prod' }}
       PROXY_MIN_REPLICAS: ${{ inputs.proxy_min_replicas || vars.PROXY_MIN_REPLICAS || '1' }}
       SERVICE_MIN_REPLICAS: ${{ inputs.service_min_replicas || vars.SERVICE_MIN_REPLICAS || '0' }}
+      # Pushes to main always deploy the required baseline.
+      DEPLOY_PROFILE: ${{ inputs.profile || 'baseline' }}
+      AI_MIN_REPLICAS: ${{ inputs.ai_min_replicas || '0' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -190,6 +203,29 @@ jobs:
         id: smoke
         run: bash scripts/deploy/azure-smoke.sh
 
+      - name: Sign in again (fresh OIDC token for the security check)
+        if: always() && steps.apps.outcome == 'success'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Bonus B5/B6: read-only validation of the endpoint and data security controls.
+      - name: Cloud security validation
+        id: security
+        if: always() && steps.apps.outcome == 'success'
+        run: python3 scripts/deploy/azure_security_check.py "${{ steps.apps.outputs.app_url }}"
+
+      # Bonus B1-B4: each cloud AI service used through the application.
+      - name: Cloud AI check (bonus profile)
+        id: ai
+        if: always() && steps.apps.outcome == 'success' && env.DEPLOY_PROFILE == 'bonus'
+        run: |
+          mkdir -p docs/evidence/release2/cloud-bonus
+          python3 scripts/deploy/azure-ai-e2e.py "${{ steps.apps.outputs.app_url }}" \
+            | tee docs/evidence/release2/cloud-bonus/ai-e2e.txt
+
       - name: Sign in again (fresh OIDC token for the report)
         if: always()
         uses: azure/login@v2
@@ -207,5 +243,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: cloud-deployment-report-${{ github.run_id }}
-          path: docs/evidence/release2/cloud-deployment/
+          path: |
+            docs/evidence/release2/cloud-deployment/
+            docs/evidence/release2/cloud-bonus/
+            docs/evidence/release2/cloud-security/
           retention-days: 90

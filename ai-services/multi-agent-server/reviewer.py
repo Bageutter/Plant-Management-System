@@ -4,7 +4,7 @@ import re
 
 import httpx
 
-from model_config import model_for
+from model_config import model_for, timeout as model_timeout
 
 REVIEW_SCHEMA = {
     "type": "object",
@@ -128,7 +128,7 @@ def _review_record(plan: dict, result: dict, evidence: dict, *, check_fields=Tru
         "options": {"temperature": 0, "num_predict": 700, "num_ctx": 8192},
     }
     url = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
-    response = httpx.post(f"{url}/api/chat", json=payload, timeout=120)
+    response = httpx.post(f"{url}/api/chat", json=payload, timeout=model_timeout())
     response.raise_for_status()
     review = json.loads(response.json()["message"]["content"])
     if not isinstance(review, dict) or set(review) != {"issues"}:

@@ -1,4 +1,5 @@
-// One container app on the shared environment. Used six times by apps.bicep.
+// One container app on the shared environment. Used by apps.bicep for the six
+// application apps and, in the bonus profile, the four AI services.
 //
 // Every app pulls from the registry and reads Key Vault secrets with the same
 // user-assigned identity; nothing is stored as a plain secret on the app.
@@ -31,10 +32,11 @@ param secrets array = []
 param minReplicas int = 0
 param maxReplicas int = 1
 
-@allowed(['0.25', '0.5', '0.75', '1'])
+// Consumption profile pairs: 0.25 vCPU per 0.5 GiB, up to 4 vCPU / 8 GiB (Ollama).
+@allowed(['0.25', '0.5', '0.75', '1', '2', '4'])
 param cpu string = '0.5'
 
-@allowed(['0.5Gi', '1Gi', '1.5Gi', '2Gi'])
+@allowed(['0.5Gi', '1Gi', '1.5Gi', '2Gi', '4Gi', '8Gi'])
 param memory string = '1Gi'
 
 @description('HTTP path for the startup, liveness and readiness probes.')

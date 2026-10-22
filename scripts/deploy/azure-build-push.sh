@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build the six images and push them to the registry the platform created.
+# Build the six images (plus, in the bonus profile, the three AI servers and the
+# imported Ollama image) and push them to the registry the platform created.
 #
 # The service Dockerfiles copy only their own directory, and docker compose mounts
 # the two shared pieces at run time (./shared/templates -> /app/shared_templates,
@@ -31,11 +32,22 @@ context_for() {
   case $1 in
     proxy) echo "$ROOT/shared/proxy" ;;
     frontend) assemble shared/frontend ;;
+    mcp-server | rag-server | multi-agent-server) assemble "ai-services/$1" ;;
     *) assemble "$1" ;;
   esac
 }
 
-for service in "${SERVICES[@]}"; do
+images=("${SERVICES[@]}")
+if [[ $AI_SERVICES_DEPLOYED == true ]]; then
+  images+=("${AI_SERVICES[@]}")
+  # Server-side copy into the registry: the apps then pull only from our registry,
+  # with the managed identity, and Docker Hub rate limits never apply.
+  ollama_repo="ollama/ollama:${OLLAMA_SOURCE_IMAGE##*:}"
+  step "Importing $OLLAMA_SOURCE_IMAGE as $acr_server/$ollama_repo"
+  az acr import --name "$acr_name" --source "$OLLAMA_SOURCE_IMAGE" --image "$ollama_repo" --force -o none
+fi
+
+for service in "${images[@]}"; do
   image="$acr_server/$AZURE_BASE_NAME/$service"
   context=$(context_for "$service")
   step "Building $image:$IMAGE_TAG"
