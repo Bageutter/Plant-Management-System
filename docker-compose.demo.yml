@@ -1,0 +1,50 @@
+# Demo override for recording on the Windows/WSL laptop.
+#
+#   COMPOSE_PROJECT_NAME=plant-management-system \
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+#
+# AI-Mode stays a non-containerised host process, as the brief requires: Ollama runs
+# natively inside WSL (`OLLAMA_HOST=0.0.0.0:11434 ~/ollama/bin/ollama serve`) and the
+# containers reach it through the base file's default `host.docker.internal:11434`.
+# The Windows Ollama cannot be used because it listens on Windows loopback only, which
+# containers under the WSL Docker engine cannot reach.
+#
+# What this override changes and why:
+# - Model names: the `-demo` variants are the same models with `num_thread 6`; the
+#   default 16 threads run ~80x slower on this hybrid CPU. Auto-pull is off so nothing
+#   tries to download llama3.1:8b, which is not installed.
+# - Long timeouts: CPU inference for a Planner -> Worker -> Reviewer run takes minutes.
+# - Turns the Almanac's Multi-Agent panel on (compose defaults it off there).
+# - Uses the fresh `almanac_data_release2` volume; the old `almanac_data` holds a
+#   database the current migrations cannot upgrade.
+services:
+  vgarden:
+    environment:
+      - OLLAMA_MODEL=qwen3:4b-instruct-demo
+      - OLLAMA_REVIEW_MODEL=qwen2.5vl:3b-demo
+      - OLLAMA_AUTO_PULL=false
+      - OLLAMA_TIMEOUT=900
+      - INTEGRATION_TIMEOUT=900
+      - MULTI_AGENT_TIMEOUT=900
+
+  almanac:
+    environment:
+      - OLLAMA_MODEL=qwen3:4b-instruct-demo
+      - OLLAMA_REVIEW_MODEL=qwen2.5vl:3b-demo
+      - OLLAMA_AUTO_PULL=false
+      - OLLAMA_TIMEOUT=900
+      - MULTI_AGENT_ENABLED=true
+    volumes:
+      - almanac_data_release2:/app/instance
+
+  health:
+    environment:
+      - OLLAMA_MODEL=qwen2.5vl:3b-demo
+      - OLLAMA_REVIEW_MODEL=qwen3:4b-instruct-demo
+      - OLLAMA_AUTO_PULL=false
+      - OLLAMA_TIMEOUT=900
+      - INTEGRATION_TIMEOUT=900
+      - MULTI_AGENT_TIMEOUT=900
+
+volumes:
+  almanac_data_release2:

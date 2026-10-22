@@ -24,10 +24,12 @@ waits in editing so the clicks and page loads do not push it past eight.
 4. A registered account, logged out, so the login is shown live.
 5. Garden **Backyard** (Melbourne, Australia) with area **North bed** and plantings **Basil ×6 (Sown)**, **Tomato (Roma) ×3 (Growing)**. Click **Sync this garden to the knowledge base** once.
 6. Plant Health: plant name **Tomato in the back bed** with two or three earlier assessments. Click **Sync records to the knowledge base** once. One clear photo of a plant with yellowing leaves on the desktop.
-7. Almanac opened once so the seed catalogue has loaded.
+7. Almanac opened once so the seed catalogue has loaded, then, while logged in, on **Reference tools** expand **Updated the catalogue?** and click **Refresh references** once so the RAG server has indexed the catalogue (otherwise "Ask with sources" answers "insufficient context").
 8. Browser tabs ready: GitHub **Actions** filtered to each of `vgarden.yml`, `plant_almanac.yml`, `health.yml` and `cloud-deployment.yml` (one green run each, opened at the "Test the two assigned endpoint functions" step); the Azure portal resource group `rg-plantms-prod`; the deployed proxy URL from `docs/evidence/release2/cloud-deployment/latest.md`; `http://127.0.0.1:8003/dashboard`.
 9. A one-line change staged so a commit can be shown running the pre-commit hooks.
-10. Record the model waits in full, then cut them in editing. The garden workflow, the health assessment and the review modes can each take one to three minutes on a laptop.
+10. Record the model waits in full, then cut them in editing. On CPU the garden workflow, the health assessment and the review modes can each take one to three minutes; with the models on a GPU a Planner, Worker, Reviewer run takes about 15 to 25 seconds and a chat answer 5 to 10 seconds.
+11. If any container is recreated (for example after a compose change), restart the proxy too: nginx caches each backend's IP at startup and otherwise answers 502.
+12. On the Windows/WSL laptop, `docker-compose.demo.yml` holds the recording settings and the rerun steps are in its header comment.
 
 ---
 
@@ -58,7 +60,7 @@ waits in editing so the clicks and page loads do not push it past eight.
 
 > Areas, containers and plantings are full CRUD; HTMX swaps the table without a reload.
 
-`[Scroll to "Tools" with the "MCP on" badge. Choose "get_garden_snapshot". Click "Run tool". Then in "Ask about this garden (grounded)" type "What is planted here?" and click "Ask".]`
+`[Scroll to "Tools" with the "MCP on" badge. Choose "get_garden_snapshot". Click "Run tool". Then in "Ask about this garden (grounded)" type "What is planted in the North bed?" and click "Ask".]`
 
 > The Release 1 panels are retained: an MCP tool returns a structured snapshot, and the RAG panel answers from this garden's indexed records with a confidence badge and sources. Both are owner-scoped, so a question is never grounded in someone else's garden.
 
