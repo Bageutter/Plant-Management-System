@@ -1,0 +1,17 @@
+Cloud AI check (bonus profile) of https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io
+  PASS     0.8s  the feature backends are wired to the cloud AI services
+          health backend -> mcp: http://plantms-prod-mcp.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io/mcp, rag: http://plantms-prod-rag.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io, multi_agent: http://plantms-prod-agents.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io
+  PASS     0.7s  cloud Ollama is reachable from Plant Health
+          health -> Ollama: {'model': 'qwen2.5vl:3b', 'preload': {'attempts': 1, 'detail': 'attempt 1 of 12', 'status': 'loading'}, 'reachable': True, 'url': 'http://plantms-prod-ollama.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io'}
+  FAIL   240.6s  B1 AI-Mode: Plant Health assessment by the cloud model (agentic loop)
+          IncompleteRead: IncompleteRead(213 bytes read)
+  FAIL   253.9s  B1 AI-Mode: Almanac chat answer from the cloud model
+          AssertionError: ask -> 504: stream timeout
+  PASS     0.9s  B2 MCP: Plant Health tool run through the cloud MCP server
+          MCP tool list_health_assessments -> {"arguments": {"plant_ref": "Cloud tomato 97503c"}, "duration_ms": 215, "is_error": false, "structured_content": {"count": 0, "evidence_note": "Each assessment is the output of a past local model run and is advisory, not a diagnosis. An empty result means no matching record exists; it says nothing about the plant's actual condition.", "items": [], "plant_ref": "Cloud tomato 97503c", "status": null}, "text": "{\n \"items\": [],\n \"count\": 0,\n \"plant_ref\": \"Cloud tomato 97503c\",\n \"status…
+  FAIL     1.3s  B3 RAG: grounded answer with citations from retrieved context
+          AssertionError: no citations (not grounded): {"answer": null, "citations": [], "confidence": "insufficient", "confidence_reason": "No indexed passage passed the relevance gate, so the model was not consulted.", "duration_ms": 0, "insufficient_context": true, "model": null, "model_confidence": null, "note": "No indexed passage was relevant enough to this question, so no answer was generated.", "question": "What is wrong with Cloud tomato 97503c and what should I do?", "retrieval": {"candidates": 0, "considered": 0, "mode": "lexical", "quer…
+  FAIL     1.5s  B4 Multi-Agent: Planner -> Worker -> Reviewer -> human review
+          AssertionError: workflow ended failed: {"error": "planning failed", "history": [{"created_at": "2026-10-22T08:33:02.482049+00:00", "details": {"evidence": {"mode": "mcp:get_health_assessment", "passages": [{"chunk_id": "health-history", "text": "Plant: Cloud tomato 97503c\nAssessments recorded: 0\nStatus counts: none\nNote: each assessment is the advisory output of a past local model run, not a diagnosis. No record means nothing was assessed; it says nothing about the plant.", "title": "Cloud tomato 97503c history \u2014 Plant Healt…
+
+3/7 passed in 500s

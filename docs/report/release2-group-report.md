@@ -252,8 +252,7 @@ The brief's `student-x.yml` maps to `plant_almanac.yml` (Amy), `vgarden.yml` (Yu
 service's test run with endpoint coverage (`docs/evidence/release2/testing/`) through the
 Plan → Act → Observe → Adapt loop with a reviewer model, and writes
 `docs/evidence/release2/testing-review.md` + `review-testing.json` plus the validation
-log `tools/ai-loop/logs/review-testing.jsonl`. An early run returned **not_ready** before
-every service's evidence was merged; the final run
+log `tools/ai-loop/logs/review-testing.jsonl`. After an early **not_ready** run, the final run
 `review-testing-20261021-134337-18a37a` returned **ready_with_fixes**: 50 checks pass and
 4 warn (endpoints without a test, kept as follow-ups); every pre-commit check passed with
 no vulnerabilities or secrets. Human decision: **accept** by Amy — "The required tests
@@ -267,11 +266,9 @@ compose, each host service healthy, every backend reachable through the proxy an
 reaching the host services from inside its container) and Guhan's on Windows/WSL
 (`health-guhan/`, one log per terminal: compose, MCP, RAG, Multi-Agent, a Plant Health
 walkthrough and `multi-agent-health.sh`). In both, the containers ran under Docker
-Compose and the AI services as separate host processes; the `/integrations` endpoints
-reported MCP, RAG and Multi-Agent enabled and reachable; AI-Mode assessments ran through
-the vision model and reviewer loop (23–126 s each), the MCP tool answered in 127 ms and
-RAG in 28 s with two citations; and workflows completed Planner → Worker → Reviewer →
-human review from both the terminal and the records page.
+Compose and the AI services as separate host processes; `/integrations` reported MCP,
+RAG and Multi-Agent reachable; AI-Mode assessments took 23–126 s, MCP 127 ms, RAG 28 s
+with two citations; workflows completed from both the terminal and the records page.
 
 ## 9. Cloud deployment report and review
 
@@ -288,20 +285,17 @@ AI-Mode, MCP, RAG and Multi-Agent are disabled.
 Live URL: <https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io>.
 
 **Integrated CRUD in the cloud.** `scripts/deploy/azure-e2e.py` signs up through the
-public URL and exercises every feature (`cloud-deployment/e2e-crud.txt`): **16/16
-passed** — garden create/rename/delete (auth → vgarden), area and planting create, edit
-and delete, Almanac plant create/update/read/delete with the auth session, Plant Health
-titles and records created ("not assessed", since AI-Mode is off), read, updated and
-deleted, and the disabled-AI baseline. Services scale to zero to save credit, so the
-first request after idle takes about 30 s (`docs/deployment/azure.md` has the warm-up).
+public URL and exercises full CRUD on every feature (`cloud-deployment/e2e-crud.txt`):
+**16/16 passed** — gardens, areas and plantings, Almanac plants, Plant Health records
+("not assessed", AI-Mode off), and the disabled-AI baseline. Services scale to zero, so
+the first request after idle takes about 30 s.
 
 **Cloud Deployment Report Review** (`validate.py --mode cloud-deployment`):
 `docs/evidence/release2/cloud-deployment-review.md` + `review-cloud-deployment.json`, log
 `tools/ai-loop/logs/review-cloud-deployment.jsonl`. Run
 `review-cloud-deployment-20261022-034848-6848f2`: verdict **ready**, 13/13 checks (report,
 baseline, smoke, ingress, private database, CI before deploy, five live paths, latest
-deploy run). An earlier run failed CD-8–CD-W because the reviewer's own network dropped;
-it is kept in the log. Final human release decision: **[group]** record with `--decision
+deploy run); an earlier run that lost network is kept in the log. Final human release decision: **[group]** record with `--decision
 release|hold|rollback`.
 
 ## 10. Multi-Agent workflow evidence
@@ -314,9 +308,9 @@ per role, decisions), also downloadable from `/dashboard`.
 | Feature | Evidence | What it shows |
 | --- | --- | --- |
 | Virtual Garden (Yunus) | `docs/evidence/release2/multi-agent-vgarden.md`, `multi-agent-terminal-run.txt`, `workflow_history.jsonl`, `coordination_audit.jsonl`, `multi-agent-metrics.json` | Six workflows through the UI and the terminal; a Worker bug found and fixed from the audit; human decisions including request-changes and partial acceptance |
-| Plant Health (Guhan) | `docs/evidence/release2/local-deployment/health-guhan/` (terminal 6 transcript, UI run write-up, `workflow_history.jsonl`, `coordination_audit.jsonl`, `multi-agent-metrics.json`, `health-workflows.json`) | Terminal: workflow `a7f23d6d` through the health backend with evidence read via MCP — two agent runs, a human request for changes that reached both the Planner and the Worker, a Reviewer `revise` on each run, partial acceptance. UI: workflow `ae71c81a` started and accepted (with the required reason) from the records page. The first attempt exposed and fixed a Reviewer failure mode (mangled quote → failed stage) |
+| Plant Health (Guhan) | `docs/evidence/release2/local-deployment/health-guhan/` (terminal 6 transcript, UI run write-up, `workflow_history.jsonl`, `coordination_audit.jsonl`, `multi-agent-metrics.json`, `health-workflows.json`) | Terminal: `a7f23d6d` with evidence read via MCP — request changes reached Planner and Worker, Reviewer `revise` on each run, partial acceptance. UI: `ae71c81a` accepted from the records page. A Reviewer failure mode found and fixed |
 | Plant Health (terminal + UI, shared server) | `docs/evidence/release2/health-multi-agent/` | Terminal workflow `b3a742fd` and UI workflow `6066982d`, each with request changes → revised run → partial acceptance |
-| Plant Almanac (Amy) | `docs/evidence/release2/almanac-multi-agent/` (two terminal runs, UI run, audit, metrics), `almanac-review/` (readable review UI, screenshots) | Terminal: `f0a706d0` — no companion data, so the Worker refused rather than guessed, accepted; `8a8bae49` — correct planting months, partially accepted after a Reviewer `revise`. UI: `120184b5` from the chat, request changes → revised run → partial acceptance by the signed-in user |
+| Plant Almanac (Amy) | `docs/evidence/release2/almanac-multi-agent/` (two terminal runs, UI run, audit, metrics), `almanac-review/` (readable review UI, screenshots) | Terminal: `f0a706d0` (no companion data, so the Worker refused rather than guessed) and `8a8bae49` (partially accepted after a Reviewer `revise`). UI: `120184b5` from the chat, request changes → revised run → partial acceptance |
 | Agentic-loop *Multi-Agent review* | `multi-agent-review.md` (vgarden), `health-multi-agent/multi-agent-review-health.md`, `almanac-multi-agent/multi-agent-review-almanac.md`, log `tools/ai-loop/logs/review-multi-agent.jsonl` | All three verdict **ready**, 13/13 checks: runs in order, every workflow closed by a human, every change request re-run, handoffs name their model, UI and terminal reviewers, citations grounded, live server reachable. Human decisions **[group]** to record |
 
 ## 11. GitHub commit logs
@@ -336,7 +330,15 @@ Release 2 commits and pull requests are listed in
 
 ## 13. Bonus evidence
 
-No bonus marks are claimed.
+**Cloud AI (B1–B4).** The opt-in `profile=bonus` deploy (run 39745279626) adds internal-only
+Ollama, MCP, RAG and Multi-Agent apps, reached through each feature's backend.
+`cloud-bonus/ai-e2e.txt`: **7/7 passed** via the public URL — streamed Plant Health
+assessment and Almanac chat (B1), MCP tool run (B2), RAG answer with citations (B3),
+Planner → Worker → Reviewer → human acceptance (B4).
+
+**Security.** Proxy security headers, per-client rate limits, hardened cookies, plus private
+PostgreSQL, Key Vault references and OIDC. `scripts/deploy/azure_security_check.py`
+(`cloud-security/latest.md`): **17/17 controls pass**.
 
 ## 14. Showcase video URL
 

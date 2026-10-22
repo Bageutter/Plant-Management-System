@@ -1,0 +1,25 @@
+Cloud AI check (bonus profile) of https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io
+  PASS     0.9s  the feature backends are wired to the cloud AI services
+          health backend -> mcp: http://plantms-prod-mcp.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io/mcp, rag: http://plantms-prod-rag.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io, multi_agent: http://plantms-prod-agents.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io
+  PASS     0.3s  cloud Ollama is reachable and has both models
+          health -> Ollama http://plantms-prod-ollama.internal.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io: models None
+  PASS   189.8s  B1 AI-Mode: Plant Health assessment by the cloud model (agentic loop)
+          record 6 by qwen2.5vl:3b: status at_risk, score 30, confidence medium
+          summary: The plant is at risk due to nutrient deficiency or overwatering. Reduce watering to twice a week until the top 3cm of soil dries. Consider adding a balanced fertilizer to the soil.
+          loop: {"iterations": 1, "reviewed": true, "run_id": "health-20261022-102447-40b20a", "verdict": "approved"}
+          streamed phases: perceive#0 -> reason#1 -> observe#1
+  PASS    95.1s  B1 AI-Mode: Almanac chat answer from the cloud model
+          Almanac chat answered: You When should I plant tomatoes? Almanac You can plant tomatoes in January, September, October, November, or December. ✓ Answer checked View validation report → Sources: Tomato
+  PASS     0.2s  B2 MCP: Plant Health tool run through the cloud MCP server
+          MCP tool list_health_assessments -> {"arguments": {"plant_ref": "Cloud tomato a6655e"}, "duration_ms": 116, "is_error": false, "structured_content": {"count": 1, "evidence_note": "Each assessment is the output of a past local model run and is advisory, not a diagnosis. An empty result means no matching record exists; it says nothing about the plant's actual condition.", "items": [{"confidence": "medium", "created_at": "2026-10-22T10:27:57.495396", "has_image": false, "health_score": 30, "id": 6, "plant_identification": null, "pla…
+  PASS    79.7s  B3 RAG: grounded answer with citations from retrieved context
+          indexed 3 record(s) as 12 passages
+          answer: The Cloud tomato a6655e has two main issues: nutrient deficiency (evidenced by yellowing leaves and brown spots) and overwatering (evidenced by soil staying wet for days). To address this, reduce watering to twice a week until the top 3cm of soil dries. Also, add a balanced fertilizer to the soil to correct the nutrient deficiency. These actions are recommended to improve the plant's health and p…
+          confidence: high · citations: [{"chunk_id": "health:6:description", "excerpt": "Gardener's description of Cloud tomato a6655e: Lower leaves turning yellow with brown spots; soil stays wet for days.", "highlight_terms": ["Cloud", "brown", "days", "leaves", "soil", "spots", "stays", "tomato", "wet", "yellow"], "recorded_at": "2026-10-22T10:27:57.495396", "score": 0.6485, "source": "health", "source_id": "6", "title": "Assessmen…
+  PASS   172.4s  B4 Multi-Agent: Planner -> Worker -> Reviewer -> human review
+          workflow 4770b70a-3b42-49b6-a104-d4c94b954d76: received -> planning -> working -> reviewing -> awaiting_human_review -> accepted
+          plan: {"steps": ["Retrieve the plant's latest health assessment from the backend, including status, health score, confidence, summary, issues, recommendations, and missing information.", "Identify which components of the assessment are present and which are missing or incomplete in the latest record.", "…
+          worker: Cloud tomato a6655e — Assessment 6: Status: at risk; health score 30/100 (At risk - will worsen without action). Confidence: medium. Issues: Nutrient Deficiency (medium), Overwatering (medium). Recommendations: Reduce watering to twice a week until top 3cm of soil dries; add balanced fertilizer. Ne…
+          reviewer: accept · human decision: accept
+
+7/7 passed in 538s
