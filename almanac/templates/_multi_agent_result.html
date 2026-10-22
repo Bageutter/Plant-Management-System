@@ -4,14 +4,22 @@
 <ol class="workflow-stages" aria-label="Multi-Agent workflow stages">
 {% for stage in view.stages %}<li class="stage-{{ stage.state }}" {% if stage.state == 'current' %}aria-current="step"{% endif %}><span>{{ loop.index }}</span><strong>{{ stage.label }}</strong><small>{{ {'complete':'Completed', 'current':'Current stage', 'pending':'Not reached'}[stage.state] }}</small></li>{% endfor %}
 </ol>
+{% if result.plan %}
+<section class="validation-stage validation-stage-plan agent-stage-card" aria-label="Planner output">
+<h3 class="validation-stage-heading"><span class="validation-phase">PLANNER</span>Plan and evidence requirements</h3>
+<ol>{% for step in result.plan.steps %}<li>{{ step }}</li>{% endfor %}</ol>
+</section>
+{% endif %}
 {% if result.result %}
-<h3>Draft answer</h3>
+<section class="validation-stage validation-stage-act agent-stage-card" aria-label="Worker output">
+<h3 class="validation-stage-heading"><span class="validation-phase">WORKER</span>Draft answer</h3>
 <p class="agent-answer">{{ result.result.answer }}</p>
 {% if result.result.insufficient_context %}<p class="agent-review-note">Some requested facts are missing from the saved sources. Check the gaps below.</p>{% endif %}
+</section>
 {% endif %}
 {% if result.review %}
-<section class="agent-review-summary {{ 'needs-changes' if view.needs_changes else 'ready' }}" aria-label="Review summary">
-<h3>{{ 'Changes recommended' if view.needs_changes else 'Ready for your check' }}</h3>
+<section class="validation-stage validation-stage-observe agent-stage-card agent-review-summary {{ 'needs-changes' if view.needs_changes else 'ready' }}" aria-label="Review summary">
+<h3 class="validation-stage-heading"><span class="validation-phase">REVIEWER</span>{{ 'Changes recommended' if view.needs_changes else 'Ready for your check' }}</h3>
 {% if view.concerns %}
 <p>Check {{ view.concerns|length }} concern{{ '' if view.concerns|length == 1 else 's' }} against the saved facts:</p>
 <ul>{% for concern in view.concerns %}<li>{{ concern }}</li>{% endfor %}</ul>
@@ -28,7 +36,7 @@
 </section>{% endfor %}
 </details>
 {% elif result.result %}<p class="agent-review-note">No cited source passage is available here. Request supporting evidence before accepting.</p>{% endif %}
-{% if result.plan %}<details class="agent-plan"><summary>How the agents approached this</summary><ol>{% for step in result.plan.steps %}<li>{{ step }}</li>{% endfor %}</ol></details>{% endif %}
+
 {% if result.status in ['received', 'failed', 'changes_requested'] %}
 <form method="post" action="{{ workflow_url }}" hx-post="{{ workflow_url }}" hx-target="#ai-messages" hx-disabled-elt="find button" hx-indicator="#agents-wait-{{ message.id }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="run">
@@ -37,6 +45,9 @@
 </form>
 {% endif %}
 {% if result.status == 'awaiting_human_review' %}
+<section class="validation-stage validation-stage-adapt agent-stage-card" aria-label="Human review decision">
+<h3 class="validation-stage-heading"><span class="validation-phase">HUMAN REVIEW</span>Your final decision</h3>
+<p>The agents have finished this draft. Check the evidence and reviewer concerns, then choose what happens next.</p>
 <form class="agent-decision-form" method="post" action="{{ workflow_url }}" hx-post="{{ workflow_url }}" hx-target="#ai-messages" hx-disabled-elt="find button"
       x-data="{ decision: {{ view.default_decision|tojson|forceescape }}, suggested: {{ view.feedback|tojson|forceescape }} }">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="review">
@@ -57,8 +68,9 @@
 <p id="agent-feedback-help-{{ message.id }}" class="agent-decision-help">Feedback is required for requested changes, partial approval, rejection, or approving despite concerns.</p>
 <button class="uk-btn uk-btn-primary">Save my review</button>
 </form>
+</section>
 {% endif %}
-{% if result.human_review %}<p class="agent-saved-decision">Your saved decision: {{ result.human_review.decision|replace('_', ' ') }}</p><p class="agent-answer">{{ result.human_review.feedback }}</p>{% endif %}
+{% if result.human_review %}<section class="validation-stage validation-stage-adapt agent-stage-card" aria-label="Saved human review"><h3 class="validation-stage-heading"><span class="validation-phase">HUMAN REVIEW</span>Saved decision</h3><p class="agent-saved-decision">Your saved decision: {{ result.human_review.decision|replace('_', ' ') }}</p><p class="agent-answer">{{ result.human_review.feedback }}</p></section>{% endif %}
 <div class="agent-review-tools"><button type="button" class="agent-text-button" hx-get="{{ workflow_url }}" hx-target="#ai-messages">Refresh agent status</button>
 <details class="agent-technical"><summary>Technical details</summary><pre>{{ result|tojson(indent=2) }}</pre></details></div>
 </div>

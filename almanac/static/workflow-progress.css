@@ -8,3 +8,5 @@
 @media(max-width:550px){.workflow-stages{grid-template-columns:repeat(2,minmax(0,1fr))}.agent-choice-group{grid-template-columns:1fr}}
 
 .validation-stage{border:1px solid #d5ddd1;border-radius:12px;background:#fafbf6;padding:18px 20px;overflow-wrap:anywhere}.validation-stage-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-weight:600;font-size:14px;margin:0 0 12px}.validation-phase{display:inline-block;border-radius:24px;background:#315f40;color:white;font-size:12px;padding:6px 10px}.validation-stage-plan .validation-phase{background:#398392}.validation-stage-act .validation-phase{background:#a86b0a}.validation-stage-observe .validation-phase{background:#795098}.validation-stage-adapt .validation-phase{background:#315f40}.validation-value{white-space:pre-wrap;min-width:0;overflow-wrap:anywhere}
+
+.agent-stage-card{margin:14px 0}.agent-stage-card ol{padding-left:20px}.agent-stage-card li{margin:6px 0}.agent-stage-card>p{font-size:14px;line-height:1.6}
