@@ -6,8 +6,10 @@
 # Containers run under the WSL Docker engine. AI-Mode (Ollama), the MCP server, the RAG
 # server and the Multi-Agent Server run as plain WSL processes bound to all interfaces so the
 # containers reach them at host.docker.internal. Ollama is the Linux build copied out of the
-# ollama/ollama image into ~/ollama; its models live in ~/.ollama (copied from the compose
-# volume once). It picks up the NVIDIA GPU through WSL.
+# ollama/ollama image into ~/ollama (override with OLLAMA_BIN); its models live in ~/.ollama.
+# It picks up the NVIDIA GPU through WSL. The Python servers run from the venv at
+# ~/pms-venv (override with PMS_PY), created with the ai-services requirements-dev files.
+# The `-demo` model variants are created on first run by scripts/demo/create-demo-models.sh.
 #
 # After it finishes: http://localhost:3000 (app), http://127.0.0.1:8003/dashboard (agents).
 # Re-run safely at any time; it frees the ports it needs and re-syncs the RAG index, which
@@ -18,7 +20,8 @@ unset DOCKER_BUILDKIT                                                        # t
 export COMPOSE_PROJECT_NAME=plant-management-system
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PY=~/pms-venv/bin/python
+PY="${PMS_PY:-$HOME/pms-venv/bin/python}"
+export OLLAMA_BIN="${OLLAMA_BIN:-$HOME/ollama/bin/ollama}"
 LOGS=~/pms-logs
 mkdir -p "$LOGS"
 cd "$REPO" || exit 1
@@ -27,10 +30,19 @@ C="docker compose -f docker-compose.yml -f docker-compose.demo.yml"
 echo "== 1. Ollama (native WSL, GPU) on 0.0.0.0:11434"
 if ! curl -sf -m 2 http://127.0.0.1:11434/api/version >/dev/null; then
   OLLAMA_HOST=0.0.0.0:11434 OLLAMA_KEEP_ALIVE=1h OLLAMA_NUM_PARALLEL=1 \
-    setsid nohup ~/ollama/bin/ollama serve > "$LOGS/ollama.log" 2>&1 &
+    setsid nohup "$OLLAMA_BIN" serve > "$LOGS/ollama.log" 2>&1 &
   for i in $(seq 1 30); do curl -sf -m 2 http://127.0.0.1:11434/api/version >/dev/null && break; sleep 1; done
 fi
 curl -s http://127.0.0.1:11434/api/version; echo
+
+echo "== 1b. the -demo model variants (num_thread 6)"
+for m in qwen3:4b-instruct-demo qwen2.5vl:3b-demo; do
+  if curl -sf -m 5 http://127.0.0.1:11434/api/show -d "{\"model\":\"$m\"}" >/dev/null; then
+    echo "   $m: present"
+  else
+    bash scripts/demo/create-demo-models.sh "${m%-demo}"
+  fi
+done
 
 echo "== 2. containers"
 $C up -d --build 2>&1 | grep -E "Built|Recreated|Started|Running|Error|error" | tail -10

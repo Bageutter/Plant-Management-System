@@ -10,9 +10,10 @@
 # containers under the WSL Docker engine cannot reach.
 #
 # What this override changes and why:
-# - Model names: the `-demo` variants are the same models with `num_thread 6`; the
-#   default 16 threads run ~80x slower on this hybrid CPU. Auto-pull is off so nothing
-#   tries to download llama3.1:8b, which is not installed.
+# - Model names: the `-demo` variants are the same models with `num_thread 6`, created
+#   once with `bash scripts/demo/create-demo-models.sh` (wsl-demo-up.sh does it on first
+#   run); the default 16 threads run ~80x slower on this hybrid CPU. Auto-pull is off so
+#   nothing tries to download llama3.1:8b, which is not installed.
 # - Long timeouts: CPU inference for a Planner -> Worker -> Reviewer run takes minutes.
 # - Turns the Almanac's Multi-Agent panel on (compose defaults it off there).
 # - Uses the fresh `almanac_data_release2` volume; the old `almanac_data` holds a
