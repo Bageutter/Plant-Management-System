@@ -18,7 +18,7 @@ waits in editing so the clicks and page loads do not push it past eight.
 
 ## Before recording (not spoken)
 
-1. Five host terminals, tiled so they fit one screen: `ollama serve`; `python ai-services/mcp-server/server.py`; `python ai-services/rag-server/app.py`; `cd ai-services/multi-agent-server && python app.py`; and `docker compose up -d --build`. Start the Almanac with `MULTI_AGENT_ENABLED=true` so its Multi-Agent tab is live (compose defaults it off for almanac only).
+1. Five host terminals, tiled so they fit one screen: `ollama serve`; `python ai-services/mcp-server/server.py`; `python ai-services/rag-server/app.py`; `cd ai-services/multi-agent-server && python app.py`; and `docker compose up -d --build`. Start the Almanac with `MULTI_AGENT_ENABLED=true` so its Multi-Agent tab is live (compose defaults it off for almanac only). On the Windows/WSL laptop, `scripts/demo/wsl-demo-up.sh` starts all of this detached and `scripts/demo/open-terminals.cmd` opens one Windows Terminal window with the five live logs plus a shell for the demo commands.
 2. Models pulled and warm: `qwen3:4b-instruct`, `llama3.1:8b`, `qwen2.5vl:3b`. Ask each one something once before recording.
 3. A sixth terminal with these typed and ready: `bash scripts/test/local-deployment-check.sh`, `bash scripts/test/multi-agent-health.sh`, and the three review commands from `tools/ai-loop/README.md` (`validate.py --mode multi-agent`, `--mode testing`, `--mode cloud-deployment`).
 4. A registered account, logged out, so the login is shown live.
