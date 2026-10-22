@@ -41,8 +41,8 @@
         {% else %}
             {% set phase_ms = ev.elapsed_ms - run.trace[loop.index0 - 1].elapsed_ms %}
         {% endif %}
-        <div style="border-left:3px solid hsl(var(--primary)); border-radius:0.4rem; background:hsl(var(--card)); padding:0.9rem 1rem;">
-            <p style="font-weight:600; font-size:0.9rem; margin:0 0 0.35rem;">
+        <section class="validation-stage validation-stage-{{ ev.phase }}">
+            <p class="validation-stage-heading"><span class="validation-phase">{{ ev.phase|upper }}</span>
                 {% if ev.phase == 'plan' %}Plan · Evidence selected
                 {% elif ev.phase == 'act' %}Act{% if ev.iteration %} {{ ev.iteration }}{% endif %} · Answer drafted
                 {% elif ev.phase == 'observe' %}Observe{% if ev.iteration %} {{ ev.iteration }}{% endif %} · Evidence checked
@@ -67,10 +67,10 @@
                     {% else %}{{ k|replace('_', ' ')|title }}
                     {% endif %}
                 </span>
-                <span style="white-space:pre-wrap;">{{ v }}</span>
+                <span class="validation-value">{{ v }}</span>
             </div>
             {% endfor %}
-        </div>
+        </section>
         {% endfor %}
     </div>
 

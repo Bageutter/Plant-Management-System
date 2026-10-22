@@ -293,12 +293,14 @@ class AgenticLoop:
         reviewer: Reviewer | None,
         log_dir: str,
         max_iterations: int = 2,
+        on_phase: Callable[[str], None] | None = None,
     ):
         self.service = service
         self.drafter = drafter
         self.reviewer = reviewer
         self.log_dir = log_dir
         self.max_iterations = max(1, max_iterations)
+        self.on_phase = on_phase or (lambda phase: None)
 
     def run(self, question: str, build_context: ContextBuilder) -> LoopResult:
         run_id = "{}-{}-{}".format(
@@ -310,11 +312,13 @@ class AgenticLoop:
         logger = LoopLogger(self.service, self.log_dir, run_id, question)
 
         # -- PLAN ----------------------------------------------------------
+        self.on_phase("plan")
         grounding, plan_summary = build_context()
         logger.phase("plan", {"question": question, **plan_summary})
 
         # No reviewer available -> single-shot, clearly logged as a fallback.
         if self.reviewer is None:
+            self.on_phase("act")
             answer = self.drafter(question, grounding, None)
             logger.phase(
                 "fallback",
@@ -327,6 +331,7 @@ class AgenticLoop:
         answer = ""
         for i in range(1, self.max_iterations + 1):
             # -- ACT -----------------------------------------------------
+            self.on_phase("act")
             t0 = time.monotonic()
             answer = self.drafter(question, grounding, feedback)
             logger.phase(
@@ -341,6 +346,7 @@ class AgenticLoop:
             )
 
             # -- OBSERVE -----------------------------------------------
+            self.on_phase("observe")
             t0 = time.monotonic()
             try:
                 review = self.reviewer.review(question, grounding, answer)
@@ -360,6 +366,7 @@ class AgenticLoop:
             )
 
             # -- ADAPT -----------------------------------------------
+            self.on_phase("adapt")
             if review["verdict"] == "approved":
                 logger.phase("adapt", {"iteration": i, "decision": "accept"})
                 return LoopResult(

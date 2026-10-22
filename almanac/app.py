@@ -50,6 +50,7 @@ from problem_guides import DISEASE_GUIDES, PEST_GUIDES
 from catalogue_api import catalogue_api
 from integrations import integrations, chat_reference_result
 from multi_agent import request_workflow, review_view
+from progress import ProgressStore
 
 try:
     import ai_loop
@@ -832,6 +833,16 @@ def create_app(test_config: dict | None = None) -> Flask:
         mode = request.form.get("mode", "planning")
         if mode not in ("planning", "rag", "mcp", "multi_agent"):
             return _render_chat(owner_key, "Choose an answer or reference search."), 400
+        progress_id = request.form.get("progress_id", "")
+        progress = None
+        if progress_id and mode in ("planning", "multi_agent"):
+            store = ProgressStore(app.config.get("AI_PROGRESS_DIR", os.path.join(app.instance_path, "progress")))
+            try:
+                store.start(progress_id, owner_key, mode)
+            except ValueError as exc:
+                return _render_chat(owner_key, str(exc)), 400
+            def progress(phase=None, **fields):
+                store.update(progress_id, owner_key, phase, **fields)
         if mode == "multi_agent":
             if not app.config["MULTI_AGENT_ENABLED"]:
                 return _render_chat(owner_key, "Multi-Agent is disabled in this environment."), 503
@@ -847,6 +858,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             db.session.add_all([AIChatMessage(owner_key=owner_key, role="user", content=question), message])
             # Persist the workflow before the long model call so timeouts are recoverable.
             db.session.commit()
+            if progress:
+                progress(workflow_id=workflow["workflow_id"])
             try:
                 result = request_workflow("/workflow/run", {"workflow_id": workflow["workflow_id"]})
                 save_agent_answer(message, result)
@@ -929,6 +942,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     reviewer=app.extensions.get("ai_loop_reviewer"),
                     log_dir=app.config["AI_LOOP_LOG_DIR"],
                     max_iterations=app.config["AI_LOOP_MAX_ITERATIONS"],
+                    on_phase=progress,
                 )
                 result = loop.run(question, build_context)
         except AIUnavailableError:
@@ -976,6 +990,29 @@ def create_app(test_config: dict | None = None) -> Flask:
         message.content = answer or "The agents have not produced an answer yet."
         db.session.commit()
 
+    @app.get("/ai/progress/<progress_id>")
+    def chat_progress(progress_id):
+        owner = _chat_owner_key()
+        if owner is None:
+            abort(404)
+        store = ProgressStore(app.config.get("AI_PROGRESS_DIR", os.path.join(app.instance_path, "progress")))
+        value = store.read(progress_id, owner)
+        if value is None:
+            abort(404)
+        if value.get("workflow_id"):
+            try:
+                workflow = request_workflow("/workflow/status", workflow_id=value["workflow_id"])
+            except (httpx.HTTPError, RuntimeError):
+                return jsonify({"error": "Progress temporarily unavailable; the workflow may still be running."}), 503
+            value["phase"] = workflow["status"]
+            value["phases"] = [event["status"] for event in workflow.get("history", [])]
+            starts = [i for i, phase in enumerate(value["phases"]) if phase == "planning"]
+            if starts:
+                value["phases"] = value["phases"][starts[-1]:]
+        response = jsonify({key: value.get(key) for key in ("mode", "phase", "phases")})
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.route("/ai/multi-agent/<int:message_id>", methods=["GET", "POST"])
     def chat_multi_agent(message_id):
         owner_key = _chat_owner_key()
@@ -997,7 +1034,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     feedback = request.form.get("feedback", "").strip()
                     if decision not in ("accept", "partially_accept", "request_changes", "reject"):
                         return _render_chat(owner_key, "Choose a review decision."), 400
-                    if len(feedback) > 2000 or (decision in ("partially_accept", "request_changes") and not feedback):
+                    if len(feedback) > 2000 or (decision in ("partially_accept", "request_changes", "reject") and not feedback):
                         return _render_chat(owner_key, "Explain your decision in up to 2000 characters."), 400
                     payload.update(decision=decision, feedback=feedback, reviewer_id=owner_key)
                 elif action != "run":
