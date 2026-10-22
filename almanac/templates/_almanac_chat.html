@@ -84,6 +84,10 @@
                 </button>
             </header>
 
+            <section id="ai-live-progress" class="live-progress" hidden aria-label="Live execution progress" data-progress-url="{{ url_for('chat_progress', progress_id='PROGRESSID') }}">
+                <p class="live-progress-status" role="status" aria-live="polite">Waiting for the server…</p>
+                <ol class="workflow-stages"></ol>
+            </section>
             <div id="ai-conversation"
                  x-ref="conversation"
                  aria-live="polite"
@@ -115,6 +119,7 @@
                 </div>
 
                 <div class="chat-mode-tabs" role="tablist" aria-label="Chat mode">
+                  <button type="button" role="tab" :aria-selected="chatMode === 'planning'" :class="{active: chatMode === 'planning'}" @click="chatMode = 'planning'">Plan · Act · Observe · Adapt</button>
                   <button type="button" role="tab" :aria-selected="chatMode === 'rag'" :class="{active: chatMode === 'rag'}" @click="chatMode = 'rag'">♧ Ask a question</button>
                   <button type="button" role="tab" :aria-selected="chatMode === 'mcp'" :class="{active: chatMode === 'mcp'}" @click="chatMode = 'mcp'">▤ Find a reference</button>
                   <button type="button" role="tab" :aria-selected="chatMode === 'multi_agent'" :class="{active: chatMode === 'multi_agent'}" @click="chatMode = 'multi_agent'" {% if not config.MULTI_AGENT_ENABLED %}disabled title="Multi-Agent is disabled in this environment"{% endif %}>Multi-Agent</button>

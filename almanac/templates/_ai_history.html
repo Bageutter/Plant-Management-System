@@ -65,6 +65,10 @@
         {% endif %}
         {% if message.role == 'assistant' and message.loop_run %}
         {% set run = message.loop_run %}
+        {% set reached = run.trace|map(attribute='phase')|list %}
+        <ol class="workflow-stages" aria-label="Plan Act Observe Adapt stages">
+        {% for phase in ['plan','act','observe','adapt'] %}<li class="stage-{{ 'complete' if phase in reached else 'pending' }}"><span>{{ loop.index }}</span><strong>{{ phase|capitalize }}</strong><small>{{ 'Recorded' if phase in reached else 'Not run' }}</small></li>{% endfor %}
+        </ol>
         <a class="ai-validation-link" href="{{ url_for('ai_loop_trace', run_id=run.id) }}" data-validation-report>
             <span>
                 {%- if run.verdict == 'approved' %}✓ Answer checked
