@@ -1,0 +1,107 @@
+$ curl -s $MAS/healthz
+{"service":"multi-agent-server","status":"ok"}
+
+
+$ curl -s -X POST $MAS/workflow   (task only: source "almanac"; the Worker retrieves through MCP)
+{
+  "workflow_id": "8a8bae49-bd28-49ff-8ce5-d9b3663d71bd",
+  "status": "received",
+  "source": "almanac"
+}
+
+$ curl -s -X POST $MAS/workflow/run   (Planner -> Worker -> Reviewer)
+(agents took 570s)
+{
+  "status": "awaiting_human_review",
+  "plan": {
+    "steps": [
+      "Retrieve the plant's recommended planting months from the Almanac/MCP/RAG services.",
+      "Identify any missing user-provided details, such as location, climate zone, or planting type (e.g., outdoor, greenhouse).",
+      "Compare the available evidence with known planting month guidelines for tomatoes.",
+      "Check if the user's region or climate zone is specified and whether it affects planting timelines.",
+      "Determine if there are any conflicting or conditional recommendations based on local growing seasons.",
+      "Prepare a response that references the retrieved evidence and highlights missing details for user clarification if needed."
+    ]
+  },
+  "result": {
+    "answer": "January, September, October, November, December",
+    "cited_chunk_ids": [
+      "almanac:plant:tomato:record"
+    ],
+    "insufficient_context": false
+  },
+  "review": {
+    "issues": [],
+    "recommendation": "accept"
+  }
+}
+  evidence: almanac:plant:tomato:record - Tomato — plant reference
+  evidence: almanac:plant:strawberry:record - Strawberry — plant reference
+  evidence: almanac:plant:zucchini:record - Zucchini — plant reference
+  evidence: almanac:plant:basil:record - Basil — plant reference
+  evidence: almanac:plant:lettuce:record - Lettuce — plant reference
+
+$ curl -s -X POST $MAS/workflow/review  decision=request_changes
+{
+  "status": "changes_requested",
+  "human_review": {
+    "decision": "request_changes",
+    "feedback": "Also give the scientific name and family of Tomato.",
+    "reviewer_id": "yunus-terminal"
+  }
+}
+
+$ curl -s -X POST $MAS/workflow/run   (revised run; the feedback goes to the Planner and Worker)
+(agents took 28s)
+{
+  "status": "awaiting_human_review",
+  "revision_feedback": "Also give the scientific name and family of Tomato.",
+  "plan": {
+    "steps": [
+      "Retrieve the plant's scientific name and family from the Almanac/MCP/RAG services.",
+      "Retrieve the recommended planting months for tomatoes from the Almanac/MCP/RAG services.",
+      "Identify any missing user or plant details, such as location, climate zone, or growing conditions, that may affect planting months.",
+      "Compare the available evidence for planting months with the user's reported growing conditions.",
+      "Check if the scientific name and family of tomato are consistently documented across sources.",
+      "Prepare an evidence-backed response for review, including the scientific name, family, and planting months, pending confirmation of missing details."
+    ]
+  },
+  "result": {
+    "answer": "Scientific name: Solanum lycopersicum. Family: Solanaceae. Planting months: January, September, October, November, December.",
+    "cited_chunk_ids": [
+      "almanac:plant:tomato:record"
+    ],
+    "insufficient_context": false
+  },
+  "review": {
+    "issues": [
+      "Remove unused citation: almanac:plant:tomato:record"
+    ],
+    "recommendation": "revise"
+  }
+}
+
+$ curl -s -X POST $MAS/workflow/review  decision=partially_accept  (Reviewer said: revise)
+{
+  "status": "partially_accepted",
+  "human_review": {
+    "decision": "partially_accept",
+    "feedback": "Approved only the claims the Reviewer did not flag; the flagged claims remain unresolved.",
+    "reviewer_id": "yunus-terminal"
+  },
+  "error": null
+}
+
+$ curl -s "$MAS/workflow/status?id=8a8bae49-bd28-49ff-8ce5-d9b3663d71bd"   (history)
+partially_accepted 8a8bae49-bd28-49ff-8ce5-d9b3663d71bd
+  2026-10-21T23:28:39 received
+  2026-10-21T23:28:39 planning
+  2026-10-21T23:28:49 working
+  2026-10-21T23:38:02 reviewing
+  2026-10-21T23:38:09 awaiting_human_review
+  2026-10-21T23:38:10 changes_requested
+  2026-10-21T23:38:10 planning
+  2026-10-21T23:38:25 working
+  2026-10-21T23:38:37 reviewing
+  2026-10-21T23:38:37 awaiting_human_review
+  2026-10-21T23:38:39 partially_accepted

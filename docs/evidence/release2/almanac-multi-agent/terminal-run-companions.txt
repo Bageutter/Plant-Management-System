@@ -1,0 +1,101 @@
+$ curl -s $MAS/healthz
+{"service":"multi-agent-server","status":"ok"}
+
+
+$ curl -s -X POST $MAS/workflow   (task only: source "almanac"; the Worker retrieves through MCP)
+{
+  "workflow_id": "f0a706d0-04d9-4eb1-8fe1-82d50d0eed48",
+  "status": "received",
+  "source": "almanac"
+}
+
+$ curl -s -X POST $MAS/workflow/run   (Planner -> Worker -> Reviewer)
+(agents took 15s)
+{
+  "status": "awaiting_human_review",
+  "plan": {
+    "steps": [
+      "Retrieve the companion planting guidelines for tomatoes from the Almanac/MCP/RAG services.",
+      "Identify the specific plant species listed as compatible with tomatoes in the retrieved guidelines.",
+      "Compare the listed companion plants with the user's reported garden setup or plant inventory.",
+      "Check for any known conflicts or incompatibilities between tomatoes and potential companion plants in the guidelines.",
+      "Verify if the user has provided information about existing plants in the garden to support accurate matching.",
+      "Prepare a list of evidence-backed companion plants for review, pending user clarification if details are missing."
+    ]
+  },
+  "result": {
+    "answer": "Companion plants for tomatoes are not recorded in the evidence.",
+    "cited_chunk_ids": [
+      "almanac:plant:tomato:record"
+    ],
+    "insufficient_context": true
+  },
+  "review": {
+    "issues": [],
+    "recommendation": "accept"
+  }
+}
+  evidence: almanac:plant:tomato:record - Tomato — plant reference
+
+$ curl -s -X POST $MAS/workflow/review  decision=request_changes
+{
+  "status": "changes_requested",
+  "human_review": {
+    "decision": "request_changes",
+    "feedback": "Also say what sunlight Tomato needs, if the record states it.",
+    "reviewer_id": "yunus-terminal"
+  }
+}
+
+$ curl -s -X POST $MAS/workflow/run   (revised run; the feedback goes to the Planner and Worker)
+(agents took 14s)
+{
+  "status": "awaiting_human_review",
+  "revision_feedback": "Also say what sunlight Tomato needs, if the record states it.",
+  "plan": {
+    "steps": [
+      "Retrieve the plant's sunlight requirements from the Almanac/MCP/RAG services if available.",
+      "Check whether the record specifies the sunlight needs for tomatoes.",
+      "Identify any missing user or plant details that would affect the accuracy of sunlight requirement assessment.",
+      "Compare the available evidence on sunlight needs with the user-reported conditions.",
+      "Determine if the sunlight requirement for tomatoes is explicitly stated in the record.",
+      "Prepare an evidence-backed response indicating whether the record states tomato's sunlight needs and what they are, if applicable."
+    ]
+  },
+  "result": {
+    "answer": "The record does not state what sunlight tomatoes need.",
+    "cited_chunk_ids": [
+      "almanac:plant:tomato:record"
+    ],
+    "insufficient_context": false
+  },
+  "review": {
+    "issues": [],
+    "recommendation": "accept"
+  }
+}
+
+$ curl -s -X POST $MAS/workflow/review  decision=accept  (Reviewer said: accept)
+{
+  "status": "accepted",
+  "human_review": {
+    "decision": "accept",
+    "feedback": "Checked against the Almanac records.",
+    "reviewer_id": "yunus-terminal"
+  },
+  "error": null
+}
+
+$ curl -s "$MAS/workflow/status?id=f0a706d0-04d9-4eb1-8fe1-82d50d0eed48"   (history)
+accepted f0a706d0-04d9-4eb1-8fe1-82d50d0eed48
+  2026-10-21T23:27:53 received
+  2026-10-21T23:27:53 planning
+  2026-10-21T23:28:03 working
+  2026-10-21T23:28:08 reviewing
+  2026-10-21T23:28:08 awaiting_human_review
+  2026-10-21T23:28:08 changes_requested
+  2026-10-21T23:28:08 planning
+  2026-10-21T23:28:14 working
+  2026-10-21T23:28:18 reviewing
+  2026-10-21T23:28:22 awaiting_human_review
+  2026-10-21T23:28:23 accepted

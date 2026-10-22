@@ -1,6 +1,6 @@
 # Cloud deployment report — Microsoft Azure
 
-Generated 2026-10-21T20:48:24Z by `scripts/deploy/azure-report.sh`.
+Generated 2026-10-21T21:55:49Z by `scripts/deploy/azure-report.sh`.
 
 ## Deployment
 
@@ -9,10 +9,10 @@ Generated 2026-10-21T20:48:24Z by `scripts/deploy/azure-report.sh`.
 | Platform | Microsoft Azure (Azure Container Apps + Azure Database for PostgreSQL) |
 | Subscription | Azure for Students |
 | Resource group | `rg-plantms-prod` (australiaeast) |
-| Commit | `72a9aec472fab164054f3d301dfe5448cb38c958` on `yunz/fix-postgres-redeploy` |
-| Image tag | `72a9aec` |
+| Commit | `0f88ba47a0a604eaea568e1eeff5665f3ed2fb9d` on `yunz/fix-postgres-redeploy` |
+| Image tag | `0f88ba4` |
 | Triggered by | yunz-dev |
-| Workflow run | https://github.com/Bageutter/Plant-Management-System/actions/runs/39669842474 |
+| Workflow run | https://github.com/Bageutter/Plant-Management-System/actions/runs/39680594970 |
 | Smoke test | **PASS** (`scripts/deploy/azure-smoke.sh`) |
 
 ## Access
@@ -42,12 +42,12 @@ the optional bonus profile is the only thing that turns them on.
 
 | Container app | Ingress | Image | Revision | Status | Replicas |
 |---|---|---|---|---|---|
-| plantms-prod-almanac | internal | plantms/almanac:72a9aec | plantms-prod-almanac--0000003 | Running | 0-1 |
-| plantms-prod-auth | internal | plantms/auth:72a9aec | plantms-prod-auth--0000003 | Running | 0-1 |
-| plantms-prod-frontend | internal | plantms/frontend:72a9aec | plantms-prod-frontend--0000003 | Running | 0-1 |
-| plantms-prod-health | internal | plantms/health:72a9aec | plantms-prod-health--0000003 | Running | 0-1 |
-| plantms-prod-proxy | public HTTPS | plantms/proxy:72a9aec | plantms-prod-proxy--0000003 | Running | 1-2 |
-| plantms-prod-vgarden | internal | plantms/vgarden:72a9aec | plantms-prod-vgarden--0000003 | Running | 0-1 |
+| plantms-prod-almanac | internal | plantms/almanac:0f88ba4 | plantms-prod-almanac--0000005 | Running | 0-1 |
+| plantms-prod-auth | internal | plantms/auth:0f88ba4 | plantms-prod-auth--0000005 | Running | 1-1 |
+| plantms-prod-frontend | internal | plantms/frontend:0f88ba4 | plantms-prod-frontend--0000005 | Running | 0-1 |
+| plantms-prod-health | internal | plantms/health:0f88ba4 | plantms-prod-health--0000005 | Running | 0-1 |
+| plantms-prod-proxy | public HTTPS | plantms/proxy:0f88ba4 | plantms-prod-proxy--0000005 | Running | 1-2 |
+| plantms-prod-vgarden | internal | plantms/vgarden:0f88ba4 | plantms-prod-vgarden--0000005 | Running | 1-1 |
 
 ## Database
 
