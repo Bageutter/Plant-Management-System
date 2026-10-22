@@ -8,20 +8,18 @@ must explain their own Release 2 contribution, and each must show their own feat
 cloud deployment as well as locally. Maximum length is 10 minutes; this script targets
 about nine, including the bonus section (AI services and security in the cloud).
 
-Speakers: **Yunus** (Virtual Garden, auth, proxy, local deployment, pre-commit, cloud
-deployment), **Amy** (Plant Almanac, Multi-Agent Server, agentic-loop review modes),
+Speakers: **Yunus** (Virtual Garden, auth, proxy, local and cloud deployment),
+**Amy** (Plant Almanac, shared Multi-Agent Server, shared security tooling, review demonstration),
 **Guhan** (Plant Health).
 
 Conventions: `[square brackets]` are what the screen shows or what the presenter clicks.
-Bold name = who speaks the lines underneath. Times are cumulative targets. Spoken text is
-about 1,070 words, which is nine minutes at 120 words per minute; cut the model
-waits in editing so the clicks and page loads do not push it past ten.
+Bold name = who speaks the lines underneath. Times are cumulative targets. The blockquoted narration totals about 1,010 whitespace words (about 8.4 minutes at 120 wpm), excluding screen actions. Rehearse the complete edit and cut the optional bonus before required evidence if needed to stay below ten minutes.
 
 ## Before recording (not spoken)
 
 1. Five host terminals, tiled so they fit one screen: `ollama serve`; `python ai-services/mcp-server/server.py`; `python ai-services/rag-server/app.py`; `cd ai-services/multi-agent-server && python app.py`; and `docker compose up -d --build`. Start the Almanac with `MULTI_AGENT_ENABLED=true` so its Multi-Agent tab is live (compose defaults it off for almanac only). On the Windows/WSL laptop, `scripts/demo/wsl-demo-up.sh` starts all of this detached and `scripts/demo/open-terminals.cmd` opens one Windows Terminal window with the five live logs plus a shell for the demo commands.
 2. Models pulled and warm: `qwen3:4b-instruct` and `qwen2.5vl:3b` (every role in `docker-compose.demo.yml` and `wsl-demo-up.sh` uses one of these two, so `llama3.1:8b` is not needed). On the Windows/WSL laptop they run as the `-demo` variants, created once with `bash scripts/demo/create-demo-models.sh`. Ask each one something once before recording.
-3. A sixth terminal with these typed and ready: `bash scripts/test/local-deployment-check.sh`, `bash scripts/test/multi-agent-health.sh`, and the three review commands from `tools/ai-loop/README.md` (`validate.py --mode multi-agent`, `--mode testing`, `--mode cloud-deployment`). Pass the human decision on the command line (`--decision accept --reason "..."` for the first two, `--decision release --reason "..."` for cloud-deployment) so the log opened on camera shows a decision, not `pending`; the committed `multi-agent-review.md` and `cloud-deployment-review.md` still say pending, so re-run and recommit them before the video.
+3. A sixth terminal with these typed and ready: `bash scripts/test/local-deployment-check.sh`, `bash scripts/test/multi-agent-health.sh`, and the three review commands from `tools/ai-loop/README.md` (`validate.py --mode multi-agent`, `--mode testing`, `--mode cloud-deployment`). Run the reviews in an interactive terminal, read each result and enter the actual human decision with a reason. Do not preselect acceptance or release for the camera. The committed `multi-agent-review.md` and `cloud-deployment-review.md` still say pending; retain the new reports/logs after the real decisions. A failing or incomplete review must be described honestly.
 4. A registered account on the local site and one on the deployed site, both logged out, so each login is shown live.
 5. Garden **Backyard** (Melbourne, Australia) with area **North bed** and plantings **Basil ×6 (Sown)**, **Tomato (Roma) ×3 (Growing)**. Click **Sync this garden to the knowledge base** once.
 6. Plant Health: plant name **Tomato in the back bed** with two or three earlier assessments. Click **Sync records to the knowledge base** once. One clear photo of a plant with yellowing leaves on the desktop.
@@ -75,20 +73,26 @@ waits in editing so the clicks and page loads do not push it past ten.
 
 > The human closes every workflow. Requesting changes feeds my comment back to the Planner and Worker for a revised run, which I then accept.
 
-## 2:05 – Plant Almanac and the Multi-Agent Server (≈140 words)
+## 2:05 – Plant Almanac and the Multi-Agent Server
 
-`[Click "Almanac". Type "tomato" in the search box, open the Tomato card. Click "Edit", change one field, save.]`
+Amy's precise click order, framing and visible proof are in
+[amy-recording-shots.md](amy-recording-shots.md), shots A1–A5. Keep the browser
+URL visible and cut model waits, not the source-checking or decision.
+
+`[A1: Signed in on the local Almanac. Search tomato, open its card, edit one field, save and reload to show the saved value.]`
 
 **Amy**
-> I own the Plant Almanac, the public plant, pest and disease catalogue, with CRUD for plant records. Its Release 1 reference tools are retained: an MCP catalogue search and a RAG "ask with sources" panel, both reached through the Almanac backend.
+> I own the Plant Almanac: a public plant, pest and disease catalogue with CRUD for plant records. Its MCP and RAG reference tools are reached through the Almanac backend.
 
-`[Click the floating "Ask the Almanac" button. Click the chip "Compare basil and zucchini". Cut the wait. Click "✓ Answer checked · View validation report →".]`
+`[A2: Open Ask the Almanac in Planning mode. Ask a supported catalogue question. Beneath an answer with a saved loop run, click View validation report →. Hold the open Answer validation report dialog on its Plan/Act/Observe/Adapt entries. Do not assume the link always says Answer checked.]`
 
-> AI-Mode is grounded in the catalogue, and each answer carries its Plan, Act, Observe, Adapt validation report.
+> For answers processed by the agentic loop, I can open the validation report to inspect its Plan, Act, Observe and Adapt stages.
 
-`[Back in the chat, click the "Multi-Agent" tab. Ask "What should I plant this month?". Click "Run agents". Cut the wait. Show "Check the saved facts · N sources", then choose "Accept answer" and click "Save my review".]`
+`[A3–A4: Close the report. Choose Multi-Agent; ask Tomato planting months. After it finishes, open How the agents approached this and Check the saved facts. Point to the actual answer, sources and review concerns. Show the revision controls and make a decision based on those facts, then hold Your saved decision.]`
 
-> I also built the shared Multi-Agent Server itself. The Planner decides what evidence is needed, the Worker retrieves it through the MCP server and drafts, and the Reviewer checks every claim against the cited records before the human decides. The same server serves all three features with per-source prompts, keeps every transition in its own store, and exports the workflow history and coordination audit logs. The Reviewer's comparison check was my fix for a draft that claimed facts the zucchini record never stated.
+> I also implemented the shared Multi-Agent Server. The Planner defines the work, the Worker retrieves Almanac evidence through MCP and RAG, and the Reviewer checks the draft. I check the saved facts before deciding. The same server coordinates all three features and records its stages and decisions.
+
+`[A5: Brief editor/dashboard cut: planner.py, worker.py, reviewer.py and audit.py; then the matching workflow ID and Execution history / Coordination audit exports. Do not linger on code.]`
 
 ## 3:15 – Plant Health: the workflow through the UI and the terminal (≈180 words)
 
@@ -113,21 +117,23 @@ waits in editing so the clicks and page loads do not push it past ten.
 
 `[Terminal: run `git commit` on the staged change. The hooks run: Ruff, detect-secrets, pip-audit, pytest.]`
 
+**Amy**
+> I implemented the shared pre-commit tooling. On an actual commit it runs Ruff security checks, detect-secrets, pip-audit and the assigned service tests. A failing check blocks that commit.
+
+`[A6: Hold the actual commit command, commit identity and all four hook results. Then open docs/evidence/release2/pre-commit-all-services.md. This is a separate full scan, not proof that another commit happened.]`
+
+> This separate report scans every tracked file of each service; it supports the commit evidence.
+
 **Yunus**
-> Every commit runs four local pre-commit hooks: Ruff security rules, detect-secrets, pip-audit, and the service's tests. A failing hook blocks the commit.
-
-`[Open docs/evidence/release2/pre-commit-all-services.md — the PASS table.]`
-
-> The report scans every tracked file of every service and goes in the technical report.
 
 `[GitHub Actions: open the green run of "Virtual Garden (Yunus)", expand "Test the two assigned endpoint functions".]`
 
 > After each push my workflow tests two endpoint functions, create garden and garden snapshot, and uploads the JUnit results as an artefact.
 
-`[Open the green run of "Plant Almanac (Amy)", same step.]`
+`[A7: Open the successful Plant Almanac (Amy) run; keep its SHA visible. Expand Test the two assigned endpoint functions, then show the retained endpoints.xml/endpoints.log artifact.]`
 
 **Amy**
-> Mine tests the catalogue search and the plant detail endpoints of the Almanac API.
+> My two functions are catalogue_api.search and catalogue_api.plant. They test search, pagination, invalid requests, source fields and that reads make no database changes. This artifact retains the endpoint results.
 
 `[Open the green run of "Plant Health (Guhan)", same step.]`
 
@@ -145,7 +151,7 @@ waits in editing so the clicks and page loads do not push it past ten.
 
 > The same UI and CRUD work in Azure. As the brief requires, AI-Mode, MCP, RAG and the Multi-Agent Server are disabled by default in the cloud, and the deploy scripts are reusable: the same script that GitHub Actions runs deploys from a laptop after an Azure login.
 
-`[Still on the deployed site, click "Almanac". Type "tomato" in "Search plants or varieties…", open the Tomato card, click "Edit", change one field, click "Save changes". The card shows the new value.]`
+`[A8: Keep the cloud hostname visible. Open Almanac, search tomato, open its card, Edit, save one field, then reload and show the persisted value. Use an agreed demo record and the AI-off baseline.]`
 
 **Amy**
 > The Almanac catalogue and its CRUD run on PostgreSQL in Azure with the same templates; the chat and reference tools are switched off here, as the baseline requires.
@@ -157,10 +163,28 @@ waits in editing so the clicks and page loads do not push it past ten.
 
 ## 6:35 – Agentic-loop review modes (≈75 words)
 
-`[Terminal: run the three review commands in turn. Open the review log for one, scroll to "Human decision".]`
+`[A9: Show the exact Multi-Agent Review command below. Run it, cut the model wait, then open the generated report and validation log. Frame the input source, checks, model verdict and actual Human decision together.]`
+
+```bash
+recording_dir="docs/evidence/release2/amy-recording-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$recording_dir"
+python3 tools/ai-loop/validate.py --mode multi-agent --source almanac \
+  --evidence-dir docs/evidence/release2/almanac-multi-agent \
+  --feature-url http://127.0.0.1:3000/almanac \
+  --multi-agent-url http://127.0.0.1:8003 --reviewer-id amy \
+  --model qwen3:4b-instruct --review-model qwen3:4b-instruct \
+  --log-dir "$recording_dir/logs" --output "$recording_dir/review.json" \
+  --report "$recording_dir/review.md"
+```
 
 **Amy**
-> The shared agentic loop gained three Release 2 modes alongside the Release 1 MCP and RAG modes. Multi-Agent Review checks the workflow history and audit logs, Testing Review reads the pre-commit and CI evidence, and Cloud Deployment Review reads the deployment report and the baseline switches. Each one runs fixed checks first, drafts findings with a local model, has a second model review the draft, and ends in a human release decision written into the log.
+> This separate Multi-Agent Review checks saved workflow history and coordination evidence, not a plant answer. It collects checks, drafts a review with local Ollama, independently reviews that draft and revises it when needed. Here are its report, validation log and my actual decision.
+
+`[If Human decision is still pending, say pending instead of claiming a decision. The command reviews saved Almanac exports, not automatically the new workflow just filmed. Export that workflow first if it is the intended input.]`
+
+`[A10: Run Testing and Cloud Deployment Review modes too, each against its selected evidence. Show each mode's input, output and validation log, rather than only opening one report.]`
+
+> Testing Review reads security and endpoint CI evidence. Cloud Deployment Review reads deployment and validation evidence. Each saves a report and log. The model recommendation and the final human decision are separate.
 
 ## 7:15 – Bonus: AI services and security in the cloud (≈110 words)
 
