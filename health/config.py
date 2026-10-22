@@ -22,7 +22,8 @@ class Config:
     )
     ALMANAC_PUBLIC_URL = os.environ.get("ALMANAC_PUBLIC_URL", "http://localhost:5004/")
 
-    # Locally hosted AI (Ollama). Nothing leaves the local network.
+    # Locally hosted AI (Ollama). Nothing leaves the local network. The local recording
+    # setup overrides the model names in docker-compose.demo.yml.
     OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
     OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5vl:3b")
     OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "180"))
