@@ -221,7 +221,9 @@ jobs:
       - name: Cloud AI check (bonus profile)
         id: ai
         if: always() && steps.apps.outcome == 'success' && env.DEPLOY_PROFILE == 'bonus'
+        # pipefail: the step fails when the check fails, not only when tee does.
         run: |
+          set -o pipefail
           mkdir -p docs/evidence/release2/cloud-bonus
           python3 scripts/deploy/azure-ai-e2e.py "${{ steps.apps.outputs.app_url }}" \
             | tee docs/evidence/release2/cloud-bonus/ai-e2e.txt
