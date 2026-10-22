@@ -84,6 +84,8 @@ var keyVaultName = 'kv-${baseName}-${take(suffix, 8)}'
 var acrName = 'acr${baseName}${suffix}'
 var storageName = toLower('st${baseName}${take(suffix, 10)}')
 var almanacShareName = 'almanac-instance'
+// Model store of the bonus profile's Ollama app (kept across restarts and scale to zero).
+var ollamaShareName = 'ollama-models'
 var environmentName = 'cae-${baseName}-${stage}'
 
 resource appsIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
@@ -334,6 +336,15 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
         enabledProtocols: 'SMB'
       }
     }
+
+    // Empty (and free apart from used bytes) until the bonus profile runs Ollama.
+    resource ollamaShare 'shares' = {
+      name: ollamaShareName
+      properties: {
+        shareQuota: 20
+        enabledProtocols: 'SMB'
+      }
+    }
   }
 }
 
@@ -376,6 +387,19 @@ resource almanacStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' 
   }
 }
 
+resource ollamaStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
+  parent: environment
+  name: ollamaShareName
+  properties: {
+    azureFile: {
+      accountName: storage.name
+      accountKey: storage.listKeys().keys[0].value
+      shareName: storage::files::ollamaShare.name
+      accessMode: 'ReadWrite'
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Outputs consumed by apps.bicep (through scripts/deploy/azure-apps.sh)
 // ---------------------------------------------------------------------------
@@ -391,5 +415,6 @@ output postgresName string = postgres.name
 output postgresFqdn string = postgresHost
 output storageAccountName string = storage.name
 output almanacStorageName string = almanacStorage.name
+output ollamaStorageName string = ollamaStorage.name
 output appsIdentityClientId string = appsIdentity.properties.clientId
 output logAnalyticsWorkspaceId string = logs.properties.customerId

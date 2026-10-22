@@ -372,6 +372,11 @@ def create_app(test_config: dict | None = None) -> Flask:
         HEALTH_PUBLIC_URL=os.environ.get(
             "HEALTH_PUBLIC_URL", "http://localhost:5003/plant-health-records/"
         ),
+        # Session cookie (CSRF token, chat owner): never readable by scripts, not sent
+        # on cross-site requests, and HTTPS-only in the cloud (SESSION_COOKIE_SECURE).
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true",
         OLLAMA_URL=os.environ.get("OLLAMA_URL", "http://localhost:11434"),
         OLLAMA_MODEL=os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct"),
         OLLAMA_TIMEOUT=int(os.environ.get("OLLAMA_TIMEOUT", "120")),

@@ -5,7 +5,7 @@ import re
 
 import httpx
 
-from model_config import model_for
+from model_config import model_for, timeout as model_timeout
 from mcp import Client
 
 RESULT_SCHEMA = {
@@ -141,7 +141,7 @@ def execute_plan(plan: dict, evidence: dict, task: str = "", source: str = "alma
         "options": {"temperature": 0.1, "num_predict": 1200},
     }
     url = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
-    response = httpx.post(f"{url}/api/chat", json=payload, timeout=120)
+    response = httpx.post(f"{url}/api/chat", json=payload, timeout=model_timeout())
     response.raise_for_status()
     result = json.loads(response.json()["message"]["content"])
     if (
