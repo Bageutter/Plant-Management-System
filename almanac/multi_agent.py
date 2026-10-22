@@ -75,9 +75,24 @@ def review_view(workflow):
                      "awaiting_human_review": "Your review is needed", "accepted": "Answer accepted",
                      "partially_accepted": "Answer partly accepted", "changes_requested": "Changes requested",
                      "rejected": "Answer rejected", "failed": "The agents could not finish"}
+    order = ("planning", "working", "reviewing", "awaiting_human_review")
+    names = ("Planner", "Worker", "Reviewer", "Human review")
+    current = workflow.get("status")
+    visited = [event.get("status") for event in workflow.get("history", [])]
+    starts = [i for i, phase in enumerate(visited) if phase == "planning"]
+    if starts:
+        visited = visited[starts[-1]:]
+    final = current in ("accepted", "partially_accepted", "rejected", "changes_requested")
+    stages = []
+    for index, (phase, label) in enumerate(zip(order, names)):
+        later = any(p in visited or p == current for p in order[index + 1:])
+        state = ("current" if phase == current else "complete" if final or later
+                 else "complete" if phase in visited and current != "failed" else "pending")
+        stages.append({"label": label, "state": state})
     feedback = "Please revise the answer using each plant's own saved evidence."
     if concerns:
         feedback += "\n" + "\n".join("- " + issue for issue in concerns)
     return {"status": status_labels.get(workflow.get("status"), "Check workflow status"),
+            "stages": stages,
             "concerns": concerns, "sources": sources, "needs_changes": needs_changes,
-            "feedback": feedback[:2000], "default_decision": "request_changes" if needs_changes else "accept"}
+            "feedback": feedback[:2000], "default_decision": "request_changes" if needs_changes else ""}

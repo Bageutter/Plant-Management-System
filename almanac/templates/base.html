@@ -238,6 +238,8 @@
     <script type="module" src="https://unpkg.com/franken-ui@2.0.0/dist/js/icon.iife.js"></script>
     {% include '_almanac_chat.html' %}
     {% include '_almanac_chat_scripts.html' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='workflow-progress.css') }}">
+    <script src="{{ url_for('static', filename='workflow-progress.js') }}" defer></script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

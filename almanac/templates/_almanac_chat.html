@@ -84,6 +84,10 @@
                 </button>
             </header>
 
+            <section id="ai-live-progress" class="live-progress" hidden aria-label="Live execution progress" data-progress-url="{{ url_for('chat_progress', progress_id='PROGRESSID') }}">
+                <p class="live-progress-status" role="status" aria-live="polite">Waiting for the server…</p>
+                <ol class="workflow-stages"></ol>
+            </section>
             <div id="ai-conversation"
                  x-ref="conversation"
                  aria-live="polite"

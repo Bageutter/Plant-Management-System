@@ -160,6 +160,6 @@ def test_human_review_is_readable_and_defaults_to_changes(chat):
     assert 'basil:1' not in visible and '"issues"' not in visible
     assert 'javascript:' not in visible
     assert 'Not recorded' in visible and 'full sun' in visible
-    assert 'value="request_changes" selected' in visible
+    assert 'value="request_changes" x-model="decision" required checked' in visible
     assert 'Use the review concerns as feedback' in visible
     assert 'Technical details' in response.text
