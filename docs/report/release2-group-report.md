@@ -1,8 +1,8 @@
 # Plant Management System — Release 2 Technical Report (group draft)
 
 > **Status: final draft for the group.** Export to `group-<number>.pdf` (max 3000 words).
-> Only the items marked **[group]** remain (the video URL and the recorded human
-> decisions); everything else is drawn from the repository as of 22 October 2026.
+> Finalisation still requires the video URL, actual human review decisions,
+> Amy's contribution confirmation, and validation of the final deployed checkpoint.
 > Diagrams: `docs/architecture/*.svg`. Evidence: `docs/evidence/release2/`.
 
 | | |
@@ -104,13 +104,10 @@ never reads private or feature-owned data itself.
 
 ![Plant Health design flow](../architecture/plant-health-design-flow.svg)
 
-The records page has four entry points, all routed through `health/routes.py` and
-`health/workflows.py`: the assessment form (AI-Mode + agentic loop), the MCP tools
-panel, the RAG panel, and the new *Agent workflow* panel. The workflow panel sends the
-task plus a history-summary passage and up to eight of the plant's assessments (read
-through the MCP server's `list_health_assessments`/`get_health_assessment` tools when MCP
-is on, otherwise from the database), polls the backend every 3 s while the three agents
-run, and records the gardener's decision.
+The records page routes AI-Mode, MCP, RAG and Agent workflow requests through
+`health/routes.py` and `health/workflows.py`. Workflows send a history summary and
+up to eight assessments (via MCP when enabled, otherwise the database), poll every
+three seconds, show the three agents' results and record the gardener's decision.
 
 ### Plant Almanac design flow (Amy)
 
@@ -204,15 +201,10 @@ shared servers, so no AI service runs in CI.
 
 ### 6.3 Plant Health (Guhan)
 
-`test_create_assessment_validates_input_and_persists` covers every validation path
-(empty body, over-long fields, wrong types, bad or unsupported images) and the 503 when
-the local model is down — all writing nothing — then the 201 response, persistence of
-the record, its agentic-loop run and the plant title, history passed on a repeat
-assessment, a photo stored and served back, and the HTMX fragment.
-`test_list_assessments_filters_pages_and_makes_no_writes` covers the empty list,
-newest-first order, the `plant_ref`/`status`/`since` filters and their 400s,
-`limit`/`offset` clamping, that image bytes never travel in the listing, and that
-repeated reads change nothing.
+The create test checks invalid inputs and unavailable models write nothing, then
+verifies successful persistence, history, agentic-loop records, stored photos and
+HTMX rendering. The listing test checks ordering, filters, pagination, invalid
+parameters, image exclusion and that repeated reads change no rows.
 
 | Evidence | Value |
 | --- | --- |
@@ -281,9 +273,9 @@ human review from both the terminal and the records page.
 <https://github.com/Bageutter/Plant-Management-System/actions/runs/39680594970>. All six
 gates passed (Ruff, endpoint tests for auth/vgarden/almanac/health, Docker build + compose
 smoke), then the `azure-production` environment's required reviewer (yunz-dev)
-**approved** the release and the deploy job succeeded with the smoke test **PASS**. Six
-container apps run (only the proxy public), PostgreSQL 16 has no public access, and
-AI-Mode, MCP, RAG and Multi-Agent are disabled.
+**approved** the release and the deploy job succeeded with the smoke test **PASS**. At that checkpoint, six
+container apps ran (only the proxy public), PostgreSQL 16 had no public access, and
+AI-Mode, MCP, RAG and Multi-Agent were disabled.
 
 Live URL: <https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io>.
 
@@ -336,7 +328,15 @@ Release 2 commits and pull requests are listed in
 
 ## 13. Bonus evidence
 
-No bonus marks are claimed.
+Baseline run [39743232141](https://github.com/Bageutter/Plant-Management-System/actions/runs/39743232141)
+deployed `7dbd213` and its security artifact records **17/17 passed** (endpoint and
+data controls). Retain that artifact for the optional security claim. The later
+bonus-profile run [39745279626](https://github.com/Bageutter/Plant-Management-System/actions/runs/39745279626)
+has a green job but its AI transcript records **3/7 passed**: model requests timed
+out, RAG had no citations, and Multi-Agent planning failed. No cloud AI bonus is
+claimed. Live integration endpoints now report AI integrations **on**: restore the
+baseline before its final demonstration. This branch preserves validation failures
+through `tee`; it still needs deployment validation.
 
 ## 14. Showcase video URL
 

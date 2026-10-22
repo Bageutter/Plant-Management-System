@@ -278,6 +278,25 @@ class CloudChecks(unittest.TestCase):
         self.assertEqual(found["CD-5"], "fail")
         self.assertEqual(found["CD-6"], "missing")  # GitHub offline is never a pass
         self.assertEqual(found["CD-7"], "missing")  # no URL to probe
+        self.assertEqual(found["CD-CRUD"], "missing")
+
+    def test_cloud_review_requires_crud_success_from_the_deployed_run(self):
+        for result, commit, expected in (("pass", "abc", "pass"), ("fail", "abc", "fail"),
+                                          ("pass", "old", "fail")):
+            with self.subTest(result=result, commit=commit), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp, "latest.json")
+                path.write_text(json.dumps({
+                    "deployment": {"commit": "abc", "workflow_run_url": "run-42"},
+                    "endpoints": {"app_url": "https://cloud.invalid"},
+                    "crud_test": {"result": result, "commit": commit,
+                                  "workflow_run_url": "run-42", "target": "https://cloud.invalid"},
+                }))
+                args = argparse.Namespace(grounding=str(path), url=None, paths=[], repo="o/r", branch="main",
+                                          workflows=["vgarden.yml"], deploy_workflow="cloud-deployment.yml")
+                with mock.patch.object(review, "_get_json", side_effect=review.error.URLError("offline")):
+                    facts, checks, _ = review.gather_cloud(args)
+                self.assertEqual(statuses(checks)["CD-CRUD"], expected)
+                self.assertEqual(facts["deployment"]["crud_test"]["commit"], commit)
 
 
 CHECKS = [review.Check("X-1", "first", "pass", "ok"), review.Check("X-2", "second", "fail", "broken")]
