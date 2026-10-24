@@ -51,6 +51,18 @@ LOW_MAX_SCORE = 0.5
 __all__ = ["ModelUnavailable", "answer", "categorise", "explain", "insufficient"]
 
 
+
+def _with_provenance(payload, chunks):
+    """Keep unverified planning data explicit even in deterministic answers."""
+    if payload.get('answer') and any(c.metadata.get('contains_ai_planning_estimates') for c in chunks):
+        if 'unverified' not in payload['answer'].casefold():
+            payload['answer'] = 'Unverified AI planning estimates: ' + payload['answer']
+        payload['confidence'] = 'low'
+        payload['confidence_reason'] = 'The cited catalogue contains unverified AI planning assumptions; horticultural accuracy has not been verified.'
+        payload['note'] = 'Planning guesses are not measured yields, diagnoses or proven companion benefits.'
+    return payload
+
+
 def insufficient(
     question: str,
     *,
@@ -180,11 +192,11 @@ def answer(
         unique = {c.source_id: c for c in matches}
         matches = sorted(unique.values(), key=lambda c: c.title)
         names = [c.title.split(" — ")[0] for c in matches]
-        return {"question": question, "answer": f"For {month}, your saved planting calendar lists: " + ", ".join(names) + ".",
+        return _with_provenance({"question": question, "answer": f"For {month}, your saved planting calendar lists: " + ", ".join(names) + ".",
                 "confidence": "medium", "confidence_reason": f"Exact match to recorded {month} planting months; local growing conditions are not recorded here.",
                 "model_confidence": None, "insufficient_context": False,
                 "citations": [_citation(Candidate(c, 1, 1, None, 1)) for c in matches],
-                "retrieval": retrieval, "model": None, "duration_ms": _ms(started), "note": None}
+                "retrieval": retrieval, "model": None, "duration_ms": _ms(started), "note": None}, matches)
 
     comparison = re.fullmatch(r"compare (.+?) (?:and|with|versus|vs\.?) (.+?)[?.!]*", question.strip(), re.I)
     if comparison:
@@ -202,13 +214,13 @@ def answer(
                     if match:
                         facts.append(f"{label}: {match.group(1)}.")
                 lines.append(chunk.title.split(" — ")[0] + " — " + " ".join(facts))
-            return {"question": question, "answer": "\n\n".join(lines), "confidence": "medium",
+            return _with_provenance({"question": question, "answer": "\n\n".join(lines), "confidence": "medium",
                     "confidence_reason": "Direct comparison of the two saved plant records; no growing conditions were inferred.",
                     "model_confidence": None, "insufficient_context": False,
                     "citations": [_citation(Candidate(c, 1, 1, None, 1)) for c in selected],
                     "retrieval": {"mode": "record_comparison", "candidates": 2, "considered": len(chunks),
                                   "top_k": top_k, "query_terms": list(comparison.groups()), "sources": list(sources)},
-                    "model": None, "duration_ms": _ms(started), "note": None}
+                    "model": None, "duration_ms": _ms(started), "note": None}, selected)
 
     # -- retrieve (dense is best-effort; lexical always works) ----------------
     query_embedding = None
@@ -297,7 +309,7 @@ def answer(
         )
 
     text = generated["answer"][: config.get("RAG_MAX_ANSWER_CHARS", 2000)]
-    return {
+    return _with_provenance({
         "question": question,
         "answer": text,
         "confidence": categorise(cited, strength, fallback=fallback),
@@ -309,7 +321,7 @@ def answer(
         "model": answerer.model,
         "duration_ms": _ms(started),
         "note": note,
-    }
+    }, [c.chunk for c in cited])
 
 
 def _citation(candidate: Candidate, question: str = "", answer_text: str = "") -> dict:

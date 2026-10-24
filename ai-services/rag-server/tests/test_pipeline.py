@@ -321,3 +321,13 @@ def test_inline_citation_metadata_is_removed_without_losing_answer():
     }))
     assert result["answer"] == "Improve airflow."
     assert result["cited_chunk_ids"] == ["almanac:disease:1:record"]
+
+
+def test_unverified_catalogue_answers_are_labelled_and_confidence_is_capped():
+    chunk = Chunk(source='almanac', source_id='plant:basil', part='record',
+                  title='Basil — plant reference', text='Water needs: moderate.', url='http://example.test/basil',
+                  metadata={'contains_ai_planning_estimates': True})
+    result = pipeline._with_provenance({'answer':'Basil needs moderate water.', 'confidence':'high'}, [chunk])
+    assert result['answer'].startswith('Unverified AI planning estimates:')
+    assert result['confidence'] == 'low'
+    assert 'not been verified' in result['confidence_reason']

@@ -120,6 +120,15 @@ def chunk_for(detail: dict, public_url: str) -> Chunk:
 
     if kind == "plant":
         record = detail["record"]
+        evidence = record.get('field_provenance') or {}
+        guesses = [field for field, item in evidence.items() if item.get('method') == 'ai_planning_estimate']
+        metadata['contains_ai_planning_estimates'] = bool(guesses)
+        metadata['generated_fields'] = record.get('generated_fields') or []
+        metadata['not_applicable_fields'] = record.get('not_applicable_fields') or {}
+        if guesses:
+            lines.append('UNVERIFIED AI PLANNING GUESSES: ' + ', '.join(guesses) + '. These are user-requested Sydney planning assumptions, not sourced facts, measured yields, diagnoses or proven companion benefits.')
+        for field, reason in metadata['not_applicable_fields'].items():
+            lines.append(f'Not applicable — {field}: {reason}')
         fields = {
             "scientific_name": "Scientific name",
             "family": "Family",

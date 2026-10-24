@@ -164,3 +164,25 @@ to API clients (including `Accept: application/json` and the review validator).
 Each entry contains `enabled` and `url`; this reports configuration, not server
 reachability, and does not invoke a model or an external service. Browsers asking
 for `text/html` still receive the reference-tools page.
+
+### My Garden provenance and reviewed refresh
+
+The public import retains per-field AI research/planning flags, source/review metadata,
+not-applicable reasons and attributed photo captions. Plant detail pages display an
+unverified-planning notice and per-field estimate labels; API/MCP records retain the
+same provenance. Local Ollama answers explicitly label imported planning guesses.
+
+Ordinary imports fill blanks and refresh values still matching the last imported
+public values. Differing local edits and uploaded photos are preserved. For an older
+installation without an import baseline, back up its database first, then use:
+
+```sh
+flask --app app import-my-garden --previous-snapshot /path/to/former-public-snapshot.json
+```
+
+Only values that still match the former public snapshot are refreshed; other local
+values are preserved and identified as overrides. The latest public source values
+remain available separately in the API for comparison. Migration 009 retains
+catalogue metadata and accepts the public botanical part labels (`leaves`, `culm`,
+`swollen fruit stalk`, `flower (ornamental only)`). No private garden records are
+replaced. A separate external RAG index still requires its own refresh.

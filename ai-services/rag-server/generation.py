@@ -20,6 +20,7 @@ SYSTEM_PROMPT = (
     "You answer questions for a small home-garden management system using ONLY the "
     "passages supplied in the user message. The passages are records the system has "
     "stored (for example past plant health assessments). Rules:\n"
+    "- Fields labelled UNVERIFIED AI PLANNING GUESSES are assumptions, not verified facts. Explicitly label them as unverified estimates. Not applicable does not mean zero yield or safe to eat.\n"
     "- Every statement in your answer must be supported by at least one passage. Cite "
     "the passages you used by their chunk_id in cited_chunk_ids.\n"
     "- Never use outside knowledge to add facts, dates, causes or advice that the passages "

@@ -60,7 +60,8 @@ def _named_records(
 
 
 def import_snapshot(
-    snapshot: dict, public_image_base_url: str | None = None, *, add_missing: bool = False
+    snapshot: dict, public_image_base_url: str | None = None, *, add_missing: bool = False,
+    previous_snapshot: dict | None = None, image_sources: list | None = None
 ) -> int:
     """Seed an empty database, or explicitly fill gaps without replacing local data."""
     if not add_missing and PlantReference.query.first() is not None:
@@ -99,15 +100,19 @@ def import_snapshot(
         tables.get("uses", []), PlantUse, ("description",), preserve_existing=add_missing
     )
 
+    previous = {row['slug']: row for row in (previous_snapshot or {}).get('tables', {}).get('plant_references', [])}
+    credits = {row['plant_reference_id']: row for row in (image_sources or [])}
     plants = {}
     added = set()
     for row in tables["plant_references"]:
         existing = PlantReference.query.filter_by(slug=row["slug"]).first()
         if existing is not None:
+            old_values = previous.get(row['slug']) or (existing.catalogue_provenance or {}).get('source_values') or {}
             for field in PLANT_FIELDS:
-                if getattr(existing, field) in (None, ""):
+                current = getattr(existing, field)
+                if current in (None, "") or (field in old_values and current == old_values[field]):
                     value = row.get(field)
-                    if value is None or value == "":
+                    if value in (None, "") and current in (None, ""):
                         continue
                     if field == "soil_ph_min" and existing.soil_ph_max is not None:
                         if value is not None and value > existing.soil_ph_max:
@@ -172,5 +177,20 @@ def import_snapshot(
                     public_url=f"{public_image_base_url.rstrip('/')}/{filename}",
                 )
 
+    for row in tables['plant_references']:
+        plant = plants[row['id']]
+        old = plant.catalogue_provenance or {}
+        estimates = row.get('estimated_fields') or []
+        if isinstance(estimates, str):
+            estimates = json.loads(estimates)
+        plant.catalogue_provenance = {
+            'source_values': {field: row.get(field) for field in PLANT_FIELDS},
+            'catalogue_updated': snapshot.get('exported_at'),
+            'generated_fields': row.get('generated_fields') or [],
+            'field_provenance': row.get('field_provenance') or {},
+            'estimated_fields': estimates,
+            'not_applicable_fields': row.get('not_applicable_fields') or {},
+            'image_credit': credits.get(row['id']) or old.get('image_credit') or {},
+        }
     db.session.commit()
     return len(added)
