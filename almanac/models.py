@@ -19,6 +19,8 @@ class PlantReference(db.Model):
     plant_category = db.Column(db.String(40), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+    catalogue_provenance = db.Column(db.JSON, nullable=True)
+
     yield_qty = db.Column(db.Float, nullable=True)
     in_row_spacing_cm = db.Column(db.Float, nullable=True)
     row_spacing_cm = db.Column(db.Float, nullable=True)
@@ -71,7 +73,7 @@ class PlantReference(db.Model):
     )
     part_used = db.Column(
         db.Enum(
-            *["leaf", "root", "fruit", "flower", "bark", "seed"],
+            *CHOICES["part_used"],
             name="part_used",
             native_enum=False,
             create_constraint=True,
@@ -144,7 +146,37 @@ class PlantReference(db.Model):
             "family": self.family,
             "summary": self.summary,
             "planting_months": [month.name for month in self.planting_months],
+            **self.provenance_payload(),
         }
+
+
+    def provenance_payload(self):
+        """Expose public provenance while identifying preserved local overrides."""
+        saved = self.catalogue_provenance or {}
+        source = saved.get('source_values') or {}
+        overrides = [key for key, value in source.items()
+                     if hasattr(self, key) and getattr(self, key) != value]
+        aliases = {'sun': 'sun_needs', 'water': 'water_needs', 'spacing_cm': 'in_row_spacing_cm',
+                   'feeder': 'feeder_type', 'Summary': 'summary', 'Sowing': 'sowing_notes',
+                   'Care': 'care_notes', 'Management': 'management_notes', 'Harvest': 'yield_wording', 'Uses': 'uses_notes'}
+        evidence = {key: value for key, value in (saved.get('field_provenance') or {}).items()
+                    if aliases.get(key, key) not in overrides}
+        na = {key: reason for key, reason in (saved.get('not_applicable_fields') or {}).items()
+              if aliases.get(key, key) not in overrides}
+        image_credit = saved.get('image_credit') or {}
+        if not self.image or not self.image.public_url or self.image.filename != image_credit.get('filename'):
+            image_credit = {}
+        return {
+            'generated_fields': [key for key in saved.get('generated_fields', []) if key in evidence],
+            'field_provenance': evidence,
+            'estimated_fields': [key for key in saved.get('estimated_fields', []) if key not in overrides],
+            'not_applicable_fields': na,
+            'image_credit': image_credit,
+            'catalogue_local_overrides': overrides,
+            'catalogue_updated': saved.get('catalogue_updated'),
+            'catalogue_reference_values': source,
+        }
+
 
 
 class PlantingMonth(db.Model):

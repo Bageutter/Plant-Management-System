@@ -1,0 +1,11 @@
+{% if plant.generated_fields or plant.not_applicable_fields %}
+<aside aria-label="Catalogue provenance" style="border:2px solid #8a6b20; background:#fff4cf; color:#493912; border-radius:8px; padding:1rem; margin:1rem 0;">
+<strong>AI-assisted catalogue · review required</strong>
+{% set guesses = namespace(found=false) %}{% for field, evidence in plant.field_provenance.items() %}{% if evidence.method == 'ai_planning_estimate' %}{% set guesses.found = true %}{% endif %}{% endfor %}
+{% if guesses.found %}<p><strong>AI planning guesses — unverified.</strong> Some values are rough Sydney planning assumptions, not sourced facts or measured results. Pest/disease entries are watch-list targets; companion ideas are not proven benefits.</p>{% endif %}
+{% if plant.catalogue_local_overrides %}<p>Local values were preserved for: {{ plant.catalogue_local_overrides|join(', ')|replace('_',' ') }}. Public source flags are omitted for those differing values.</p>{% endif %}
+<details><summary>Show field flags, sources and not-applicable reasons</summary>
+<ul>{% for field, evidence in plant.field_provenance.items() %}<li><strong>{{ field|replace('_',' ') }}</strong>: {{ 'AI planning guess; no source verification' if evidence.method == 'ai_planning_estimate' else 'AI-assisted research' }} · {{ evidence.review_status|replace('_',' ') }} · {{ evidence.generated_at or evidence.checked_at }}{% for source in evidence.sources %}{% if source.startswith('https://') %} · <a href="{{ source }}">source ↗</a>{% endif %}{% endfor %}</li>{% endfor %}</ul>
+{% if plant.not_applicable_fields %}<h3>Not applicable for this plan</h3><ul>{% for field, reason in plant.not_applicable_fields.items() %}<li><strong>{{ field|replace('_',' ') }}</strong>: {{ reason }}</li>{% endfor %}</ul>{% endif %}
+</details></aside>
+{% endif %}

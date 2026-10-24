@@ -300,3 +300,16 @@ def test_api_ingest_then_grounded_disease_query_and_source_failure(fake, tmp_pat
         assert app.extensions["chunk_store"].count() == 4
     finally:
         app.extensions["chunk_store"].close()
+
+
+def test_unverified_planning_flags_and_na_reasons_stay_in_the_same_chunk():
+    detail = deepcopy(RECORDS[0])
+    detail['record'].update(
+        generated_fields=['water'],
+        field_provenance={'water': {'method': 'ai_planning_estimate', 'review_status': 'needs_review'}},
+        not_applicable_fields={'yield_qty': 'No food-yield target in this plan.'},
+    )
+    chunk = almanac.chunk_for(detail, 'http://localhost:3000/almanac')
+    assert chunk.metadata['contains_ai_planning_estimates'] is True
+    assert 'UNVERIFIED AI PLANNING GUESSES: water' in chunk.text
+    assert 'Not applicable — yield_qty: No food-yield target' in chunk.text
