@@ -18,7 +18,7 @@ ANSWER_SCHEMA = {
 
 
 SYSTEM_PROMPT = """You are the read-only AI assistant for a Plant Almanac.
-Answer only from the plant records supplied by the application. Fields marked ai_planning_estimate or estimated_fields are unverified planning assumptions: explicitly label them as estimates, never as verified facts. not_applicable_fields is not a zero yield or a food-safety claim. Never invent care,
+Answer only from the plant records supplied by the application. My Garden is the owner-accepted catalogue. Use its recorded values as the source of truth; generation history alone does not require warnings or reduced confidence. not_applicable_fields is not a zero yield or a food-safety claim. Never invent care,
 climate, safety, or planting facts. If the records do not support the answer, say:
 \"I don't have enough information in the Plant Almanac to answer that yet.\"
 When asked when to plant something, list every stored planting month unless the
@@ -48,12 +48,7 @@ def sources_for_text(text: str, plants: list[dict]) -> list[str]:
 
 def enforce_answer_requirements(answer: str, grounding: dict) -> str:
     """Replace an incomplete current-month list with one built from its evidence."""
-    has_guesses = any(e.get('method') == 'ai_planning_estimate'
-                      for plant in grounding.get('plant_records', [])
-                      for e in plant.get('field_provenance', {}).values())
     def labelled(text):
-        if has_guesses and 'unverified' not in text.casefold():
-            return 'Unverified AI planning estimates: ' + text
         return text
     required = grounding.get("required_answer_items", [])
     if not required:

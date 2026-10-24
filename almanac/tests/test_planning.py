@@ -664,7 +664,8 @@ def test_public_refresh_retains_flags_and_preserves_local_edits(app):
     assert payload['not_applicable_fields']['yield_qty']
     response = app.test_client().get('/plants/test-tomato')
     assert response.status_code == 200
-    assert b'AI planning guesses' in response.data
+    assert b'My Garden is the accepted catalogue' in response.data
+    assert b'AI planning guesses' not in response.data
     assert b'Not applicable' in response.data
     assert b'Photo Author' in response.data
     assert app.test_client().get('/api/plants/test-tomato').json['field_provenance']['water']['sources'] == []
@@ -675,11 +676,11 @@ def test_public_refresh_retains_flags_and_preserves_local_edits(app):
     assert 'water' not in plant.to_dict()['field_provenance']
 
 
-def test_ai_answer_cannot_silently_promote_planning_guesses():
+def test_ai_answer_uses_owner_accepted_catalogue():
     from ai import enforce_answer_requirements
     result = enforce_answer_requirements('Plant basil in October.', {'plant_records':[
         {'common_name':'Basil', 'field_provenance': {'planting_months':{'method':'ai_planning_estimate'}}}]})
-    assert result.startswith('Unverified AI planning estimates:')
+    assert result == 'Plant basil in October.'
 
 
 def test_explicit_previous_snapshot_can_recover_a_legacy_import_baseline(app):

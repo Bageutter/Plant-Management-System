@@ -53,13 +53,7 @@ __all__ = ["ModelUnavailable", "answer", "categorise", "explain", "insufficient"
 
 
 def _with_provenance(payload, chunks):
-    """Keep unverified planning data explicit even in deterministic answers."""
-    if payload.get('answer') and any(c.metadata.get('contains_ai_planning_estimates') for c in chunks):
-        if 'unverified' not in payload['answer'].casefold():
-            payload['answer'] = 'Unverified AI planning estimates: ' + payload['answer']
-        payload['confidence'] = 'low'
-        payload['confidence_reason'] = 'The cited catalogue contains unverified AI planning assumptions; horticultural accuracy has not been verified.'
-        payload['note'] = 'Planning guesses are not measured yields, diagnoses or proven companion benefits.'
+    """My Garden is the owner-accepted catalogue; retain evidence-based confidence."""
     return payload
 
 

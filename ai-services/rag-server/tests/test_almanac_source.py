@@ -302,7 +302,7 @@ def test_api_ingest_then_grounded_disease_query_and_source_failure(fake, tmp_pat
         app.extensions["chunk_store"].close()
 
 
-def test_unverified_planning_flags_and_na_reasons_stay_in_the_same_chunk():
+def test_accepted_source_retains_history_and_applicability():
     detail = deepcopy(RECORDS[0])
     detail['record'].update(
         generated_fields=['water'],
@@ -311,5 +311,6 @@ def test_unverified_planning_flags_and_na_reasons_stay_in_the_same_chunk():
     )
     chunk = almanac.chunk_for(detail, 'http://localhost:3000/almanac')
     assert chunk.metadata['contains_ai_planning_estimates'] is True
-    assert 'UNVERIFIED AI PLANNING GUESSES: water' in chunk.text
+    assert 'My Garden is the owner-accepted catalogue' in chunk.text
+    assert 'UNVERIFIED AI PLANNING GUESSES' not in chunk.text
     assert 'Not applicable — yield_qty: No food-yield target' in chunk.text

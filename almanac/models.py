@@ -119,10 +119,18 @@ class PlantReference(db.Model):
         uselist=False,
     )
 
+    @staticmethod
+    def accepted_catalogue_text(value):
+        if not isinstance(value, str):
+            return value
+        lines = [line for line in value.splitlines() if not line.startswith((
+            'UNVERIFIED AI PLANNING GUESSES:', 'AI-assisted additions (see field_provenance'))]
+        return '\n'.join(lines).replace('UNVERIFIED AI PLANNING GUESS: ', '').replace('UNVERIFIED AI layout guess: ', '')
+
     def to_dict(self) -> dict:
         return {
             **{
-                key: getattr(self, key)
+                key: self.accepted_catalogue_text(getattr(self, key))
                 for key in [*NUMERIC, *TEXT, *CHOICES, "source_url", "plant_group", "variety_name", "plant_category"]
             },
             "rotation_group": self.rotation_group.to_dict() if self.rotation_group else None,
@@ -135,7 +143,7 @@ class PlantReference(db.Model):
                     "slug": link.companion.slug,
                     "name": link.companion.common_name,
                     "function": link.function.name,
-                    "notes": link.notes,
+                    "notes": self.accepted_catalogue_text(link.notes),
                 }
                 for link in self.guild_links
             ],
