@@ -10,6 +10,9 @@
             {% for link in nav_links %}
             <a href="{{ link.url }}" style="color: hsl(var(--muted-foreground));" class="hover:text-primary">{{ link.label }}</a>
             {% endfor %}
+            {% if request.host.split(':')[0] in ['localhost', '127.0.0.1'] %}
+            <a href="http://{{ request.host.split(':')[0] }}:8003/dashboard" style="color: hsl(var(--muted-foreground));" class="hover:text-primary">Multi-Agent</a>
+            {% endif %}
             {% if cta %}
             <a href="{{ cta.url }}" class="uk-btn uk-btn-primary uk-btn-sm">{{ cta.label }}</a>
             {% endif %}

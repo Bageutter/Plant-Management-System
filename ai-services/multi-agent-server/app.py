@@ -146,7 +146,8 @@ def dashboard():
                 models = event["details"].get("models", {})
                 break
     return render_template("dashboard.html", data=data, models=models,
-                           workflows=list(reversed(snapshot["workflows"])))
+                           workflows=list(reversed(snapshot["workflows"])),
+                           app_url=os.environ.get("APP_PUBLIC_URL", "http://localhost:3000").rstrip("/"))
 
 
 @app.get("/workflow/metrics")
