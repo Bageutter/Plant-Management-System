@@ -9,10 +9,11 @@
         ← Back to Almanac
     </a>
 
+    {% include "_catalogue_provenance.html" %}
     <div class="plant-hero">
     {% if plant.image_url %}
-    <img src="{{ plant.image_url }}" alt="{{ plant.common_name }}"
-         class="plant-hero-image">
+    <figure style="margin:0;"><img src="{{ plant.image_url }}" alt="{{ plant.common_name }}" class="plant-hero-image">
+    {% if plant.image_credit %}<figcaption style="font-size:.8rem; line-height:1.5; margin-top:.5rem;">{{ plant.image_credit.creator }} · {{ plant.image_credit.license }} · <a href="{{ plant.image_credit.description_url }}">photo source ↗</a><br>{{ plant.image_credit.caption }}{% if plant.image_credit.ai_generated == false %}<br>Real photograph · not AI-generated{% endif %}</figcaption>{% endif %}</figure>
     {% endif %}
 
     <div class="plant-intro">

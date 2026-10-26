@@ -13,7 +13,7 @@ CHOICES = {
         "groundcover",
         "vine",
     ],
-    "part_used": ["leaf", "root", "fruit", "flower", "bark", "seed"],
+    "part_used": ["leaf", "leaves", "root", "fruit", "flower", "bark", "seed", "culm", "swollen fruit stalk", "flower (ornamental only)"],
 }
 FUNCTIONS = [
     "nitrogen fixer",
