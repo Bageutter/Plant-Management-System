@@ -3,13 +3,13 @@
 
 def catalogue_view(plants, args):
     query = args.get("q", "").strip()[:200]
-    category = args.get("category", "")
-    categories = sorted({p.get("plant_category") or "Other" for p in plants})
+    category = args.get("category", "").strip().casefold().capitalize()
+    categories = sorted({(p.get("plant_category") or "Other").strip().casefold().capitalize() for p in plants})
     if category not in categories:
         category = ""
     group_by = "plant"
     visible = [p for p in plants if (
-        not category or (p.get("plant_category") or "Other") == category
+        not category or (p.get("plant_category") or "Other").strip().casefold().capitalize() == category
     ) and query.casefold() in " ".join(str(p.get(k) or "") for k in (
         "common_name", "scientific_name", "plant_group", "variety_name", "summary"
     )).casefold()]

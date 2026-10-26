@@ -25,6 +25,13 @@ class PlantGroupTests(unittest.TestCase):
         self.assertEqual([p['slug'] for p in view['visible_plants']], ['purple'])
         self.assertIsNone(view['plant_groups'][0]['summary'])
 
+    def test_category_filter_combines_case_and_whitespace_variants(self):
+        self.plants[1]['plant_category'] = ' vegetables '
+        view = catalogue_view(self.plants, {'category': 'VEGETABLES'})
+        self.assertEqual(view['categories'], ['Other', 'Vegetables'])
+        self.assertEqual(view['selected_category'], 'Vegetables')
+        self.assertEqual([p['slug'] for p in view['visible_plants']], ['carrot', 'purple'])
+
     def test_legacy_record_and_empty_search_result(self):
         self.assertEqual(len(catalogue_view(self.plants, {'category':'Other'})['visible_plants']),1)
         self.assertFalse(catalogue_view(self.plants, {'q':'no-such-plant'})['visible_plants'])
