@@ -21,6 +21,10 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 step "Collecting deployment facts"
+workflow_run_url=""
+if [[ -n ${GITHUB_RUN_ID:-} ]]; then
+  workflow_run_url="${GITHUB_SERVER_URL:-https://github.com}/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+fi
 az deployment group show -g "$AZURE_RESOURCE_GROUP" -n "$PLATFORM_DEPLOYMENT" \
   --query "properties.outputs" -o json >"$work/platform.json"
 az deployment group show -g "$AZURE_RESOURCE_GROUP" -n "$APPS_DEPLOYMENT" \
@@ -50,7 +54,7 @@ cat >"$work/context.json" <<JSON
   "commit": "$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)",
   "branch": "${GITHUB_REF_NAME:-$(git -C "$ROOT" branch --show-current 2>/dev/null || echo unknown)}",
   "actor": "${GITHUB_ACTOR:-$(git -C "$ROOT" config user.name 2>/dev/null || echo local)}",
-  "workflow_run_url": "${GITHUB_SERVER_URL:-}${GITHUB_REPOSITORY:+/$GITHUB_REPOSITORY}${GITHUB_RUN_ID:+/actions/runs/$GITHUB_RUN_ID}",
+  "workflow_run_url": "$workflow_run_url",
   "smoke_result": "$smoke_result",
   "cloud_baseline": {
     "ai_mode_enabled": $CLOUD_AI_ENABLED,

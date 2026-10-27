@@ -105,6 +105,16 @@ def main(facts_dir: str, report_dir: str) -> int:
     app_url = value(apps, "appUrl")
     baseline = context.get("cloud_baseline", {})
     smoke = context.get("smoke_result", "unknown")
+    crud = load(out, "e2e-crud") or {}
+    # An artifact can contain older committed evidence. Only this run's output
+    # may establish CRUD for the deployment being reported.
+    crud_matches = bool(context.get("commit")) and (
+        crud.get("commit") == context.get("commit")
+        and crud.get("workflow_run_url") == (context.get("workflow_run_url") or "")
+        and crud.get("target", "").rstrip("/") == str(app_url).rstrip("/")
+        and crud.get("generated_at", "") >= generated[:10]
+    )
+    crud_test = crud if crud_matches else {"result": "unverified", "reason": "No matching CRUD evidence for this deployment run."}
 
     grounding = {
         "report": "cloud-deployment",
@@ -127,6 +137,7 @@ def main(facts_dir: str, report_dir: str) -> int:
         },
         "cloud_baseline": baseline,
         "smoke_test": {"result": smoke},
+        "crud_test": crud_test,
         "container_apps": container_apps,
         "postgres": postgres,
         "key_vaults": keyvaults,
@@ -191,6 +202,7 @@ Generated {generated} by `scripts/deploy/azure-report.sh`.
 | Triggered by | {context.get("actor")} |
 | Workflow run | {run_url} |
 | Smoke test | **{str(smoke).upper()}** (`scripts/deploy/azure-smoke.sh`) |
+| CRUD and persistence | **{str(crud_test.get("result", "unverified")).upper()}** (`e2e-crud.json`; separate from smoke) |
 
 ## Access
 

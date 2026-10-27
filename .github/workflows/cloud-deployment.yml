@@ -80,6 +80,9 @@ jobs:
       - name: Compile-check Python files
         run: python -m compileall -q auth shared vgarden almanac health ai-services scripts
 
+      - name: Test deployment evidence validation
+        run: python -m unittest discover -s scripts/deploy/tests -v
+
   endpoint-tests:
     name: Gate · endpoint tests (${{ matrix.service }})
     runs-on: ubuntu-latest
@@ -203,6 +206,16 @@ jobs:
         id: smoke
         run: bash scripts/deploy/azure-smoke.sh
 
+      - name: Cloud baseline CRUD and persistence
+        id: crud
+        if: env.DEPLOY_PROFILE == 'baseline'
+        shell: bash
+        run: |
+          mkdir -p docs/evidence/release2/cloud-deployment
+          python3 scripts/deploy/azure-e2e.py "${{ steps.apps.outputs.app_url }}" \
+            --json-out docs/evidence/release2/cloud-deployment/e2e-crud.json \
+            | tee docs/evidence/release2/cloud-deployment/e2e-crud.txt
+
       - name: Sign in again (fresh OIDC token for the security check)
         if: always() && steps.apps.outcome == 'success'
         uses: azure/login@v2
@@ -221,6 +234,7 @@ jobs:
       - name: Cloud AI check (bonus profile)
         id: ai
         if: always() && steps.apps.outcome == 'success' && env.DEPLOY_PROFILE == 'bonus'
+        shell: bash
         run: |
           mkdir -p docs/evidence/release2/cloud-bonus
           python3 scripts/deploy/azure-ai-e2e.py "${{ steps.apps.outputs.app_url }}" \

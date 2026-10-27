@@ -554,6 +554,18 @@ def gather_cloud(args) -> tuple[dict, list[Check], list[str]]:
                missing=not baseline)
         smoke = facts["deployment"]["smoke_test"]
         _check(checks, "CD-3", "The deploy's own smoke test passed", smoke == "pass", f"smoke_test.result={smoke}")
+        crud = report.get("crud_test") or {}
+        facts["deployment"]["crud_test"] = crud
+        crud_matches = (
+            bool(deployment.get("commit"))
+            and crud.get("commit") == deployment.get("commit")
+            and crud.get("workflow_run_url") == (deployment.get("workflow_run_url") or "")
+            and crud.get("target") == facts["deployment"]["app_url"]
+        )
+        _check(checks, "CD-CRUD", "CRUD and persistence passed for this deployment",
+               crud.get("result") == "pass" and crud_matches,
+               f"CRUD result={crud.get('result', 'unverified')}; matching source/run/target={crud_matches}",
+               missing=not crud or crud.get("result") == "unverified")
         public = [a.get("name") for a in apps if a.get("external")]
         stopped = [a.get("name") for a in apps if str(a.get("status", "")).lower() not in ("running", "succeeded")]
         _check(checks, "CD-4", "All container apps run and only one has public ingress",

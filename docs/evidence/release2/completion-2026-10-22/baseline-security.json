@@ -1,0 +1,146 @@
+{
+  "generated_at": "20261022T080127Z",
+  "target": "https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io",
+  "resource_group": "rg-plantms-prod",
+  "passed": 17,
+  "total": 17,
+  "result": "pass",
+  "checks": [
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E1",
+      "control": "HTTPS with a valid certificate; TLS 1.0/1.1 refused",
+      "result": "pass",
+      "detail": "negotiated TLSv1.3, certificate issued by Microsoft Corporation, valid until Jan 29 07:50:09 2027 GMT; TLS <= 1.1 refused",
+      "evidence": ""
+    },
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E2",
+      "control": "Plain HTTP is redirected to HTTPS",
+      "result": "pass",
+      "detail": "http:// -> 301 https://plantms-prod-proxy.thankfulsky-694df0b7.australiaeast.azurecontainerapps.io/",
+      "evidence": ""
+    },
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E3",
+      "control": "One public entry point; every service and AI app internal-only",
+      "result": "pass",
+      "detail": "6 apps; public: ['plantms-prod-proxy']; internal: ['plantms-prod-almanac', 'plantms-prod-auth', 'plantms-prod-frontend', 'plantms-prod-health', 'plantms-prod-vgarden']",
+      "evidence": ""
+    },
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E4",
+      "control": "Internal addresses cannot be reached from the internet",
+      "result": "pass",
+      "detail": "almanac: 404; auth: 404; frontend: 404; health: 404; vgarden: 404",
+      "evidence": ""
+    },
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E5",
+      "control": "Security headers on every response; no server version disclosed",
+      "result": "pass",
+      "detail": "Server: 'nginx'; all present",
+      "evidence": "Strict-Transport-Security: max-age=31536000; includeSubDomains\nContent-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'\nX-Content-Type-Options: nosniff\nX-Frame-Options: SAMEORIGIN\nReferrer-Policy: strict-origin-when-cross-origin"
+    },
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E6",
+      "control": "Session cookies are Secure, HttpOnly and SameSite",
+      "result": "pass",
+      "detail": "auth session cookie flags: {'Secure': True, 'HttpOnly': True, 'SameSite=Lax': True}",
+      "evidence": ""
+    },
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E7",
+      "control": "Forms reject requests without a CSRF token",
+      "result": "pass",
+      "detail": "POST /auth/login without a token -> 400",
+      "evidence": ""
+    },
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E8",
+      "control": "Private data needs a login or the inter-service token",
+      "result": "pass",
+      "detail": "/vgarden/gardens/export -> 401, /vgarden/gardens/1/view -> 302, /vgarden/gardens/1/snapshot -> 401",
+      "evidence": ""
+    },
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E9",
+      "control": "Sign-in is rate limited per client (password guessing)",
+      "result": "pass",
+      "detail": "25 rapid GET /auth/login: 11 x 200, 14 x 429",
+      "evidence": ""
+    },
+    {
+      "area": "Endpoint security (B5)",
+      "id": "E10",
+      "control": "Dotfiles are never served",
+      "result": "pass",
+      "detail": "/.env -> 404, /.git/config -> 404, /auth/.env -> 404",
+      "evidence": ""
+    },
+    {
+      "area": "Data security (B6)",
+      "id": "D1",
+      "control": "Database private to the VNet, TLS required, encrypted at rest, backed up",
+      "result": "pass",
+      "detail": "psql-plantms-prod-4m5abpehqyc2o: public access Disabled, VNet-injected True, require_secure_transport=on, min TLS TLSv1.2, encryption at rest SystemManaged, backups 7 days",
+      "evidence": ""
+    },
+    {
+      "area": "Data security (B6)",
+      "id": "D2",
+      "control": "Secrets in Key Vault: RBAC only, soft delete",
+      "result": "pass",
+      "detail": "kv-plantms-4m5abpeh: RBAC True, soft delete True (7 days), access policies 0, 9 secrets (names only)",
+      "evidence": ""
+    },
+    {
+      "area": "Data security (B6)",
+      "id": "D3",
+      "control": "Apps get secrets only as Key Vault references, through a managed identity",
+      "result": "pass",
+      "detail": "9 Key Vault references across 6 apps",
+      "evidence": ""
+    },
+    {
+      "area": "Data security (B6)",
+      "id": "D4",
+      "control": "Registry without an admin password (pulls use the managed identity)",
+      "result": "pass",
+      "detail": "[{'admin': False, 'name': 'acrplantms4m5abpehqyc2o'}]",
+      "evidence": ""
+    },
+    {
+      "area": "Data security (B6)",
+      "id": "D5",
+      "control": "Stored files: HTTPS/TLS 1.2 only, no public access, subnet-restricted, encrypted",
+      "result": "pass",
+      "detail": "stplantms4m5abpehqy: HTTPS only True, min TLS TLS1_2, public blobs False, network default Deny (1 subnet rule(s)), file encryption True",
+      "evidence": ""
+    },
+    {
+      "area": "Data security (B6)",
+      "id": "D6",
+      "control": "No cloud credential stored in GitHub (OIDC federation)",
+      "result": "pass",
+      "detail": "4 federated credential(s): repo:Bageutter/Plant-Management-System:ref:refs/heads/main, repo:Bageutter/Plant-Management-System:environment:azure-production, repo:Bageutter@138295033/Plant-Management-System@1333797433:environment:azure-production, repo:Bageutter@138295033/Plant-Management-System@1333797433:ref:refs/heads/main",
+      "evidence": ""
+    },
+    {
+      "area": "Data security (B6)",
+      "id": "D7",
+      "control": "Passwords stored only as salted hashes; secrets blocked from the repository",
+      "result": "pass",
+      "detail": "auth/models.py uses werkzeug generate_password_hash: True; detect-secrets pre-commit hook with a reviewed baseline: True",
+      "evidence": ""
+    }
+  ]
+}
