@@ -1,0 +1,16 @@
+<section id="harvest-calculator" class="harvest-calculator" data-yield="{{ plant.yield_qty if plant.yield_unit in ['kg','g'] and plant.yield_qty else '' }}" data-unit="{{ plant.yield_unit or '' }}" data-window="{{ plant.harvest_window_weeks or '' }}" data-interval="{{ plant.succession_interval_days or '' }}" data-months='{{ plant.planting_months|tojson }}' data-harvest-notes='{{ (plant.yield_wording or "")|tojson }}'>
+<div class="harvest-heading"><span class="harvest-eyebrow">YOUR GARDEN, YOUR TABLE</span><h2>How much should I plant?</h2><p>Build a steady supply of {{ plant.common_name }}.</p></div><div class="harvest-workspace">
+<form id="harvest-plan-form">
+<p class="harvest-step">1 · Your household</p><div class="harvest-inputs harvest-household">
+<label>Weekly amount per person (g)<input name="grams" type="number" min="1" max="100000" value="300" required></label>
+<label>People<input name="people" type="number" min="1" max="100" step="1" value="3" required></label>
+<label>Weeks of supply<input name="weeks" type="number" min="1" max="104" step="1" value="12" required></label>
+</div><details class="harvest-settings"><summary>Adjust growing details <span>Saved yield, season & timing</span></summary><div class="harvest-inputs harvest-crop"><label>Total yield per plant (g)<input name="yieldGrams" type="number" min="1" max="1000000" required><small>Whole harvest from one plant, not each week.</small></label>
+<label>Harvest window (weeks)<input name="windowWeeks" type="number" min="0.5" max="104" step="0.5" required><small>How long one batch keeps producing.</small></label>
+<label>Sow another batch every (days)<input name="intervalDays" type="number" min="1" max="365" step="1" required></label>
+<label>First sowing date<input name="start" type="date" required></label>
+<label>Days from sowing to first harvest<input name="maturityDays" type="number" min="1" max="3650" step="1" placeholder="Optional, if known"><small>Enter this to see expected harvest dates.</small></label>
+</div><p id="harvest-data-note"></p></details><button type="submit" class="uk-btn uk-btn-primary">Update my plan ↗</button>
+</form><div id="harvest-plan-result" aria-live="polite"></div></div>
+<details class="harvest-method"><summary>How this is calculated</summary><p>Your weekly target is grams per person × people. The first batch covers a full harvest window. Later batches share the target across overlapping harvests, rounded up to whole plants.</p><p>Yield is averaged across the harvest window. Seasonal planting limits, weather and crop losses can affect supply. Adjust the inputs to match your garden.</p></details>
+</section><script src="{{ url_for('static', filename='harvest-calculator.js') }}" defer></script>

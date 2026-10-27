@@ -1,9 +1,22 @@
 {% from "_field_help.html" import help with context %}
-{% for title, keys in [('Yield & spacing',['yield_qty','yield_unit','succession_interval_days','harvest_window_weeks','yield_wording']),('Soil & care',['feeder_type','water_needs','sun_needs','care_notes','management_notes']),('Food forest & uses',['forest_layer','function_tags','uses','part_used','uses_notes'])] %}
-<section class="planning-card" style="margin-top:1.2rem;"><h2 style="font-size:1.25rem; margin-bottom:1rem;">{{ title }}</h2>{% if title == 'Yield & spacing' %}{% include '_plant_spacing_visual.html' %}{% elif title == 'Soil & care' %}{% include '_plant_ph_visual.html' %}{% endif %}<dl class="planning-grid">
-{% for key in keys %}<div class="{% if key in ['yield_wording','care_notes','management_notes','uses_notes'] or key in plant.not_applicable_fields %}planning-field-wide{% endif %}"><dt class="text-muted-foreground" style="font-size:.8rem;">{{ numeric_fields.get(key) or text_fields.get(key) or key.replace('_',' ').capitalize() }} {{ help(key, numeric_fields.get(key) or text_fields.get(key) or key.replace("_"," ")) }}</dt><dd style="margin:.25rem 0 .8rem; white-space:pre-line;">{% if key in ['function_tags','uses','pests','diseases'] %}{{ plant[key]|join(', ') or 'Not recorded' }}{% elif key in plant.not_applicable_fields %}Not applicable — {{ plant.not_applicable_fields[key] }}{% else %}{% set value = plant[key] %}{% if value is string and value.startswith('AI-assisted research,') and ': ' in value %}{{ value.split(': ', 1)[1] }}{% else %}{{ value if value is not none else 'Not recorded' }}{% endif %}{% endif %}</dd></div>{% endfor %}
-</dl></section>
-{% endfor %}
+{% macro metric(label, value, suffix='') %}<div class="growing-metric"><dt>{{ label }}</dt><dd>{{ value if value is not none and value != '' else '—' }}{% if value is not none %} {{ suffix }}{% endif %}</dd></div>{% endmacro %}
+<section class="planning-card growing-card"><div class="growing-card-title"><span>01</span><h2>Yield & spacing</h2></div>
+{% include '_plant_spacing_visual.html' %}
+<dl class="growing-metrics">{{ metric('Per plant', ('%g'|format(plant.yield_qty)) if plant.yield_qty is not none else none, plant.yield_unit or '') }}{{ metric('Harvest window', ('%g'|format(plant.harvest_window_weeks)) if plant.harvest_window_weeks is not none else none, 'weeks') }}{{ metric('Sow again after', plant.succession_interval_days, 'days') }}</dl>
+{% if plant.yield_wording %}<details class="growing-notes"><summary>Harvest notes</summary><p>{{ plant.yield_wording }}</p></details>{% endif %}
+<a class="growing-planner-link" href="#harvest-calculator">Plan my household harvest ↗</a>
+</section>
+<section class="planning-card growing-card"><div class="growing-card-title"><span>02</span><h2>Soil & care</h2></div>
+{% include '_plant_ph_visual.html' %}
+<dl class="growing-metrics">{{ metric('Feeding', plant.feeder_type) }}{{ metric('Water', plant.water_needs) }}{{ metric('Sunlight', plant.sun_needs) }}</dl>
+{% if plant.care_notes %}<details class="growing-notes"><summary>Growing tips</summary><p>{{ plant.care_notes }}</p></details>{% endif %}
+{% if plant.management_notes %}<details class="growing-notes"><summary>Ongoing care</summary><p>{{ plant.management_notes }}</p></details>{% endif %}
+</section>
+<section class="planning-card growing-card"><div class="growing-card-title"><span>03</span><h2>Food forest & uses</h2></div>
+<dl class="growing-metrics">{{ metric('Garden layer',plant.forest_layer) }}{{ metric('Harvested part',plant.part_used) }}{{ metric('Uses', plant.uses|join(', ')) }}</dl>
+{% if plant.function_tags %}<div class="problem-tags">{% for tag in plant.function_tags %}<span class="tag">{{ tag|capitalize }}</span>{% endfor %}</div>{% endif %}
+{% if plant.uses_notes %}<details class="growing-notes"><summary>Kitchen & use notes</summary><p>{{ plant.uses_notes }}</p></details>{% endif %}
+</section>
 <section class="planning-card" style="margin-top:1.2rem;">
 <h2 style="font-size:1.25rem;">Pests & diseases</h2>
 <div class="problem-columns">
