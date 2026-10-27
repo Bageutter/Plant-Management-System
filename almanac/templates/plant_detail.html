@@ -2,19 +2,19 @@
 
 {% block title %}{{ plant.common_name }} — Almanac{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='plant-detail.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='henny-garden.css') }}">{% endblock %}
+{% block extra_head %}<script type="module" src="{{ url_for('static', filename='vendor/model-viewer.min.js') }}"></script><link rel="stylesheet" href="{{ url_for('static', filename='plant-detail.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='henny-garden.css') }}">{% endblock %}
 {% block content %}
 
 <div class="plant-detail henny-garden" id="overview">
     <a href="{{ url_for('index') }}" class="henny-back"><span aria-hidden="true">←</span> Back to Almanac</a>
     <div class="plant-hero">
     {% if plant.image_url %}
-    <figure class="henny-photo" style="margin:0;"><div class="henny-photo-frame"><img src="{{ plant.image_url }}" alt="{{ plant.common_name }}" class="plant-hero-image"><div class="henny-photo-caption"><strong>{{ plant.common_name }}</strong><em>{{ plant.scientific_name }}</em></div><button class="henny-photo-open" type="button" onclick="document.getElementById('plant-photo-dialog').showModal()">▧ View photo</button></div>
+    <figure class="henny-photo" style="margin:0;"><span class="henny-photo-number" aria-label="Almanac number {{ plant.id }}">#{{ "%03d"|format(plant.id) }}</span><div class="henny-photo-frame"><img src="{{ plant.image_url }}" alt="{{ plant.common_name }}" class="plant-hero-image"><div class="henny-photo-caption"><strong>{{ plant.common_name }}</strong><em>{{ plant.scientific_name }}</em></div><button class="henny-photo-open" type="button" onclick="document.getElementById('plant-photo-dialog').showModal()">▧ View photo</button></div>
     <dialog id="plant-photo-dialog" class="henny-photo-dialog"><form method="dialog"><button aria-label="Close photo">×</button></form><img src="{{ plant.image_url }}" alt="{{ plant.common_name }}"><p>{{ plant.common_name }} · {{ plant.scientific_name }}</p>{% if plant.image_credit %}<div style="font-size:.8rem; line-height:1.5; margin-top:.5rem;">{{ plant.image_credit.creator }} · {{ plant.image_credit.license }} · <a href="{{ plant.image_credit.description_url }}">photo source ↗</a><br>{{ plant.image_credit.caption }}</div>{% endif %}</dialog>
     </figure>
     {% endif %}
 
-    <div class="plant-intro">{% set plant_type = {'canopy':'Tree','subcanopy':'Tree','shrub':'Shrub','vine':'Climber','groundcover':'Groundcover','herbaceous':'Herb'}.get(plant.forest_layer, 'Plant') %}<span class="henny-type">{{ plant_type }}</span><p class="henny-catalogue-number"> #{{ "%03d"|format(plant.id) }}</p>
+    <div class="plant-intro">{% set plant_type = {'canopy':'Tree','subcanopy':'Tree','shrub':'Shrub','vine':'Climber','groundcover':'Groundcover','herbaceous':'Herb'}.get(plant.forest_layer, 'Plant') %}<span class="henny-type">{{ plant_type }}</span>
     <div class="henny-title-row">
         <div>
 
@@ -48,7 +48,7 @@
       <div class="henny-fact"><div class="henny-fact-heading">{{ growing_icon(icon) }}<strong>{{ label }}</strong></div><p>{{ value or 'Not recorded' }}</p></div>
       {% endfor %}
     </div>
-    <aside class="henny-hello" aria-label="Henny's plant fact"><span class="henny-excitement" aria-hidden="true"><i></i><i></i><i></i></span><img class="henny-character" src="{{ url_for('static',filename='henny-hen.png') }}" alt="Henny the helpful hen"><div class="henny-speech"><strong>Did you know?</strong><p>{{ (plant.uses_notes or plant.summary or 'Explore this plant’s saved growing notes with me.').split('\n')[0] }}</p></div></aside>
+    <aside class="henny-hello" aria-label="Henny's plant fact"><span class="henny-excitement" aria-hidden="true"><i></i><i></i><i></i></span><button type="button" class="henny-character henny-lowpoly" id="henny-hop" aria-label="Say hello to Henny. She will hop and cluck."><model-viewer src="{{ url_for('static',filename='models/henny-chicken.glb') }}" alt="Henny, a low-poly chicken" camera-orbit="50deg 79deg auto" shadow-intensity="0.6" environment-image="neutral" interaction-prompt="none" loading="eager" reveal="auto"><img slot="poster" src="{{ url_for('static',filename='henny-hen.png') }}" alt="Henny"></model-viewer></button><div class="henny-speech"><strong>A note from Henny</strong><p>{{ plant.summary or "Let’s find this plant a happy spot in your garden." }}</p><span class="henny-tap-hint">Tap Henny to say hello</span></div></aside>
     </div>
     </div>
     {% if related_varieties|length > 1 %}
@@ -64,5 +64,7 @@
     </section>
     <div class="plant-sections" id="growing">{% include "_planning_detail.html" %}</div>
     {% include "_harvest_calculator.html" %}
+<footer class="henny-credit-footer"><a href="{{ url_for('static',filename='credits.html') }}">Artwork credits</a></footer>
 </div>
+<script src="{{ url_for('static',filename='henny-hop.js') }}" defer></script>
 {% endblock %}
