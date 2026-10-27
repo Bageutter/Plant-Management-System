@@ -59,7 +59,6 @@
       {% endfor %}
     </nav>
     {% endif %}
-    <nav class="henny-section-nav" aria-label="Plant sections"><a href="#overview">Overview</a><a href="#growing">Growing</a><a href="#plant-calendar">Planting calendar</a><a href="#harvest-calculator">Harvest planner</a></nav>
     <section class="henny-calendar" id="plant-calendar"><h2>🌱 Planting calendar</h2><p>Sydney / warm temperate · saved planting months</p>
       <div class="henny-months">{% for month in ['January','February','March','April','May','June','July','August','September','October','November','December'] %}<div class="henny-month {% if month in plant.planting_months %}is-planted{% endif %}" aria-label="{{ month }}: {{ 'recorded planting month' if month in plant.planting_months else 'no planting month recorded' }}"><span>{{ month[:3] }}</span><i aria-hidden="true"></i></div>{% endfor %}</div>
     </section>
