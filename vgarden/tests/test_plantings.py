@@ -175,3 +175,14 @@ def test_delete_planting_404s_for_non_owner(app, client, login_as):
     assert response.status_code == 404
     with app.app_context():
         assert Planting.query.count() == 1
+
+
+def test_almanac_crop_prefills_review_form_without_creating_planting(app, client, login_as):
+    garden_id, _, _ = _make_garden_with_area_and_container(app)
+    login_as(1)
+    response = client.get(f'/gardens/{garden_id}/view', query_string={'plant': 'Mint "special" <b>'})
+    assert response.status_code == 200
+    assert b'showAddPlanting: true' in response.data
+    assert b'Mint &#34;special&#34; &lt;b&gt;' in response.data
+    with app.app_context():
+        assert Planting.query.count() == 0

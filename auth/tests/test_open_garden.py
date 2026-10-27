@@ -67,3 +67,13 @@ def test_open_garden_404s_for_someone_elses_garden(app, client, login_as):
     response = client.get("/gardens/42/open")
 
     assert response.status_code == 404
+
+
+def test_almanac_crop_survives_owned_garden_handoff(app, client, login_as):
+    user_id = _make_user(app)
+    _own_garden(app, user_id)
+    login_as(user_id)
+    response = client.get('/gardens/42/open', query_string={'plant': 'Mint & Basil'})
+    next_path = parse_qs(urlparse(response.location).query)['next'][0]
+    assert urlparse(next_path).path == '/gardens/42/view'
+    assert parse_qs(urlparse(next_path).query)['plant'] == ['Mint & Basil']

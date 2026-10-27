@@ -8,7 +8,7 @@
     showEditGarden: false,
     showAddArea: false,
     showAddContainer: false,
-    showAddPlanting: false,
+    showAddPlanting: {{ 'true' if request.args.get('plant') else 'false' }},
 }">
 
 {{ flash_messages() }}
@@ -279,12 +279,12 @@
 <form method="post" action="{{ url_for('plantings.create_planting', garden_id=garden.id) }}" class="flex flex-col gap-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <p class="text-xs text-muted-foreground -mt-1">
-        Picking a crop/variety from Amy's Crop Almanac is coming in a later update — enter the crop name for now.
+        Review the crop name, quantity and location before adding it to your garden.
     </p>
     <div class="grid grid-cols-2 gap-3">
         <div>
             <label for="planting-crop" class="uk-form-label">Crop name</label>
-            <input id="planting-crop" type="text" name="crop_name" required maxlength="120" placeholder="e.g. Tomato (Roma)" class="uk-input">
+            <input id="planting-crop" type="text" name="crop_name" value="{{ request.args.get('plant', '')[:120] }}" required maxlength="120" placeholder="e.g. Tomato (Roma)" class="uk-input">
         </div>
         <div>
             <label for="planting-qty" class="uk-form-label">Quantity</label>
