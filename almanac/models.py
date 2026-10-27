@@ -1,3 +1,4 @@
+import re
 from calendar import month_name
 from datetime import datetime, timezone
 
@@ -18,6 +19,8 @@ class PlantReference(db.Model):
     variety_name = db.Column(db.String(120), nullable=True)
     plant_category = db.Column(db.String(40), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    catalogue_provenance = db.Column(db.JSON, nullable=True)
 
     yield_qty = db.Column(db.Float, nullable=True)
     in_row_spacing_cm = db.Column(db.Float, nullable=True)
@@ -71,7 +74,7 @@ class PlantReference(db.Model):
     )
     part_used = db.Column(
         db.Enum(
-            *["leaf", "root", "fruit", "flower", "bark", "seed"],
+            *CHOICES["part_used"],
             name="part_used",
             native_enum=False,
             create_constraint=True,
@@ -117,10 +120,20 @@ class PlantReference(db.Model):
         uselist=False,
     )
 
+    @staticmethod
+    def accepted_catalogue_text(value):
+        if not isinstance(value, str):
+            return value
+        lines = [line for line in value.splitlines() if not line.startswith((
+            'UNVERIFIED AI PLANNING GUESSES:', 'AI-assisted additions (see field_provenance'))]
+        # Generation provenance stays in the source vault, outside public care text.
+        lines = [re.sub(r'^\s*AI-assisted research,[^\n]*?\):\s*', '', line) for line in lines]
+        return '\n'.join(lines).replace('UNVERIFIED AI PLANNING GUESS: ', '').replace('UNVERIFIED AI layout guess: ', '')
+
     def to_dict(self) -> dict:
         return {
             **{
-                key: getattr(self, key)
+                key: self.accepted_catalogue_text(getattr(self, key))
                 for key in [*NUMERIC, *TEXT, *CHOICES, "source_url", "plant_group", "variety_name", "plant_category"]
             },
             "rotation_group": self.rotation_group.to_dict() if self.rotation_group else None,
@@ -133,7 +146,7 @@ class PlantReference(db.Model):
                     "slug": link.companion.slug,
                     "name": link.companion.common_name,
                     "function": link.function.name,
-                    "notes": link.notes,
+                    "notes": self.accepted_catalogue_text(link.notes),
                 }
                 for link in self.guild_links
             ],
@@ -144,7 +157,37 @@ class PlantReference(db.Model):
             "family": self.family,
             "summary": self.summary,
             "planting_months": [month.name for month in self.planting_months],
+            **self.provenance_payload(),
         }
+
+
+    def provenance_payload(self):
+        """Expose public provenance while identifying preserved local overrides."""
+        saved = self.catalogue_provenance or {}
+        source = saved.get('source_values') or {}
+        overrides = [key for key, value in source.items()
+                     if hasattr(self, key) and getattr(self, key) != value]
+        aliases = {'sun': 'sun_needs', 'water': 'water_needs', 'spacing_cm': 'in_row_spacing_cm',
+                   'feeder': 'feeder_type', 'Summary': 'summary', 'Sowing': 'sowing_notes',
+                   'Care': 'care_notes', 'Management': 'management_notes', 'Harvest': 'yield_wording', 'Uses': 'uses_notes'}
+        evidence = {key: value for key, value in (saved.get('field_provenance') or {}).items()
+                    if aliases.get(key, key) not in overrides}
+        na = {key: reason for key, reason in (saved.get('not_applicable_fields') or {}).items()
+              if aliases.get(key, key) not in overrides}
+        image_credit = saved.get('image_credit') or {}
+        if not self.image or not self.image.public_url or self.image.filename != image_credit.get('filename'):
+            image_credit = {}
+        return {
+            'generated_fields': [key for key in saved.get('generated_fields', []) if key in evidence],
+            'field_provenance': evidence,
+            'estimated_fields': [key for key in saved.get('estimated_fields', []) if key not in overrides],
+            'not_applicable_fields': na,
+            'image_credit': image_credit,
+            'catalogue_local_overrides': overrides,
+            'catalogue_updated': saved.get('catalogue_updated'),
+            'catalogue_reference_values': source,
+        }
+
 
 
 class PlantingMonth(db.Model):

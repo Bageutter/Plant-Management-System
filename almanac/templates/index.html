@@ -56,27 +56,12 @@
     <h1 class="sr-only">Plant Almanac</h1>
     {% include '_catalogue_toolbar.html' %}
 
-    <p><a class="uk-btn uk-btn-default" href="{{ url_for('ailment_index') }}">Browse all plant ailments →</a></p>
-    <section class="problem-hub" aria-label="Plant problem library">
-        <a class="problem-hub-card problem-hub-card--pests" href="{{ url_for('pest_index') }}">
-            <div>
-                <p class="problem-hub-card__label">Identify & respond</p>
-                <h2>Pests</h2>
-                <p>Spot chewing and sap-feeding visitors, then start with the lightest effective response.</p>
-            </div>
-            <span class="problem-hub-card__link">Browse {{ pest_count }} {{ 'guide' if pest_count == 1 else 'guides' }} →</span>
-        </a>
-        <a class="problem-hub-card problem-hub-card--diseases" href="{{ url_for('disease_index') }}">
-            <div>
-                <p class="problem-hub-card__label">Diagnose & prevent</p>
-                <h2>Diseases</h2>
-                <p>Compare visible signs, improve growing conditions and know when a treatment may help.</p>
-            </div>
-            <span class="problem-hub-card__link">Browse {{ disease_count }} {{ 'guide' if disease_count == 1 else 'guides' }} →</span>
-        </a>
-    </section>
-
     {% include '_grouped_catalogue.html' %}
 </div>
 
+<script>
+window.addEventListener('load', () => {
+  if (location.hash === '#henny') document.querySelector('.ai-chat-launcher')?.click();
+});
+</script>
 {% endblock %}

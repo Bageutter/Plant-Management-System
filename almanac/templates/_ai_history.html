@@ -13,7 +13,7 @@
     <article class="chat-message chat-message-{{ message.role }}" style="max-width:82%; padding:0.8rem 0.95rem; border-radius:1rem; {% if message.role == 'user' %}border-bottom-right-radius:0.3rem; background:hsl(var(--primary)); color:hsl(var(--primary-foreground));{% else %}border-bottom-left-radius:0.3rem; border:1px solid hsl(var(--border)); background:hsl(var(--card));{% endif %}">
         <header class="chat-message-heading">
         <p style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin:0 0 0.3rem; opacity:0.75; color:{% if message.role == 'user' %}hsl(var(--primary-foreground)){% else %}hsl(var(--muted-foreground)){% endif %};">
-            {{ "You" if message.role == "user" else "Almanac" }}
+            {{ "You" if message.role == "user" else "Henny" }}
         </p>
         {% if message.evidence and message.evidence.mode == 'rag' %}{{ confidence_pill(message.evidence.result.confidence, message.evidence.result.insufficient_context, message.evidence.result.confidence_reason) }}{% endif %}
         </header>
@@ -22,8 +22,8 @@
         {% set workflow_url = url_for('chat_multi_agent', message_id=message.id) %}
         {% include '_multi_agent_result.html' %}
         {% else %}
-        {% if not message.evidence or message.evidence.mode != 'mcp' %}<p style="margin:0; line-height:1.6; white-space:pre-wrap;">{% if message.role == 'assistant' and message.evidence and message.evidence.result.insufficient_context %}I couldn’t find enough information. Try a plant or problem name.{% elif message.role == 'assistant' %}{{ message.content|plant_mentions(sources, message.evidence and message.evidence.result.retrieval and message.evidence.result.retrieval.mode == 'record_comparison') }}{% else %}{{ message.content }}{% endif %}</p>{% endif %}
-        {% if message.evidence %}
+        {% if not message.evidence or message.evidence.mode != 'mcp' %}<p style="margin:0; line-height:1.6; white-space:pre-wrap;">{% if message.role == 'assistant' and message.evidence and message.evidence.result.insufficient_context %}That detail hasn’t made it into my Almanac yet. Try a plant or problem name and I’ll see what we have.{% elif message.role == 'assistant' %}{{ message.content|plant_mentions(sources, message.evidence and message.evidence.result.retrieval and message.evidence.result.retrieval.mode == 'record_comparison') }}{% else %}{{ message.content }}{% endif %}</p>{% endif %}
+        {% if message.evidence and message.evidence.mode != 'conversation' %}
         {% set result = message.evidence.result %}
         {% set mode = message.evidence.mode %}
         {% if mode == 'mcp' %}
@@ -92,7 +92,7 @@
 
 {% else %}
 <div class="text-muted-foreground" style="display:grid; min-height:11rem; place-content:center; text-align:center;">
-    <span aria-hidden="true" style="font-size:1.8rem;">🌱</span>
-    <p style="font-size:0.82rem; margin:0.45rem 0 0;">Ask a question to start your Almanac chat.</p>
+    <span aria-hidden="true" style="font-size:1.8rem;">🐔</span>
+    <p style="font-size:0.82rem; margin:0.45rem 0 0;">Hello, I’m Henny! I can help you explore your saved plant records, compare varieties and find planting dates. What are you growing?</p>
 </div>
 {% endif %}

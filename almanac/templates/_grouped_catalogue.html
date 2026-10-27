@@ -2,9 +2,7 @@
 <a href="{{ url_for('plant_detail', slug=plant.slug) }}" class="variety-card">
     {% if plant.image_url %}<img src="{{ plant.image_url }}" alt="{{ plant.common_name }}" loading="lazy">{% endif %}
     <div class="variety-copy">
-        <p class="variety-scientific">{{ plant.scientific_name }}</p>
         <{{ heading }}>{{ plant.common_name }}</{{ heading }}>
-        {% if plant.summary %}<p class="variety-description">{{ plant.summary }}</p>{% endif %}
     </div>
 </a>
 {% endmacro %}

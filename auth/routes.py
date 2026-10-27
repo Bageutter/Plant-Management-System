@@ -206,7 +206,11 @@ def open_garden(garden_id):
 
     serializer = URLSafeTimedSerializer(current_app.config["INTER_SERVICE_SECRET"], salt=SSO_SALT)
     token = serializer.dumps({"user_id": current_user.id, "email": current_user.email})
-    query = urlencode({"token": token, "next": f"/gardens/{garden_id}/view"})
+    next_path = f"/gardens/{garden_id}/view"
+    crop = (request.args.get("plant") or "").strip()[:120]
+    if crop:
+        next_path += "?" + urlencode({"plant": crop})
+    query = urlencode({"token": token, "next": next_path})
     return redirect(f"{current_app.config['VGARDEN_PUBLIC_URL']}/sso?{query}")
 
 

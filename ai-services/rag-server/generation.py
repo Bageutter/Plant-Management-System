@@ -20,6 +20,7 @@ SYSTEM_PROMPT = (
     "You answer questions for a small home-garden management system using ONLY the "
     "passages supplied in the user message. The passages are records the system has "
     "stored (for example past plant health assessments). Rules:\n"
+    "- My Garden is the owner-accepted catalogue. Use its recorded values as the source of truth; generation history alone must not lower confidence or add warnings. Not applicable does not mean zero yield or safe to eat.\n"
     "- Every statement in your answer must be supported by at least one passage. Cite "
     "the passages you used by their chunk_id in cited_chunk_ids.\n"
     "- Never use outside knowledge to add facts, dates, causes or advice that the passages "
@@ -110,12 +111,15 @@ class OllamaAnswerer:
             f"{json.dumps(grounding, ensure_ascii=False, indent=2)}\n\n"
             f"QUESTION:\n{question}"
         )
+        system_prompt = SYSTEM_PROMPT
+        if grounding.get("passages") and all(p.get("source") == "almanac" for p in grounding["passages"]):
+            system_prompt += " Speak as Henny, a warm, practical garden helper. Do not use em dashes. Use plain language and occasional gentle hen humour, without adding facts or changing citation requirements."
         payload = {
             "model": self.model,
             "stream": False,
             "format": ANSWER_SCHEMA,
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user},
             ],
             "options": {"temperature": 0, "num_predict": self.num_predict},

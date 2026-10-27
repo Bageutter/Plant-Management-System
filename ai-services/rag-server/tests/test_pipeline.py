@@ -321,3 +321,17 @@ def test_inline_citation_metadata_is_removed_without_losing_answer():
     }))
     assert result["answer"] == "Improve airflow."
     assert result["cited_chunk_ids"] == ["almanac:disease:1:record"]
+
+
+def test_comparison_resolves_unique_short_plant_name(store):
+    store.replace_source('almanac', [
+        Chunk('almanac', 'basil', 'reference', 'Basil — plant reference', 'Water needs: moderate.'),
+        Chunk('almanac', 'bamboo-oldhamii', 'reference', 'Bamboo - Oldhamii — plant reference', 'Water needs: moderate.'),
+    ], documents=2)
+    model = FakeAnswerer(AssertionError('Exact comparison should not call a model'))
+    result = pipeline.answer('Compare basil and bamboo', sources=('almanac',), top_k=5,
+                             config=CONFIG, store=store, answerer=model)
+    assert result['retrieval']['mode'] == 'record_comparison'
+    assert len(result['citations']) == 2
+    assert 'Bamboo - Oldhamii' in result['answer']
+    assert not model.groundings

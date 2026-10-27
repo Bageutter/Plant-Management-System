@@ -1,0 +1,7 @@
+{% if plant.soil_ph_min is not none or plant.soil_ph_max is not none %}
+<figure class="ph-visual"><figcaption>Soil pH <strong>{{ '%g'|format(plant.soil_ph_min) if plant.soil_ph_min is not none else '?' }}–{{ '%g'|format(plant.soil_ph_max) if plant.soil_ph_max is not none else '?' }}</strong></figcaption>
+{% if plant.soil_ph_min is not none and plant.soil_ph_max is not none %}
+<div class="ph-scale" role="img" aria-label="Recorded soil pH range {{ plant.soil_ph_min }} to {{ plant.soil_ph_max }}, on a scale of 0 to 14."><span class="ph-range" style="left:{{ [0,[100,plant.soil_ph_min / 14 * 100]|min]|max }}%;width:{{ [0,[100,(plant.soil_ph_max - plant.soil_ph_min) / 14 * 100]|min]|max }}%"></span><span class="ph-neutral" style="left:50%"></span></div>
+<div class="ph-ticks"><span>0 · Acidic</span><span>7 · Neutral</span><span>14 · Alkaline</span></div><p>The outlined band shows this plant’s recorded range.</p>
+{% else %}<p>Only one pH boundary is recorded.</p>{% endif %}</figure>
+{% endif %}
