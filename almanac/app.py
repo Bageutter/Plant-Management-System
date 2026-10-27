@@ -347,6 +347,8 @@ def _render_chat(owner_key: str, error: str | None = None):
 
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__, template_folder="templates")
+    from seasons import planting_seasons
+    app.jinja_env.globals["planting_seasons"] = planting_seasons
     # Behind the nginx proxy this service is mounted under /almanac; honour
     # X-Forwarded-* so url_for()/redirects carry that prefix. No-op without the
     # headers (direct/local runs).
