@@ -190,7 +190,13 @@ def answer(
     if comparison:
         selected = []
         for name in comparison.groups():
-            found = next((c for c in chunks if c.source == "almanac" and c.title.split(" — ")[0].casefold() == name.strip().casefold()), None)
+            name = name.strip().lstrip("@").rstrip("?.!").strip().casefold()
+            records = {c.title.split(" — ")[0].casefold(): c for c in chunks if c.source == "almanac"}
+            found = records.get(name)
+            if found is None:
+                candidates = [c for title, c in records.items() if title.startswith(name + " - ")]
+                if len(candidates) == 1:
+                    found = candidates[0]
             if found:
                 selected.append(found)
         if len(selected) == 2:
@@ -201,7 +207,7 @@ def answer(
                     match = re.search(re.escape(label) + r": ([^.]+)", chunk.text)
                     if match:
                         facts.append(f"{label}: {match.group(1)}.")
-                lines.append(chunk.title.split(" — ")[0] + " — " + " ".join(facts))
+                lines.append(chunk.title.split(" — ")[0] + ": " + " ".join(facts))
             return {"question": question, "answer": "\n\n".join(lines), "confidence": "medium",
                     "confidence_reason": "Direct comparison of the two saved plant records; no growing conditions were inferred.",
                     "model_confidence": None, "insufficient_context": False,

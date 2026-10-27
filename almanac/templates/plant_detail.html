@@ -2,25 +2,23 @@
 
 {% block title %}{{ plant.common_name }} — Almanac{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='plant-detail.css') }}">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='plant-detail.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='henny-garden.css') }}">{% endblock %}
 {% block content %}
-<div class="plant-detail">
-    <a href="{{ url_for('index') }}" class="text-muted-foreground" style="font-size:0.875rem; display:inline-flex; align-items:center; gap:0.3rem; margin-bottom:2rem;">
-        ← Back to Almanac
-    </a>
 
-    {% include "_catalogue_provenance.html" %}
+<div class="plant-detail henny-garden" id="overview">
+    <a href="{{ url_for('index') }}" class="henny-back"><span aria-hidden="true">←</span> Back to Almanac</a>
     <div class="plant-hero">
     {% if plant.image_url %}
-    <figure style="margin:0;"><img src="{{ plant.image_url }}" alt="{{ plant.common_name }}" class="plant-hero-image">
-    {% if plant.image_credit %}<figcaption style="font-size:.8rem; line-height:1.5; margin-top:.5rem;">{{ plant.image_credit.creator }} · {{ plant.image_credit.license }} · <a href="{{ plant.image_credit.description_url }}">photo source ↗</a><br>{{ plant.image_credit.caption }}{% if plant.image_credit.ai_generated == false %}<br>Real photograph · not AI-generated{% endif %}</figcaption>{% endif %}</figure>
+    <figure class="henny-photo" style="margin:0;"><div class="henny-photo-frame"><img src="{{ plant.image_url }}" alt="{{ plant.common_name }}" class="plant-hero-image"><div class="henny-photo-caption"><strong>{{ plant.common_name }}</strong><em>{{ plant.scientific_name }}</em></div><button class="henny-photo-open" type="button" onclick="document.getElementById('plant-photo-dialog').showModal()">▧ View photo</button></div>
+    <dialog id="plant-photo-dialog" class="henny-photo-dialog"><form method="dialog"><button aria-label="Close photo">×</button></form><img src="{{ plant.image_url }}" alt="{{ plant.common_name }}"><p>{{ plant.common_name }} · {{ plant.scientific_name }}</p>{% if plant.image_credit %}<div style="font-size:.8rem; line-height:1.5; margin-top:.5rem;">{{ plant.image_credit.creator }} · {{ plant.image_credit.license }} · <a href="{{ plant.image_credit.description_url }}">photo source ↗</a><br>{{ plant.image_credit.caption }}</div>{% endif %}</dialog>
+    </figure>
     {% endif %}
 
-    <div class="plant-intro">
+    <div class="plant-intro">{% set plant_type = {'canopy':'Tree','subcanopy':'Tree','shrub':'Shrub','vine':'Climber','groundcover':'Groundcover','herbaceous':'Herb'}.get(plant.forest_layer, 'Plant') %}<span class="henny-type">{{ plant_type }}</span><p class="henny-catalogue-number">Almanac · #{{ "%03d"|format(plant.id) }}</p>
     <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
         <div>
-            <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:hsl(var(--muted-foreground)); margin:0 0 0.4rem;">{{ plant.scientific_name }}</p>
-            <h1 style="font-size:2.5rem; font-weight:700; margin:0 0 1.5rem;">{{ plant.common_name }}</h1>
+
+            <h1 style="font-size:clamp(2rem,4vw,3.5rem); font-weight:700; margin:0 0 1rem;">{{ plant.common_name }}</h1><p class="henny-scientific">{{ plant.scientific_name }}</p>
         </div>
         {% if auth_user %}
         <a href="{{ url_for('edit_plant', slug=plant.slug) }}" class="uk-btn uk-btn-primary uk-btn-sm" style="flex:none;">Edit</a>
@@ -36,33 +34,23 @@
         + ([plant.water_needs ~ ' water'] if plant.water_needs else [])
         + ([plant.feeder_type] if plant.feeder_type else [])
         + ([plant.forest_layer] if plant.forest_layer else []) %}
-    {% if tags %}
-    <ul aria-label="Plant tags" style="display:flex; flex-wrap:wrap; gap:0.5rem; list-style:none; padding:0; margin:0 0 1rem;">
-        {% for tag in tags|unique %}
-        <li class="tag">{{ tag|capitalize }}</li>
-        {% endfor %}
-    </ul>
+    {% set shown_tags = tags|unique|list %}
+    {% if shown_tags %}
+    <div class="henny-tags"><ul aria-label="Plant tags">{% for tag in shown_tags[:3] %}<li class="tag">{{ tag|capitalize }}</li>{% endfor %}</ul>
+    {% if shown_tags|length > 3 %}<details class="henny-tags-more"><summary><span class="tags-arrow" aria-hidden="true">⌄</span><span class="tags-more-label">{{ shown_tags|length - 3 }} more tags</span></summary><ul aria-label="More plant tags">{% for tag in shown_tags[3:] %}<li class="tag">{{ tag|capitalize }}</li>{% endfor %}</ul></details>{% endif %}</div>
     {% endif %}
 
     {% if plant.summary %}
     <p style="font-size:1.05rem; line-height:1.7; color:hsl(var(--foreground)); margin:0 0 2.5rem;">{{ plant.summary }}</p>
     {% endif %}
 
-    <div style="padding:1.5rem; border-radius:var(--uk-global-radius); border:1px solid hsl(var(--border)); background-color:hsl(var(--card));">
-        <h2 style="font-size:1rem; font-weight:600; margin:0 0 1rem;">🗓 When to Plant</h2>
-        {% if plant.planting_months %}
-        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
-            {% for month in plant.planting_months %}
-            <span class="tag">{{ month }}</span>
-            {% endfor %}
-        </div>
-        {% elif plant.sowing_notes %}
-        <p>{{ plant.sowing_notes }}</p>
-        {% else %}
-        <p class="text-muted-foreground" style="margin:0; font-size:0.9rem;">No data yet.</p>
-        {% endif %}
-        <p class="text-muted-foreground" style="font-size:0.75rem; margin:1rem 0 0;">Timing depends on your local climate.</p>
+    {% from "_henny_icons.html" import growing_icon %}
+    <div class="henny-facts" aria-label="Growing at a glance">
+      {% for icon,label,value in [('sun','Sun',plant.sun_needs),('water','Water',plant.water_needs),('spacing','Spacing',((plant.in_row_spacing_cm|string) ~ ' cm') if plant.in_row_spacing_cm is not none else none),('planting','Planting',plant.planting_months|join(', '))] %}
+      <div class="henny-fact"><div class="henny-fact-heading">{{ growing_icon(icon) }}<strong>{{ label }}</strong></div><p>{{ value or 'Not recorded' }}</p></div>
+      {% endfor %}
     </div>
+    <aside class="henny-hello" aria-label="Henny's plant fact"><span class="henny-excitement" aria-hidden="true"><i></i><i></i><i></i></span><img class="henny-character" src="{{ url_for('static',filename='henny-hen.png') }}" alt="Henny the helpful hen"><div class="henny-speech"><strong>Did you know?</strong><p>{{ (plant.uses_notes or plant.summary or 'Explore this plant’s saved growing notes with me.').split('\n')[0] }}</p></div></aside>
     </div>
     </div>
     {% if related_varieties|length > 1 %}
@@ -73,6 +61,12 @@
       {% endfor %}
     </nav>
     {% endif %}
-    <div class="plant-sections">{% include "_planning_detail.html" %}</div>
+    <nav class="henny-section-nav" aria-label="Plant sections"><a href="#overview">Overview</a><a href="#growing">Growing</a><a href="#plant-calendar">Planting calendar</a><a href="#plant-sources">Sources</a></nav>
+    <section class="henny-calendar" id="plant-calendar"><h2>🌱 Planting calendar</h2><p>Sydney / warm temperate · saved planting months</p>
+      <div class="henny-months">{% for month in ['January','February','March','April','May','June','July','August','September','October','November','December'] %}<div class="henny-month {% if month in plant.planting_months %}is-planted{% endif %}" aria-label="{{ month }}: {{ 'recorded planting month' if month in plant.planting_months else 'no planting month recorded' }}"><span>{{ month[:3] }}</span><i aria-hidden="true"></i></div>{% endfor %}</div>
+    </section>
+    <div class="plant-sections" id="growing">{% include "_planning_detail.html" %}</div>
+    <section class="henny-story"><img class="henny-story-photo" src="{{ plant.image_url }}" alt=""><div><p class="henny-catalogue-number">From the Almanac</p><h2>A plant with a story</h2><p>{{ plant.summary or plant.uses_notes or 'Keep exploring this plant’s growing notes with Henny.' }}</p><a class="henny-add" href="{{ auth_public_url }}/account?plant={{ plant.common_name|urlencode }}">Add to My Gardens ＋</a><a class="henny-ask" href="{{ url_for('index') }}#henny">Ask Henny →</a></div></section>
+    <div id="plant-sources">{% include "_catalogue_provenance.html" %}</div>
 </div>
 {% endblock %}

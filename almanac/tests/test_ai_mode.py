@@ -77,6 +77,17 @@ class AlmanacAIModeTests(unittest.TestCase):
         self.app.extensions["almanac_ai"] = ai
         return ai
 
+    def test_greeting_is_saved_without_retrieval_or_confidence(self):
+        with patch("app.chat_reference_result") as retrieve:
+            response = self.client.post("/ai/ask", data={"question": "hi henny", "mode": "rag"})
+        self.assertEqual(response.status_code, 200)
+        retrieve.assert_not_called()
+        self.assertIn(b'Henny here', response.data)
+        self.assertNotIn(b'Insufficient context', response.data)
+        self.assertNotIn(b'Evidence &amp; sources', response.data)
+        with self.app.app_context():
+            self.assertEqual(AIChatMessage.query.filter_by(role='assistant').one().evidence['mode'], 'conversation')
+
     def test_rag_chat_saves_evidence_and_displays_confidence(self):
         evidence = {"answer": "Basil needs full sun.", "confidence": "high",
                     "confidence_reason": "Supported by saved records.", "citations": [],
@@ -125,7 +136,7 @@ class AlmanacAIModeTests(unittest.TestCase):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Ask the Almanac", response.data)
+        self.assertIn(b"Ask Henny", response.data)
         self.assertIn(b"ai-chat-launcher", response.data)
         self.assertIn(b"ai-chat-panel", response.data)
         self.assertIn(b"ai-chat-resize-corner", response.data)
@@ -337,7 +348,7 @@ class AlmanacAIModeTests(unittest.TestCase):
         response = self.client.post("/ai/clear")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Ask a question to start your Almanac chat", response.data)
+        self.assertIn(b"What are you growing?", response.data)
 
         with self.app.app_context():
             messages = db.session.query(AIChatMessage).all()

@@ -1,3 +1,4 @@
+import re
 from calendar import month_name
 from datetime import datetime, timezone
 
@@ -125,6 +126,8 @@ class PlantReference(db.Model):
             return value
         lines = [line for line in value.splitlines() if not line.startswith((
             'UNVERIFIED AI PLANNING GUESSES:', 'AI-assisted additions (see field_provenance'))]
+        # Generation provenance stays in the source vault, outside public care text.
+        lines = [re.sub(r'^\s*AI-assisted research,[^\n]*?\):\s*', '', line) for line in lines]
         return '\n'.join(lines).replace('UNVERIFIED AI PLANNING GUESS: ', '').replace('UNVERIFIED AI layout guess: ', '')
 
     def to_dict(self) -> dict:

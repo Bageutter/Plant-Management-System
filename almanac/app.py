@@ -45,6 +45,7 @@ from garden_data import seed_lookups
 from public_seed import fetch_snapshot, import_snapshot
 from catalogue import CHOICES, NUMERIC, TEXT, FIELD_HELP
 from plant_groups import catalogue_view
+from henny import conversational_reply
 from growing_details import parse_details, apply_details
 from models import Ailment, Disease, Pest, PlantCompanion, PlantFunctionTag, PlantUse, RotationGroup
 from problem_guides import DISEASE_GUIDES, PEST_GUIDES
@@ -833,6 +834,15 @@ def create_app(test_config: dict | None = None) -> Flask:
         mode = request.form.get("mode", "planning")
         if mode not in ("planning", "rag", "mcp", "multi_agent"):
             return _render_chat(owner_key, "Choose an answer or reference search."), 400
+        social_reply = conversational_reply(question)
+        if social_reply is not None:
+            db.session.add_all([
+                AIChatMessage(owner_key=owner_key, role="user", content=question),
+                AIChatMessage(owner_key=owner_key, role="assistant", content=social_reply,
+                              evidence={"mode": "conversation", "result": {}}),
+            ])
+            db.session.commit()
+            return _render_chat(owner_key)
         if mode == "multi_agent":
             if not app.config["MULTI_AGENT_ENABLED"]:
                 return _render_chat(owner_key, "Multi-Agent is disabled in this environment."), 503
