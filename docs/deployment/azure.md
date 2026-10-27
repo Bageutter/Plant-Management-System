@@ -276,11 +276,27 @@ smoke script retries for that reason. **auth and vgarden are always kept warm**
 server-to-server, and a cold start there showed up as "Couldn't reach the garden
 service".
 
-`python3 scripts/deploy/azure-e2e.py <public URL>` goes beyond the smoke test and
+`python3 scripts/deploy/azure-e2e.py <public URL> --json-out <evidence.json>` goes beyond the smoke test and
 uses the site like a person, timing each step: register, add a garden, open it
 (SSO), add an area and a planting; the almanac catalogue and logged-in state;
 health plant titles and a record saved "not assessed" with AI-Mode off; the AI
 baseline.
+
+The baseline deployment workflow now runs this check after smoke validation. It
+first requires all three features to report MCP, RAG and Multi-Agent explicitly
+disabled, and Health to report AI-Mode disabled, before registering the throwaway
+account or writing records. Fresh GETs verify persisted Almanac and Health edits;
+deleted records must return 404. The account remains, as documented by the validator.
+The JSON and console transcript are retained in the deployment artifact, including
+on failure. JSON records the target, source SHA, run URL, timestamp and each result.
+The deployment report labels CRUD **unverified** if the JSON belongs to another run,
+revision or target. This is request-to-request persistence evidence; it does not
+prove persistence across a database restart or failover.
+
+Both CRUD and optional AI commands use an explicit Bash shell in Actions, whose
+`pipefail` behaviour preserves Python's failure through `tee`. A green log-upload
+command must not hide a failed validation. Bonus runs skip baseline CRUD; their
+AI output is separate evidence and is not proof of the required AI-off baseline.
 
 ### Before a demo or marking: keep everything warm
 

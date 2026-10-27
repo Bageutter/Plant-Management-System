@@ -718,6 +718,7 @@ def integrations_status():
     agents = current_app.extensions["multi_agent"]
     return jsonify(
         {
+            "ai_mode": {"enabled": _ai_mode_enabled()},
             "mcp": {"enabled": mcp.enabled, "url": mcp.url, "reachable": probe(mcp, mcp.list_tools)},
             "rag": {"enabled": rag.enabled, "url": rag.base_url, "reachable": probe(rag, rag.status)},
             # Release 2: the shared Multi-Agent Server, reached through workflows.py.

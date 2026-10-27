@@ -25,10 +25,18 @@ smoke=pass
 if ! bash "$here/azure-smoke.sh"; then
   smoke=fail
 fi
+crud=pass
+if [[ $DEPLOY_PROFILE == baseline && $smoke == pass ]]; then
+  mkdir -p "$REPORT_DIR"
+  if ! GITHUB_SHA=$(git -C "$ROOT" rev-parse HEAD) python3 "$here/azure-e2e.py" "$(apps_output appUrl)" \
+    --json-out "$REPORT_DIR/e2e-crud.json" | tee "$REPORT_DIR/e2e-crud.txt"; then
+    crud=fail
+  fi
+fi
 bash "$here/azure-report.sh" "$smoke"
 
-if [[ $smoke == fail ]]; then
-  echo "Deployment rolled out but the smoke test failed; see the report above." >&2
+if [[ $smoke == fail || $crud == fail ]]; then
+  echo "Deployment rolled out but validation failed (smoke=$smoke, CRUD=$crud); see the report above." >&2
   exit 1
 fi
 echo "Deployment complete: $(apps_output appUrl)"

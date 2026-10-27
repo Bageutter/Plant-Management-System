@@ -20,6 +20,19 @@ env:
   RAG_ENABLED: "false"
 
 jobs:
+  deployment-validation:
+    name: Validate cloud checks and evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s scripts/deploy/tests -v
+      - run: python -m unittest discover -s tools/ai-loop/tests -v
+      - run: bash -n scripts/deploy/azure-deploy.sh
+
   validate-compose:
     name: Validate and build Compose stack
     runs-on: ubuntu-latest

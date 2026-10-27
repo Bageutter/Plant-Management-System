@@ -20,9 +20,12 @@ It creates a throwaway account and garden (kept, like the agentic-loop checks).
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib import error, request
 
@@ -39,7 +42,7 @@ def check(ok: bool, message: str) -> None:
         raise AssertionError(message)
 
 
-def step(name: str, fn):
+def step(name: str, fn) -> bool:
     started = time.monotonic()
     try:
         detail = fn() or ""
@@ -51,12 +54,62 @@ def step(name: str, fn):
     flag = "PASS" if ok else "FAIL"
     slow = "  (slow)" if ok and seconds > SLOW_SECONDS else ""
     print(f"  {flag}  {seconds:5.1f}s  {name}{slow}" + (f"\n          {detail}" if detail else ""), flush=True)
+    return ok
+
+
+def validate_baseline(get) -> str:
+    """Fail closed before registering users or writing records on an AI profile."""
+    for feature, path in (
+        ("vgarden", "/vgarden/integrations"),
+        ("almanac", "/almanac/integrations"),
+        ("health", "/health/plant-health-records/integrations"),
+    ):
+        status, body = get(path, "application/json")
+        check(status == 200, f"{feature} integrations: HTTP {status}")
+        flags = json.loads(body)
+        check(isinstance(flags, dict), f"{feature}: invalid integrations object")
+        for mode in ("mcp", "rag", "multi_agent"):
+            entry = flags.get(mode)
+            check(isinstance(entry, dict) and entry.get("enabled") is False,
+                  f"{feature}: {mode} must explicitly report enabled=false")
+        if feature == "health":
+            check(isinstance(flags.get("ai_mode"), dict)
+                  and flags["ai_mode"].get("enabled") is False,
+                  "health AI-Mode must explicitly report disabled before CRUD")
+    return "all three features: MCP/RAG/Multi-Agent off; Health AI-Mode off"
+
+
+def save_results(base: str, output: Path | None) -> None:
+    if output is None:
+        return
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps({
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "target": base,
+        "commit": os.environ.get("GITHUB_SHA", "unknown"),
+        "workflow_run_url": (
+            f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+            f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/"
+            f"{os.environ.get('GITHUB_RUN_ID', '')}"
+        ) if os.environ.get("GITHUB_RUN_ID") else "",
+        "result": "pass" if results and all(ok for _, ok, _, _ in results) else "fail",
+        "passed": sum(ok for _, ok, _, _ in results),
+        "total": len(results),
+        "checks": [{"name": name, "result": "pass" if ok else "fail",
+                    "seconds": seconds, "detail": detail}
+                   for name, ok, seconds, detail in results],
+    }, indent=2) + "\n", encoding="utf-8")
 
 
 def main() -> int:
-    if len(sys.argv) != 2 or not sys.argv[1].startswith("https://"):
-        sys.exit("Usage: python3 scripts/deploy/azure-e2e.py https://<public proxy host>")
-    base = sys.argv[1].rstrip("/")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("base", help="HTTPS URL of the public proxy")
+    parser.add_argument("--json-out", type=Path, help="write timestamped CRUD evidence, even on failure")
+    args = parser.parse_args()
+    if not args.base.startswith("https://"):
+        parser.error("the public proxy URL must use HTTPS")
+    base = args.base.rstrip("/")
+    results.clear()
     session = VgardenSession(f"{base}/auth", f"{base}/vgarden", timeout=60)
     opener = session.opener
 
@@ -80,11 +133,17 @@ def main() -> int:
 
     print(f"End-to-end check of {base}")
 
+    if not step("cloud baseline preflight (before any writes)", lambda: validate_baseline(get)):
+        save_results(base, args.json_out)
+        return 1
+
     # auth + vgarden: the whole garden journey, across both services
     def journey():
         info = session.bootstrap()
         return f"account {info['email']}, garden {info['garden_id']} with an area and a Tomato planting"
-    step("register, add a garden, open it (SSO), add an area and a planting", journey)
+    if not step("register, add a garden, open it (SSO), add an area and a planting", journey):
+        save_results(base, args.json_out)
+        return 1
 
     def account_lists_garden():
         status, html = get("/auth/account")
@@ -167,7 +226,10 @@ def main() -> int:
         status, body = send("PATCH", f"/almanac/api/plants/{slug}", {"summary": "Updated by the e2e check."})
         check(status == 200 and json.loads(body).get("summary") == "Updated by the e2e check.", f"update: HTTP {status}")
         status, body = get(f"/almanac/api/plants/{slug}", "application/json")
-        check(status == 200 and json.loads(body)["common_name"] == name, f"read: HTTP {status}")
+        saved = json.loads(body)
+        check(status == 200 and saved.get("common_name") == name
+              and saved.get("summary") == "Updated by the e2e check.",
+              f"persisted update missing on fresh read: HTTP {status}")
         status, body = send("DELETE", f"/almanac/api/plants/{slug}")
         check(status in (200, 204), f"delete: HTTP {status}: {body[:200]}")
         check(get(f"/almanac/api/plants/{slug}", "application/json")[0] == 404, "plant still readable after delete")
@@ -213,8 +275,13 @@ def main() -> int:
         status, body = send("PATCH", f"/health/plant-health-records/assessments/{record['id']}",
                             {"description": "Wilting at noon; soil dry."})
         check(status == 200 and "soil dry" in body, f"update: HTTP {status}: {body[:200]}")
+        status, body = get(f"/health/plant-health-records/assessments/{record['id']}", "application/json")
+        check(status == 200 and json.loads(body).get("description") == "Wilting at noon; soil dry.",
+              f"persisted update missing on fresh read: HTTP {status}")
         status, body = send("DELETE", f"/health/plant-health-records/assessments/{record['id']}")
         check(status in (200, 204), f"delete: HTTP {status}: {body[:200]}")
+        check(get(f"/health/plant-health-records/assessments/{record['id']}", "application/json")[0] == 404,
+              "record still readable after delete")
     step("health: read, update and delete the record", health_record_read_delete)
 
     def garden_delete():
@@ -228,18 +295,14 @@ def main() -> int:
     step("auth + vgarden: delete the garden (auth -> vgarden)", garden_delete)
 
     # cloud baseline
-    def baseline():
-        status, body = get("/vgarden/integrations", "application/json")
-        flags = {k: v.get("enabled") for k, v in json.loads(body).items()}
-        check(status == 200 and not any(flags.values()), f"AI services enabled: {flags}")
-        return str(flags)
-    step("cloud baseline: MCP, RAG and Multi-Agent are off", baseline)
+    step("cloud baseline still disabled after CRUD", lambda: validate_baseline(get))
 
     failed = [name for name, ok, _, _ in results if not ok]
     slow = [name for name, ok, seconds, _ in results if ok and seconds > SLOW_SECONDS]
     total = sum(seconds for _, _, seconds, _ in results)
     print(f"\n{len(results) - len(failed)}/{len(results)} passed in {total:.1f}s"
           + (f"; slow (> {SLOW_SECONDS:.0f}s): {', '.join(slow)}" if slow else ""))
+    save_results(base, args.json_out)
     return 1 if failed else 0
 
 
