@@ -8,7 +8,8 @@ def planting_seasons(months):
     numbers = {i for i, name in enumerate(month_name) if i and any(
         str(value).casefold() in (name.casefold(), name[:3].casefold()) for value in months)}
     selected = [(name, colour) for name, values, colour in groups if numbers & values]
-    label = 'Year-round' if len(numbers) == 12 else ' + '.join(name for name, _ in selected)
+    label = 'Year-round' if len(selected) == 4 else ' + '.join(name for name, _ in selected)
     colors = [colour for _, colour in selected] or ['#edf1e6']
-    return {'label': label or 'Not recorded', 'names': [name for name, _ in selected],
-            'background': 'linear-gradient(120deg, ' + ', '.join(colors if len(colors)>1 else colors*2) + ')'}
+    year_round = len(selected) == 4
+    return {'label': label or 'Not recorded', 'names': [] if year_round else [name for name, _ in selected],
+            'background': '#eaf1dc' if year_round else 'linear-gradient(120deg, ' + ', '.join(colors if len(colors)>1 else colors*2) + ')'}

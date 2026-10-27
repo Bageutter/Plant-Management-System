@@ -18,3 +18,10 @@ def test_empty_months_do_not_invent_a_season():
 def test_all_months_are_year_round():
     from calendar import month_name
     assert planting_seasons(list(month_name)[1:])['label'] == 'Year-round'
+
+
+def test_four_seasons_use_one_solid_year_round_card():
+    value = planting_seasons(['January', 'April', 'July', 'October'])
+    assert value['label'] == 'Year-round'
+    assert value['names'] == []
+    assert value['background'] == '#eaf1dc'

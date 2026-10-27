@@ -1,7 +1,18 @@
-{% if plant.soil_ph_min is not none or plant.soil_ph_max is not none %}
-<figure class="ph-visual"><figcaption>Soil pH <strong>{{ '%g'|format(plant.soil_ph_min) if plant.soil_ph_min is not none else '?' }}–{{ '%g'|format(plant.soil_ph_max) if plant.soil_ph_max is not none else '?' }}</strong></figcaption>
-{% if plant.soil_ph_min is not none and plant.soil_ph_max is not none %}
-<div class="ph-scale" role="img" aria-label="Recorded soil pH range {{ plant.soil_ph_min }} to {{ plant.soil_ph_max }}, on a scale of 0 to 14."><span class="ph-range" style="left:{{ [0,[100,plant.soil_ph_min / 14 * 100]|min]|max }}%;width:{{ [0,[100,(plant.soil_ph_max - plant.soil_ph_min) / 14 * 100]|min]|max }}%"></span><span class="ph-neutral" style="left:50%"></span></div>
-<div class="ph-ticks"><span>0 · Acidic</span><span>7 · Neutral</span><span>14 · Alkaline</span></div><p>The outlined band shows this plant’s recorded range.</p>
-{% else %}<p>Only one pH boundary is recorded.</p>{% endif %}</figure>
+{% set low = plant.soil_ph_min %}{% set high = plant.soil_ph_max %}
+{% if low is not none or high is not none %}
+<figure class="ph-visual ph-dial-card">
+<figcaption>Soil pH</figcaption>
+{% if low is not none and high is not none %}
+{% set midpoint = (low + high) / 2 %}
+<p class="ph-dial-description">{% if low >= 6 and high == 7 %}Slightly acidic to neutral{% elif high < 7 %}Acidic soil{% elif low > 7 %}Alkaline soil{% elif low == 7 and high == 7 %}Neutral soil{% elif low < 7 and high == 7 %}Acidic to neutral{% elif low == 7 %}Neutral to alkaline{% else %}Acidic to alkaline{% endif %}</p>
+<svg class="ph-dial" viewBox="0 0 240 170" role="img" aria-label="Preferred soil pH {{ '%g'|format(low) }} to {{ '%g'|format(high) }} on a scale from 0 to 14">
+<path d="M25 125 A95 95 0 0 1 215 125" pathLength="14" fill="none" stroke="#e4dfcb" stroke-width="15" stroke-linecap="round"/>
+{% if high > low %}<path d="M25 125 A95 95 0 0 1 215 125" pathLength="14" fill="none" stroke="#729951" stroke-width="15" stroke-linecap="round" stroke-dasharray="{{ high - low }} 28" stroke-dashoffset="{{ -low }}"/>{% endif %}
+<circle cx="25" cy="125" r="4.5" transform="rotate({{ midpoint / 14 * 180 }} 120 125)" fill="#416d38" stroke="#fffaf0" stroke-width="2"/>
+<text class="ph-dial-value" x="120" y="107" text-anchor="middle">{{ '%g'|format(low) }}{% if low != high %}–{{ '%g'|format(high) }}{% endif %}</text>
+<text class="ph-dial-caption" x="120" y="127" text-anchor="middle">preferred range</text>
+<text class="ph-dial-caption" x="15" y="156">0 · Acidic</text><text class="ph-dial-caption" x="225" y="156" text-anchor="end">14 · Alkaline</text>
+</svg>
+{% else %}<p>{{ 'Minimum' if low is not none else 'Maximum' }} pH {{ '%g'|format(low if low is not none else high) }}</p>{% endif %}
+</figure>
 {% endif %}
