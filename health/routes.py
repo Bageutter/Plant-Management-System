@@ -87,6 +87,8 @@ def healthz():
             # Startup preload progress: not_started / pending / loading / retrying /
             # loaded / failed. "loaded" means the first assessment will be warm.
             "preload": getattr(client, "preload_state", None),
+            # Which models Ollama has downloaded (a cold cloud replica pulls them first).
+            "models_available": (client.available_models() if ai_up and hasattr(client, "available_models") else []),
         },
     }
     return jsonify(body), 200 if ai_up else 503

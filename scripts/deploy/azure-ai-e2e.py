@@ -20,6 +20,7 @@ zero, so each step waits generously. The output is the bonus evidence
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
@@ -96,31 +97,55 @@ def main() -> int:
     step("the feature backends are wired to the cloud AI services", wiring)
 
     def model_ready():
-        # Ollama scales from zero and, on its very first start, downloads the models.
-        deadline, last = time.monotonic() + 1200, ""
+        # Ollama scales from zero and, on its very first start, downloads both models
+        # (~6 GB onto the file share), so wait until it lists them.
+        want = [os.environ.get("CLOUD_TEXT_MODEL", "qwen3:4b-instruct"),
+                os.environ.get("CLOUD_VISION_MODEL", "qwen2.5vl:3b")]
+        deadline, last = time.monotonic() + 3600, ""
         while time.monotonic() < deadline:
             try:
                 status, body = call("GET", "/health/healthz", timeout=60)
-                last = f"{status} {short(body, 200)}"
+                last = f"{status} {short(body, 300)}"
                 if status == 200:
-                    return f"health -> Ollama: {json.loads(body)['ai']}"
+                    # Older health images do not list the models: reachable is all they say.
+                    present = json.loads(body)["ai"].get("models_available")
+                    if present is None or all(m in present for m in want):
+                        return f"health -> Ollama {json.loads(body)['ai']['url']}: models {present}"
             except OSError as exc:
                 last = str(exc)
-            time.sleep(15)
-        raise AssertionError(f"Ollama not reachable after 20 min: {last}")
-    step("cloud Ollama is reachable from Plant Health", model_ready)
+            time.sleep(30)
+        raise AssertionError(f"models not ready after 60 min: {last}")
+    step("cloud Ollama is reachable and has both models", model_ready)
 
     def ai_mode_assessment():
         # Text-only assessment: the vision model runs inside the agentic loop. Streamed,
         # like the records page, so progress keeps the connection alive.
-        status, body = call("POST", f"{RECORDS}/assessments/stream", {
-            "plant_ref": plant,
-            "description": "Lower leaves turning yellow with brown spots; soil stays wet for days.",
-        }, form=True, timeout=600, headers={"Accept": "text/event-stream"})
-        check(status == 200, f"stream -> {status}: {short(body)}")
-        events = [json.loads(p[6:]) for p in body.split("\n\n") if p.startswith("data: ")]
-        done = [e for e in events if e.get("type") == "done"]
-        check(done, f"no final event: {short(body)}")
+        # Read it event by event and stop at the final one, as the page's script does
+        # (waiting for the connection to close can hang behind the cloud ingress).
+        from urllib.parse import urlencode
+        req = request.Request(base + f"{RECORDS}/assessments/stream", method="POST",  # noqa: S310 -- https only
+                              data=urlencode({
+                                  "plant_ref": plant,
+                                  "description": "Lower leaves turning yellow with brown spots; soil stays wet for days.",
+                              }).encode(),
+                              headers={"Content-Type": "application/x-www-form-urlencoded",
+                                       "Accept": "text/event-stream"})
+        phases, done = [], None
+        with opener.open(req, timeout=600) as response:
+            check(response.status == 200, f"stream -> {response.status}")
+            for raw in response:
+                line = raw.decode("utf-8", "replace").strip()
+                if not line.startswith("data: "):
+                    continue
+                event = json.loads(line[6:])
+                if event.get("type") == "phase":
+                    phases.append(f"{event['phase']}#{event.get('iteration')}")
+                elif event.get("type") == "error":
+                    raise AssertionError(f"stream error: {event.get('message')}")
+                elif event.get("type") == "done":
+                    done = event
+                    break
+        check(done, "no final event")
         status, body = call("GET", f"{RECORDS}/assessments?plant_ref={plant.replace(' ', '%20')}")
         record = json.loads(body)[0]
         check(record["model"] and "none" not in record["model"], f"no model ran: {record['model']}")
@@ -128,7 +153,8 @@ def main() -> int:
         return (f"record {record['id']} by {record['model']}: status {record['status']}, "
                 f"score {record['health_score']}, confidence {record['confidence']}\n"
                 f"summary: {short(record['summary'])}\n"
-                f"loop: {short(json.dumps(record.get('loop')), 400)}")
+                f"loop: {short(json.dumps(record.get('loop')), 400)}\n"
+                f"streamed phases: {' -> '.join(phases)}")
     step("B1 AI-Mode: Plant Health assessment by the cloud model (agentic loop)", ai_mode_assessment)
 
     def ai_mode_chat():
