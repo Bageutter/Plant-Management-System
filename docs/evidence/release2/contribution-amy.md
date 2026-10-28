@@ -1,7 +1,5 @@
 # Contribution log: Amy Zhou
 
-**Confirmed by Amy Zhou on 28 October 2026.**
-
 For Release 2, I built the shared Multi-Agent Server and connected it to the
 Almanac chat, including source checks, human decisions, workflow history and the
 dashboard. I added the shared security hooks and Almanac endpoint tests, improved
