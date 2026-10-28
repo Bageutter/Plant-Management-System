@@ -1,7 +1,14 @@
 # Contribution log: Amy Zhou
 
-> **Draft for Amy to confirm.** Compiled by Yunus from Amy's commits and PRs on `main`;
-> Amy should check every row, correct anything wrong and add work that is not in Git.
+**Confirmed by Amy Zhou on 28 October 2026.**
+
+For Release 2, I built the shared Multi-Agent Server and connected it to the
+Almanac chat, including source checks, human decisions, workflow history and the
+dashboard. I added the shared security hooks and Almanac endpoint tests, improved
+RAG retrieval, and made sure the cloud catalogue is populated on startup. I also
+refreshed the Testing Review evidence, recorded my acceptance and added full cloud
+CRUD validation. My later Almanac work shows live agent stages, readable role
+outputs and explicit review choices in chat.
 
 Release 2, Assessment 3. Feature: **Plant Almanac** (`almanac/`), plus the shared
 Multi-Agent Server (`ai-services/multi-agent-server/`), the shared pre-commit security
@@ -17,6 +24,8 @@ hooks and the shared RAG server's embeddings.
 | 22 Oct | `d2f37ff` (#67) | 1 | Shared Almanac chat and ailment (pest/disease) reference pages. | `almanac/` |
 | 22 Oct | `aab0394` (#90) | 7 Cloud | My Garden catalogue refreshed at start-up so the cloud database is populated. | `almanac/` |
 | 22 Oct | `dff9599`, `c868b79` | 8 Testing review | Refreshed the Testing review evidence and recorded the human decision (**accept**) on it. | [`testing-review.md`](testing-review.md) |
+| 27 Oct | `55d82fb` (#112) | 7 Cloud | Added required full-cloud CRUD validation after deployment and preserved failed validation output so a failing check cannot appear successful. | `scripts/deploy/azure-e2e.py`, `.github/workflows/cloud-deployment.yml` |
+| 27 Oct | `36a2479`, `13f9778`, `69faca0` | 1–2 Multi-Agent | Added live Almanac agent stages, explicit human-review choices, an explicit validation-loop chat mode and readable output cards for each agent. | `almanac/`, `ai-services/multi-agent-server/` |
 
 ## Evidence
 
