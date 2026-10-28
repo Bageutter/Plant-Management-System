@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from datetime import datetime
 
 import httpx
+import click
 
 from flask import (
     Flask,
@@ -892,7 +893,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         all_records = PlantReference.query.order_by(PlantReference.common_name).all()
         records = _records_for_question(question, all_records)
         plants = [record.to_dict() for record in records]
-        context_plants = plants
+        context_plants = [{key: value for key, value in plant.items() if key != 'catalogue_reference_values'} for plant in plants]
+        for plant in context_plants:
+            plant['field_provenance'] = {key: {k: e.get(k) for k in ['method', 'review_status', 'sources']}
+                                         for key, e in plant.get('field_provenance', {}).items()}
         history = [{"role": m.role, "content": m.content} for m in _chat_history(owner_key)]
         current_month = datetime.now().strftime("%B")
         required_answer_items = []
@@ -900,7 +904,9 @@ def create_app(test_config: dict | None = None) -> Flask:
             # A current-month list only needs names and planting dates, not care notes
             # or earlier conversations that can overflow the local model's context.
             context_plants = [
-                {key: plant[key] for key in ("slug", "common_name", "planting_months")}
+                {key: plant[key] for key in ("slug", "common_name", "planting_months")} | (
+                    {"field_provenance": {"planting_months": plant['field_provenance']['planting_months']}, "estimated_fields": ["planting_months"]}
+                    if plant.get('field_provenance', {}).get('planting_months') else {})
                 for plant in plants
             ]
             history = []
@@ -1095,18 +1101,29 @@ def create_app(test_config: dict | None = None) -> Flask:
             seed_reference_data()
 
     @app.cli.command("import-my-garden")
-    def import_my_garden_command():
+    @click.option('--previous-snapshot', type=click.Path(exists=True), default=None,
+                               help='Refresh values matching this former public snapshot; preserve local edits.')
+    def import_my_garden_command(previous_snapshot=None):
         """Add public My Garden plants and fill gaps while preserving local values."""
         import click
 
         try:
+            previous = None
+            if previous_snapshot:
+                import json
+                from pathlib import Path
+                previous = json.loads(Path(previous_snapshot).read_text())
+            credits_url = app.config["MY_GARDEN_SEED_URL"].rsplit('/snapshots/', 1)[0] + '/localdata/plant-image-sources.json'
+            image_sources = []
+            if '/snapshots/' in app.config["MY_GARDEN_SEED_URL"]:
+                image_sources = fetch_snapshot(credits_url, app.config["MY_GARDEN_SEED_TIMEOUT"]).get('images', [])
             imported = import_snapshot(
                 fetch_snapshot(
                     app.config["MY_GARDEN_SEED_URL"],
                     app.config["MY_GARDEN_SEED_TIMEOUT"],
                 ),
                 app.config["MY_GARDEN_IMAGE_BASE_URL"],
-                add_missing=True,
+                add_missing=True, previous_snapshot=previous, image_sources=image_sources,
             )
         except Exception as exc:
             db.session.rollback()

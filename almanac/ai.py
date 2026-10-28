@@ -18,7 +18,7 @@ ANSWER_SCHEMA = {
 
 
 SYSTEM_PROMPT = """You are the read-only AI assistant for a Plant Almanac.
-Answer only from the plant records supplied by the application. Never invent care,
+Answer only from the plant records supplied by the application. My Garden is the owner-accepted catalogue. Use its recorded values as the source of truth; generation history alone does not require warnings or reduced confidence. not_applicable_fields is not a zero yield or a food-safety claim. Never invent care,
 climate, safety, or planting facts. If the records do not support the answer, say:
 \"I don't have enough information in the Plant Almanac to answer that yet.\"
 When asked when to plant something, list every stored planting month unless the
@@ -48,9 +48,11 @@ def sources_for_text(text: str, plants: list[dict]) -> list[str]:
 
 def enforce_answer_requirements(answer: str, grounding: dict) -> str:
     """Replace an incomplete current-month list with one built from its evidence."""
+    def labelled(text):
+        return text
     required = grounding.get("required_answer_items", [])
     if not required:
-        return answer
+        return labelled(answer)
 
     answer_lower = answer.casefold()
 
@@ -67,7 +69,7 @@ def enforce_answer_requirements(answer: str, grounding: dict) -> str:
     if all(count(item) == 1 for item in required) and not any(
         count(item) for item in other_plants
     ):
-        return answer
+        return labelled(answer)
 
     if len(required) == 1:
         plant_list = required[0]
@@ -75,7 +77,7 @@ def enforce_answer_requirements(answer: str, grounding: dict) -> str:
         plant_list = f"{required[0]} and {required[1]}"
     else:
         plant_list = ", ".join(required[:-1]) + f", and {required[-1]}"
-    return f"In {grounding['current_month']}, you can plant {plant_list}."
+    return labelled(f"In {grounding['current_month']}, you can plant {plant_list}.")
 
 
 class OllamaAlmanacAI:

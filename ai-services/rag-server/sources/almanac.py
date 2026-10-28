@@ -120,6 +120,15 @@ def chunk_for(detail: dict, public_url: str) -> Chunk:
 
     if kind == "plant":
         record = detail["record"]
+        evidence = record.get('field_provenance') or {}
+        guesses = [field for field, item in evidence.items() if item.get('method') == 'ai_planning_estimate']
+        metadata['contains_ai_planning_estimates'] = bool(guesses)
+        metadata['generated_fields'] = record.get('generated_fields') or []
+        metadata['not_applicable_fields'] = record.get('not_applicable_fields') or {}
+        if guesses:
+            lines.append('My Garden is the owner-accepted catalogue. Use its recorded values as the source of truth; generation history is retained in the source repository.')
+        for field, reason in metadata['not_applicable_fields'].items():
+            lines.append(f'Not applicable — {field}: {reason}')
         fields = {
             "scientific_name": "Scientific name",
             "family": "Family",

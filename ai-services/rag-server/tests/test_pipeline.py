@@ -321,3 +321,14 @@ def test_inline_citation_metadata_is_removed_without_losing_answer():
     }))
     assert result["answer"] == "Improve airflow."
     assert result["cited_chunk_ids"] == ["almanac:disease:1:record"]
+
+
+def test_accepted_catalogue_preserves_evidence_confidence():
+    chunk = Chunk(source='almanac', source_id='plant:basil', part='record',
+                  title='Basil — plant reference', text='Water needs: moderate.', url='http://example.test/basil',
+                  metadata={'contains_ai_planning_estimates': True})
+    result = pipeline._with_provenance({'answer':'Basil needs moderate water.', 'confidence':'high'}, [chunk])
+    assert result['answer'] == 'Basil needs moderate water.'
+    assert result['confidence'] == 'high'
+    low = pipeline._with_provenance({'answer': 'Limited evidence.', 'confidence': 'low'}, [chunk])
+    assert low['confidence'] == 'low'

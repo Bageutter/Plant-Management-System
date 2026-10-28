@@ -1,0 +1,5 @@
+<aside aria-label="Catalogue source" style="padding:1rem; margin:1rem 0;">
+<details><summary>My Garden source and applicability notes</summary>
+<p>My Garden is the accepted catalogue for this application. Generation history is retained in the source repository.</p>
+{% if plant.not_applicable_fields %}<ul>{% for field, reason in plant.not_applicable_fields.items() %}<li><strong>{{ field|replace('_',' ') }}</strong>: {{ reason }}</li>{% endfor %}</ul>{% endif %}
+</details></aside>

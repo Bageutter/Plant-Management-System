@@ -413,7 +413,7 @@ def test_upgrade_preserves_legacy_rows_and_maps_rotation(tmp_path):
         assert plant.yield_qty is None
         assert plant.image.filename == "original.png"
         assert plant.planting_months[0].month_number == 3
-        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "008"
+        assert db.session.execute(text("SELECT version_num FROM alembic_version")).scalar() == "009"
         assert any(
             c["name"] == "ck_yield_qty_positive"
             for c in inspect(db.engine).get_check_constraints("plant_references")
@@ -634,3 +634,66 @@ def test_startup_refreshes_existing_catalogue_and_survives_offline(tmp_path, mon
     third = create_app(config)
     with third.app_context():
         assert PlantReference.query.filter_by(slug="startup-new").count() == 1
+
+
+def test_public_refresh_retains_flags_and_preserves_local_edits(app):
+    from copy import deepcopy
+    baseline = _public_snapshot()
+    baseline['tables']['plant_references'][0].update(water_needs='low', care_notes='Old public care')
+    import_snapshot(baseline, 'https://images.test/', add_missing=True)
+    plant = PlantReference.query.filter_by(slug='test-tomato').one()
+    plant.summary = 'My custom wording'
+    db.session.commit()
+    latest = deepcopy(baseline)
+    latest['exported_at'] = '2026-10-23T00:00:00+00:00'
+    row = latest['tables']['plant_references'][0]
+    row.update(water_needs='moderate', care_notes='New public care', part_used='leaves',
+               generated_fields=['water', 'summary'], estimated_fields='["water_needs"]',
+               field_provenance={'water': {'method':'ai_planning_estimate', 'review_status':'needs_review', 'sources':[]},
+                                 'summary': {'method':'ai_assisted_research', 'review_status':'needs_review', 'sources':['https://example.test/']}},
+               not_applicable_fields={'yield_qty':'Ornamental plan; no food yield target.'})
+    credit = {'plant_reference_id':10, 'filename':'test-tomato.jpg', 'creator':'Photo Author', 'license':'CC0', 'caption':'Representative', 'description_url':'https://example.test/photo', 'ai_generated':False}
+    import_snapshot(latest, 'https://images.test/', add_missing=True, previous_snapshot=baseline, image_sources=[credit])
+    assert plant.summary == 'My custom wording'
+    assert plant.water_needs == 'moderate'
+    assert plant.part_used == 'leaves'
+    payload = plant.to_dict()
+    assert payload['field_provenance']['water']['method'] == 'ai_planning_estimate'
+    assert 'summary' not in payload['field_provenance']
+    assert 'summary' in payload['catalogue_local_overrides']
+    assert payload['not_applicable_fields']['yield_qty']
+    response = app.test_client().get('/plants/test-tomato')
+    assert response.status_code == 200
+    assert b'My Garden is the accepted catalogue' in response.data
+    assert b'AI planning guesses' not in response.data
+    assert b'Not applicable' in response.data
+    assert b'Photo Author' in response.data
+    assert app.test_client().get('/api/plants/test-tomato').json['field_provenance']['water']['sources'] == []
+    plant.water_needs = 'high'
+    db.session.commit()
+    import_snapshot(latest, 'https://images.test/', add_missing=True)
+    assert plant.water_needs == 'high'
+    assert 'water' not in plant.to_dict()['field_provenance']
+
+
+def test_ai_answer_uses_owner_accepted_catalogue():
+    from ai import enforce_answer_requirements
+    result = enforce_answer_requirements('Plant basil in October.', {'plant_records':[
+        {'common_name':'Basil', 'field_provenance': {'planting_months':{'method':'ai_planning_estimate'}}}]})
+    assert result == 'Plant basil in October.'
+
+
+def test_explicit_previous_snapshot_can_recover_a_legacy_import_baseline(app):
+    from copy import deepcopy
+    baseline = _public_snapshot()
+    baseline['tables']['plant_references'][0]['care_notes'] = 'Old public care'
+    import_snapshot(baseline, add_missing=True)
+    plant = PlantReference.query.filter_by(slug='test-tomato').one()
+    plant.catalogue_provenance = None
+    db.session.commit()
+    latest = deepcopy(baseline)
+    latest['tables']['plant_references'][0]['care_notes'] = 'New public care'
+    import_snapshot(latest, add_missing=True)
+    assert plant.care_notes == 'Old public care'
+    import_snapshot(latest, add_missing=True, previous_snapshot=baseline)
+    assert plant.care_notes == 'New public care'
