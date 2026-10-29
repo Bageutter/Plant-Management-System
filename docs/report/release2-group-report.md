@@ -340,5 +340,5 @@ through `tee`; it still needs deployment validation.
 
 ## 14. Showcase video URL
 
-**[group]** Published URL (max 10 minutes, all students). Plan and shot list:
-`docs/report/showcase-video-plan.md`.
+**[group]** Published URL (max 10 minutes, all students). Script:
+`docs/evidence/release2/video-script.md` (earlier shot list: `docs/report/showcase-video-plan.md`).
